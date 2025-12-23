@@ -19,12 +19,7 @@
     "db:seed": "node dist/seed.js",
     "build": "tsc",
     "postbuild": "pnpm db:seed || true",
-    "check-types": "tsc --noEmit --project tsconfig.json",
-    "check-types:test": "tsc --noEmit --project tsconfig.test.json",
-    "test": "echo 'Skipping DB tests' && exit 0",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:cov": "vitest run --coverage"
+    "check-types": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
     "bcrypt": "^5.1.1",
@@ -36,10 +31,8 @@
     "@vcecom/typescript-config": "workspace:*",
     "@types/node": "^22.15.3",
     "@types/pg": "^8.11.10",
-    "@vitest/ui": "^2.1.8",
     "drizzle-kit": "^0.30.0",
     "tsx": "^4.19.2",
-    "typescript": "5.9.2",
-    "vitest": "^2.1.8"
+    "typescript": "5.9.2"
   }
 }

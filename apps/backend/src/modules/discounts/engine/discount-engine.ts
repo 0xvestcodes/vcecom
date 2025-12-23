@@ -98,13 +98,17 @@ export function runDiscountEngine(
   if (eligible.length === 0) {
     // No discounts, return items as-is
     const lineItems = createUndiscountedLineItems(cart.items);
+    const shippingCost = input.shippingCost || 0;
 
     return {
       lineItems,
       cartDiscounts: [],
       subtotal: initialSubtotal,
+      subtotalDiscounts: [],
+      totalDiscounts: [],
+      shippingCost,
       discountTotal: 0,
-      total: initialSubtotal,
+      total: initialSubtotal + shippingCost,
       appliedDiscountIds: [],
       breakdown: {
         lineItems,
@@ -172,27 +176,45 @@ export function runDiscountEngine(
   // Cart-level discounts are applied to this subtotal, not the original
   const subtotal = roundToTwoDecimals(subtotalAfterTiered);
 
-  // Apply cart-level discounts last
-  // These are applied to the entire cart subtotal (after product discounts)
-  // Example: "10% off entire order" applies to the discounted subtotal
-  const { cartDiscounts, subtotalAfterCartDiscounts } = applyCartDiscounts(
-    subtotal,
-    resolved.cartDiscounts,
-  );
+  // Get shipping cost from input (default to 0 if not provided)
+  const shippingCost = input.shippingCost || 0;
+
+  // Apply cart-level discounts
+  // Separates SUBTOTAL discounts (before shipping) and TOTAL discounts (after shipping)
+  const {
+    subtotalDiscounts,
+    totalDiscounts,
+    subtotalAfterCartDiscounts,
+    totalAfterDiscounts,
+  } = applyCartDiscounts(subtotal, resolved.cartDiscounts, shippingCost);
+
+  const allCartDiscounts = [...subtotalDiscounts, ...totalDiscounts];
+
   steps.push({
     step: "6",
-    description: "Applied cart-level discounts",
-    discountsApplied: cartDiscounts.map(
+    description: "Applied cart-level discounts (subtotal)",
+    discountsApplied: subtotalDiscounts.map(
       (cartDiscount) => cartDiscount.discountCode,
     ),
     subtotalAfter: subtotalAfterCartDiscounts,
   });
 
+  if (totalDiscounts.length > 0) {
+    steps.push({
+      step: "7",
+      description: "Applied cart-level discounts (total - after shipping)",
+      discountsApplied: totalDiscounts.map(
+        (cartDiscount) => cartDiscount.discountCode,
+      ),
+      subtotalAfter: totalAfterDiscounts,
+    });
+  }
+
   // Build final totals: ensure non-negative (discounts can't make total negative)
-  const total = ensureNonNegative(
-    roundToTwoDecimals(subtotalAfterCartDiscounts),
+  const total = ensureNonNegative(roundToTwoDecimals(totalAfterDiscounts));
+  const discountTotal = roundToTwoDecimals(
+    initialSubtotal + shippingCost - total,
   );
-  const discountTotal = roundToTwoDecimals(initialSubtotal - total);
 
   // Collect all applied discount IDs for tracking/analytics
   const appliedDiscountIds = [
@@ -200,7 +222,7 @@ export function runDiscountEngine(
       ...lineItems.flatMap((item) =>
         item.discounts.map((discount) => discount.discountId),
       ),
-      ...cartDiscounts.map((cartDiscount) => cartDiscount.discountId),
+      ...allCartDiscounts.map((cartDiscount) => cartDiscount.discountId),
     ]),
   ];
 
@@ -213,14 +235,17 @@ export function runDiscountEngine(
 
   return {
     lineItems,
-    cartDiscounts,
+    cartDiscounts: allCartDiscounts,
     subtotal: initialSubtotal,
+    subtotalDiscounts,
+    totalDiscounts,
+    shippingCost,
     discountTotal,
     total,
     appliedDiscountIds,
     breakdown: {
       lineItems,
-      cartDiscounts,
+      cartDiscounts: allCartDiscounts,
       stepByStep: steps,
     },
   };

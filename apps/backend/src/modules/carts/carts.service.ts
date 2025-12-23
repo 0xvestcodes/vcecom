@@ -43,7 +43,10 @@ import { KEY_PATTERNS } from "../redis-store/constants/key-patterns";
 import { RedisStoreService } from "../redis-store/redis-store.service";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
-import { BundleCartItemMetadata } from "./dto/bundle-cart-item.dto";
+import {
+  BundleCartItemMetadata,
+  FlattenedBundleItemMetadata,
+} from "./dto/bundle-cart-item.dto";
 
 @Injectable()
 export class CartsService {
@@ -1225,148 +1228,129 @@ export class CartsService {
       );
     }
 
-    // Flatten selections to variant quantities
-    const variantQuantities = this.bundlePricingService.flattenBundleSelections(
-      selections,
-      bundleQuantity,
-    );
-
-    // Reserve inventory for each variant
-    for (const vq of variantQuantities) {
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(vq.variantId)) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        vq.variantId,
+    // Get pricing breakdown for each variant
+    const variantBreakdown =
+      await this.bundlePricingService.getBundleVariantBreakdown(
+        bundleId,
+        selections,
+        bundleQuantity,
+        customerId,
       );
+
+    // Generate unique bundle group ID to link all items from this bundle instance
+    const bundleGroupId = `${bundleId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    // Create a map to track which set each variant belongs to
+    const variantToSetId = new Map<string, string>();
+    for (const [setId, variantIds] of Object.entries(selections)) {
+      for (const variantId of variantIds) {
+        variantToSetId.set(variantId, setId);
+      }
+    }
+
+    // Reserve inventory and create individual cart items for each variant
+    for (const breakdown of variantBreakdown) {
+      const variantId = breakdown.variantId;
+      const quantity = breakdown.quantity;
+      const unitPrice = breakdown.unitPrice;
+
+      // Check available inventory
+      const availableInventory =
+        (await this.inventoryStore.getAvailableInventory(variantId)) ?? 0;
+      const reservedInventory =
+        await this.inventoryStore.getReservedInventory(variantId);
       const available = availableInventory - reservedInventory;
 
-      if (available < vq.quantity) {
+      if (available < quantity) {
         throw new BadRequestException(
-          `Insufficient inventory for variant ${vq.variantId}. Available: ${available}, Required: ${vq.quantity}`,
+          `Insufficient inventory for variant ${variantId}. Available: ${available}, Required: ${quantity}`,
         );
       }
 
       // Reserve inventory
-      await this.inventoryStore.reserveInventory(
-        cartId,
-        vq.variantId,
-        vq.quantity,
-      );
-      await this.inventoryStore.refreshReservationTTL(cartId, vq.variantId);
-    }
+      await this.inventoryStore.reserveInventory(cartId, variantId, quantity);
+      await this.inventoryStore.refreshReservationTTL(cartId, variantId);
 
-    // Calculate bundle price
-    const unitBundlePrice =
-      await this.bundlePricingService.calculateBundlePrice(
-        bundleId,
-        selections,
-        1, // unit price
-        customerId,
-      );
+      // Check if this variant already exists in cart (from previous bundle or direct add)
+      const [existingItem] = await this.db
+        .select()
+        .from(cartItems)
+        .where(
+          and(
+            eq(cartItems.cartId, cartId),
+            eq(cartItems.productVariantId, variantId),
+          ),
+        )
+        .limit(1);
 
-    // Get first variant ID for productVariantId (required by schema)
-    const firstVariantId = variantQuantities[0]?.variantId;
-    if (!firstVariantId) {
-      throw new BadRequestException("Bundle must have at least one variant");
-    }
+      if (existingItem) {
+        // Merge with existing item - update quantity and price
+        const existingMetadata =
+          existingItem.metadata as FlattenedBundleItemMetadata | null;
+        const isFromBundle = existingMetadata?.fromBundle === true;
 
-    // Create bundle cart item with metadata
-    const metadata: BundleCartItemMetadata = {
-      type: "bundle",
-      bundleId,
-      selections,
-      bundleTitle: bundle.title,
-    };
+        // If existing item is also from a bundle, we need to decide:
+        // Option 1: Merge quantities (additive)
+        // Option 2: Keep separate (current implementation)
+        // For now, we'll merge quantities if from same bundle group, otherwise keep separate
+        if (isFromBundle && existingMetadata.bundleGroupId === bundleGroupId) {
+          // Same bundle instance - merge quantities
+          const newQuantity = existingItem.quantity + quantity;
+          await this.db
+            .update(cartItems)
+            .set({
+              quantity: newQuantity,
+              // Update price to weighted average
+              price:
+                (existingItem.price * existingItem.quantity +
+                  unitPrice * quantity) /
+                newQuantity,
+            })
+            .where(eq(cartItems.id, existingItem.id));
 
-    await this.db.insert(cartItems).values({
-      cartId,
-      productVariantId: firstVariantId, // Required by schema, but bundle uses metadata
-      quantity: bundleQuantity,
-      price: unitBundlePrice,
-      metadata: metadata as unknown as Record<string, unknown>,
-    });
+          // Update inventory reservation
+          await this.inventoryStore.reserveInventory(
+            cartId,
+            variantId,
+            newQuantity,
+          );
+        } else {
+          // Different bundle or regular item - create new cart item
+          const metadata: FlattenedBundleItemMetadata = {
+            fromBundle: true,
+            bundleId,
+            bundleTitle: bundle.title,
+            bundleGroupId,
+            bundleSetId: variantToSetId.get(variantId),
+          };
 
-    // Recalculate totals
-    await this.recalculateCartTotals(cartId, customerId);
+          await this.db.insert(cartItems).values({
+            cartId,
+            productVariantId: variantId,
+            quantity,
+            price: unitPrice,
+            metadata: metadata as unknown as Record<string, unknown>,
+          });
+        }
+      } else {
+        // New variant - create cart item
+        const metadata: FlattenedBundleItemMetadata = {
+          fromBundle: true,
+          bundleId,
+          bundleTitle: bundle.title,
+          bundleGroupId,
+          bundleSetId: variantToSetId.get(variantId),
+        };
 
-    return this.getCart(userId, sessionId);
-  }
-
-  /**
-   * Update bundle quantity in cart
-   */
-  private async updateBundleInCart(
-    cartId: string,
-    userId: string | null,
-    sessionId: string | null,
-    itemId: string,
-    metadata: BundleCartItemMetadata,
-    oldQuantity: number,
-    newQuantity: number,
-    customerId: string | null,
-  ) {
-    const delta = newQuantity - oldQuantity;
-
-    if (delta === 0) {
-      // No change, just refresh TTLs
-      const variantQuantities =
-        this.bundlePricingService.flattenBundleSelections(
-          metadata.selections,
-          newQuantity,
-        );
-      for (const vq of variantQuantities) {
-        await this.inventoryStore.refreshReservationTTL(cartId, vq.variantId);
+        await this.db.insert(cartItems).values({
+          cartId,
+          productVariantId: variantId,
+          quantity,
+          price: unitPrice,
+          metadata: metadata as unknown as Record<string, unknown>,
+        });
       }
-      return this.getCart(userId, sessionId);
     }
-
-    // Flatten selections to variant quantities for new quantity
-    const variantQuantities = this.bundlePricingService.flattenBundleSelections(
-      metadata.selections,
-      newQuantity,
-    );
-
-    // Adjust inventory reservations
-    for (const vq of variantQuantities) {
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(vq.variantId)) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        vq.variantId,
-      );
-      const available = availableInventory - reservedInventory;
-
-      if (available < vq.quantity) {
-        throw new BadRequestException(
-          `Insufficient inventory for variant ${vq.variantId}. Available: ${available}, Required: ${vq.quantity}`,
-        );
-      }
-
-      // Reserve new quantity (Lua script handles delta automatically)
-      await this.inventoryStore.reserveInventory(
-        cartId,
-        vq.variantId,
-        vq.quantity,
-      );
-      await this.inventoryStore.refreshReservationTTL(cartId, vq.variantId);
-    }
-
-    // Recalculate bundle price for new quantity
-    const unitBundlePrice =
-      await this.bundlePricingService.calculateBundlePrice(
-        metadata.bundleId,
-        metadata.selections,
-        1, // unit price
-        customerId,
-      );
-
-    // Update cart item
-    await this.db
-      .update(cartItems)
-      .set({
-        quantity: newQuantity,
-        price: unitBundlePrice,
-      })
-      .where(eq(cartItems.id, itemId));
 
     // Recalculate totals
     await this.recalculateCartTotals(cartId, customerId);
@@ -1414,22 +1398,8 @@ export class CartsService {
       throw new NotFoundException("Cart item not found");
     }
 
-    // Check if item is a bundle
-    const metadata = item.metadata as BundleCartItemMetadata | null;
-    if (metadata?.type === "bundle") {
-      return this.updateBundleInCart(
-        cart.id,
-        userId,
-        sessionId,
-        itemId,
-        metadata,
-        item.quantity,
-        updateDto.quantity,
-        customerId,
-      );
-    }
-
-    // Variant item handling (existing logic)
+    // Bundles are now flattened, so all items are handled the same way
+    // Variant item handling
     // Calculate quantity delta
     const delta = updateDto.quantity - item.quantity;
 
@@ -1523,49 +1493,24 @@ export class CartsService {
       throw new NotFoundException("Cart item not found");
     }
 
-    // Check if item is a bundle
-    const metadata = item.metadata as BundleCartItemMetadata | null;
-    if (metadata?.type === "bundle") {
-      // Release reservations for all bundle variants
-      const variantQuantities =
-        this.bundlePricingService.flattenBundleSelections(
-          metadata.selections,
-          item.quantity,
-        );
-
-      for (const vq of variantQuantities) {
-        const reservation = await this.inventoryStore.getReservation(
-          cart.id,
-          vq.variantId,
-        );
-        if (reservation !== null && reservation > 0) {
-          const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(
-            cart.id,
-            vq.variantId,
-          );
-          await this.inventoryStore.delete(reservationKey);
-          await this.inventoryStore.releaseInventory(vq.variantId, reservation);
-        }
-      }
-    } else {
-      // Variant item - release reservation
-      const reservation = await this.inventoryStore.getReservation(
+    // Bundles are now flattened, so all items are handled the same way
+    // Release reservation for this variant
+    const reservation = await this.inventoryStore.getReservation(
+      cart.id,
+      item.productVariantId,
+    );
+    if (reservation !== null && reservation > 0) {
+      // Delete individual reservation
+      const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(
         cart.id,
         item.productVariantId,
       );
-      if (reservation !== null && reservation > 0) {
-        // Delete individual reservation
-        const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(
-          cart.id,
-          item.productVariantId,
-        );
-        await this.inventoryStore.delete(reservationKey);
-        // Decrement aggregated reserved count
-        await this.inventoryStore.releaseInventory(
-          item.productVariantId,
-          reservation,
-        );
-      }
+      await this.inventoryStore.delete(reservationKey);
+      // Decrement aggregated reserved count
+      await this.inventoryStore.releaseInventory(
+        item.productVariantId,
+        reservation,
+      );
     }
 
     // Delete item
@@ -1588,6 +1533,22 @@ export class CartsService {
     }
 
     const cart = await this.getOrCreateCart(customerId, sessionId);
+
+    // Release all inventory reservations before clearing cart
+    try {
+      await this.inventoryStore.releaseCartReservations(cart.id);
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "CartsService.clearCart.releaseReservations",
+          error,
+          { cartId: cart.id },
+        ),
+        "Failed to release cart reservations during clear",
+      );
+      // Continue with cart clear even if reservation release fails
+    }
 
     // Delete all cart items
     await this.db.delete(cartItems).where(eq(cartItems.cartId, cart.id));

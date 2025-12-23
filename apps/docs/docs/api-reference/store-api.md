@@ -164,3 +164,16 @@ Content-Type: application/json
 
 See [Admin API Response Format](/docs/api-reference/admin-api#response-format) for response structure.
 
+## Interactive API Documentation
+
+For complete API documentation with interactive testing, see:
+
+- **[Store API Interactive Docs](/api-reference/store)** - Full OpenAPI specification with Redoc
+- **OpenAPI JSON**: Available at `/api/docs-json` endpoint
+
+The interactive documentation includes:
+- Complete endpoint documentation
+- Request/response schemas
+- Try-it-out functionality
+- Authentication examples
+

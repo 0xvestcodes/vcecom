@@ -30,6 +30,7 @@ export * from "./payments";
 export * from "./pincodes";
 export * from "./price-lists";
 export * from "./pricing-audit-logs";
+export * from "./product-associations";
 export * from "./product-collections";
 export * from "./product-images";
 export * from "./product-tags";

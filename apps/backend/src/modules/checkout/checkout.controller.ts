@@ -16,6 +16,12 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { customers, eq } from "@vcecom/db";
+import {
+  BadRequestErrorDto,
+  ConflictErrorDto,
+  NotFoundErrorDto,
+  TooManyRequestsErrorDto,
+} from "../../common/dto/error-response.dto";
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
@@ -30,6 +36,12 @@ import {
 } from "../payments/services/payment-charge.service";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { CheckoutService } from "./checkout.service";
+import {
+  ApplyAddressResponseDto,
+  ConfirmCheckoutResponseDto,
+  SelectShippingResponseDto,
+  StartCheckoutResponseDto,
+} from "./dto/checkout-response.dto";
 import {
   CheckoutAddressDto,
   CheckoutConfirmDto,
@@ -66,21 +78,29 @@ export class CheckoutController {
   @ApiResponse({
     status: 201,
     description: "Checkout started successfully",
+    type: StartCheckoutResponseDto,
   })
   @ApiResponse({
     status: 400,
     description: "Bad request (empty cart, etc.)",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 409,
     description: "Conflict (cart already being checked out)",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async startCheckout(
     @Request() req: Request & {
       user?: { userId: string; email: string; role: string };
     },
     @Body() dto: StartCheckoutDto,
-  ) {
+  ): Promise<StartCheckoutResponseDto> {
     const userId = req.user?.userId || null;
     const sessionId = extractSessionId(req);
     return this.checkoutService.startCheckout(userId, sessionId, dto);
@@ -101,14 +121,27 @@ export class CheckoutController {
   @ApiResponse({
     status: 200,
     description: "Address applied successfully",
+    type: ApplyAddressResponseDto,
   })
   @ApiResponse({
     status: 400,
     description: "Bad request (invalid address, not serviceable, etc.)",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 404,
     description: "Checkout session not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiResponse({
+    status: 422,
+    description: "Unprocessable entity - Invalid PIN code format or address validation failed",
+    type: BadRequestErrorDto,
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async applyAddress(
     @Request() req: Request & {
@@ -188,14 +221,27 @@ export class CheckoutController {
   @ApiResponse({
     status: 200,
     description: "Shipping method selected successfully",
+    type: SelectShippingResponseDto,
   })
   @ApiResponse({
     status: 400,
     description: "Bad request (invalid method, etc.)",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 404,
     description: "Checkout session or shipping method not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Conflict - Shipping method not available for this address",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async selectShipping(
     @Request() req: Request & {
@@ -253,6 +299,12 @@ export class CheckoutController {
   @ApiResponse({
     status: 400,
     description: "Bad request (empty cart, etc.)",
+    type: BadRequestErrorDto,
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async getPaymentMethods(
     @Request() req: Request & {
@@ -370,10 +422,22 @@ export class CheckoutController {
   @ApiResponse({
     status: 400,
     description: "Bad request (invalid method, cart empty, etc.)",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 404,
     description: "Checkout session not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Conflict - Payment method not available for this order",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async selectPaymentMethod(
     @Request() req: Request & {
@@ -463,14 +527,32 @@ export class CheckoutController {
   @ApiResponse({
     status: 201,
     description: "Order confirmed successfully",
+    type: ConfirmCheckoutResponseDto,
   })
   @ApiResponse({
     status: 400,
     description: "Bad request (invalid session, insufficient inventory, etc.)",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 404,
     description: "Checkout session not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Conflict - Checkout session in invalid state or order already created",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 422,
+    description: "Unprocessable entity - Missing required checkout information",
+    type: BadRequestErrorDto,
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async confirmCheckout(
     @Request() req: Request & {

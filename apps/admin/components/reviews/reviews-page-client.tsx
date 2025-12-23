@@ -3,6 +3,7 @@
 import { Check, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PaginationControls } from "@/components/common/pagination-controls";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { DateTime } from "@/components/orders/date-time";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +51,21 @@ export function ReviewsPageClient() {
     router.replace(`/reviews?${params.toString()}`, { scroll: false });
   }, [page, router]);
 
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const paginationInfo = data
+    ? {
+        startItem: (data.page - 1) * data.limit + 1,
+        endItem: Math.min(data.page * data.limit, data.total),
+        total: data.total,
+        currentPage: data.page,
+        totalPages: data.totalPages,
+      }
+    : null;
+
   const handleApprove = async (reviewId: string) => {
     setProcessingReviewId(reviewId);
     try {
@@ -90,39 +106,15 @@ export function ReviewsPageClient() {
       title="Reviews"
       description="Moderate product reviews"
       pagination={
-        data && (
-          <div className="w-full flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {data.total === 0 ? (
-                "Showing 0 reviews"
-              ) : (
-                <>
-                  Showing {(data.page - 1) * data.limit + 1} to{" "}
-                  {Math.min(data.page * data.limit, data.total)} of {data.total}{" "}
-                  reviews
-                </>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page - 1)}
-                disabled={data.page <= 1 || isLoading}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page + 1)}
-                disabled={data.page >= data.totalPages || isLoading}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        )
+        <PaginationControls
+          paginationInfo={paginationInfo}
+          onPreviousPage={() => handlePageChange(page - 1)}
+          onNextPage={() => handlePageChange(page + 1)}
+          canGoPrevious={data ? data.page > 1 : false}
+          canGoNext={data ? data.page < data.totalPages : false}
+          isLoading={isLoading}
+          itemLabel="reviews"
+        />
       }
     >
       <ConfirmDialog

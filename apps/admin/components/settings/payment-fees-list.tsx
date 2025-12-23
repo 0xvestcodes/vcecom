@@ -49,8 +49,8 @@ export function PaymentFeesList({ charges, onEdit }: PaymentFeesListProps) {
     setDeletingId(null);
   };
 
-  const formatAmount = (paise: number) => {
-    return `₹${(paise / 100).toFixed(2)}`;
+  const formatAmount = (rupees: number) => {
+    return `₹${rupees.toFixed(2)}`;
   };
 
   return (

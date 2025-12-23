@@ -185,4 +185,19 @@ export class OrderResponseDto {
     required: false,
   })
   archivedBy?: string | null;
+
+  @ApiProperty({
+    description: "Discount code applied to the order",
+    example: "SAVE20",
+    nullable: true,
+    required: false,
+  })
+  discountCode?: string | null;
+
+  @ApiProperty({
+    description: "Discount amount applied (INR)",
+    example: 200.0,
+    required: false,
+  })
+  discountAmount?: number;
 }

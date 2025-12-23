@@ -26,3 +26,15 @@ export interface BundleCartItemMetadata {
   bundleTitle?: string;
   bundleSnapshot?: BundleSnapshot;
 }
+
+/**
+ * Flattened bundle item metadata
+ * Used when bundles are flattened into individual cart items
+ */
+export interface FlattenedBundleItemMetadata {
+  fromBundle: true;
+  bundleId: string;
+  bundleTitle: string;
+  bundleGroupId: string; // Same for all items from same bundle instance
+  bundleSetId?: string; // Optional: which set this variant came from
+}

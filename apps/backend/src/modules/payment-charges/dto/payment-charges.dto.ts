@@ -104,7 +104,7 @@ export class CreatePaymentChargeDto {
 
   // COD-specific restrictions
   @ApiProperty({
-    description: "Maximum order value for COD in paise",
+    description: "Maximum order value for COD in rupees",
     required: false,
   })
   @IsOptional()
@@ -212,7 +212,7 @@ export class UpdatePaymentChargeDto {
   currency?: string;
 
   @ApiProperty({
-    description: "Maximum order value for COD in paise",
+    description: "Maximum order value for COD in rupees",
     required: false,
   })
   @IsOptional()

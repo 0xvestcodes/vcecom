@@ -56,6 +56,12 @@ import { DiscountSnapshotValidator } from "../discounts/services/discount-snapsh
 import { DriftDetectorService } from "../discounts/services/drift-detector.service";
 import { HotReloadWatcher } from "../discounts/services/hot-reload-watcher.service";
 import { RulesetBundleService } from "../discounts/services/ruleset-bundle.service";
+// Relative imports - Services
+import { OrderEventsService } from "../events/order-events.service";
+import {
+  OrderCreatedEventPayload,
+  OrderPaymentCompletedEventPayload,
+} from "../events/order-events.types";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/types/notification.types";
 import { PaymentFeeBreakdownDto } from "../payments/dto/payment-charge.dto";
@@ -83,7 +89,6 @@ import {
 } from "../redis-store/dto/payment-intent.dto";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
-
 // Relative imports - DTOs
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { OrderResponseDto } from "./dto/order-response.dto";
@@ -99,7 +104,6 @@ import {
   validateAuthenticatedCheckoutRequirements,
   validateGuestCheckoutRequirements,
 } from "./services/order-creation.helper";
-// Relative imports - Services
 import { OrderGstService } from "./services/order-gst.service";
 import { OrderPricingService } from "./services/order-pricing.service";
 import { OrderStatusService } from "./services/order-status.service";
@@ -140,6 +144,7 @@ export class OrdersService {
     private readonly statusService: OrderStatusService,
     private readonly gstService: OrderGstService,
     private readonly timelineService: OrderTimelineService,
+    private readonly orderEventsService: OrderEventsService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
@@ -864,6 +869,7 @@ export class OrdersService {
 
           // Run discount engine with profiling
           const engineStartTime = Date.now();
+          const shippingCost = createOrderDto.shippingCost || 0;
           const engineInput: DiscountEngineInput = {
             cart: {
               items: cartItemsForEngine,
@@ -871,6 +877,7 @@ export class OrdersService {
             customer: customerData,
             discounts: eligibleDiscounts,
             now: new Date(),
+            shippingCost, // Pass shipping cost for TOTAL discount calculation
           };
 
           const engineResult = runDiscountEngine(engineInput);
@@ -2892,6 +2899,8 @@ export class OrdersService {
 
     // Commit inventory (convert reserved → consumed)
     // This happens AFTER payment confirmation
+    // CRITICAL: Inventory MUST be decremented when order is placed
+    // If this fails, inventory will be out of sync and needs manual reconciliation
     try {
       // Release all cart reservations (individual reservation keys)
       await this.inventoryStore.releaseCartReservations(cart.id);
@@ -2920,15 +2929,31 @@ export class OrdersService {
           );
         }
       }
+
+      this.logger.info(
+        createLogContext(this.contextService, "commitInventory", {
+          orderId,
+          variantItemsCount: cartItemsWithVariants.length,
+          bundleItemsCount: bundleCartItems.length,
+        }),
+        "Inventory successfully decremented for order",
+      );
     } catch (error) {
+      // CRITICAL ERROR: Inventory decrement failed
+      // Order is already created, but inventory wasn't decremented
+      // This needs to be reconciled manually or via a background job
       this.logger.error(
         createErrorContext(this.contextService, "commitInventory", error, {
           orderId,
+          variantItemsCount: cartItemsWithVariants.length,
+          bundleItemsCount: bundleCartItems.length,
+          critical: true,
         }),
-        "Failed to commit inventory for order",
+        "CRITICAL: Failed to commit inventory for order - manual reconciliation required",
       );
       // Continue - inventory commit failure should be handled separately
       // Order is already created, inventory can be reconciled later
+      // TODO: Consider adding a background job to reconcile failed inventory commits
     }
 
     // Clear cart - use cartId from session
@@ -3011,6 +3036,46 @@ export class OrdersService {
       }),
       "Order finalized",
     );
+
+    // Emit order created event
+    try {
+      await this.orderEventsService.emitOrderCreated({
+        orderId,
+        orderNumber,
+        customerId,
+        timestamp: new Date(),
+        total,
+        itemsCount: insertedOrderItems.length,
+        metadata: {
+          paymentIntentId,
+          checkoutSessionId,
+          provider,
+        },
+      } as OrderCreatedEventPayload);
+
+      // Emit payment completed event
+      await this.orderEventsService.emitPaymentCompleted({
+        orderId,
+        orderNumber,
+        customerId,
+        timestamp: new Date(),
+        paymentIntentId,
+        amount: total,
+        paymentMethod: metadata.paymentMethod || "online",
+        metadata: {
+          provider,
+        },
+      } as OrderPaymentCompletedEventPayload);
+    } catch (error) {
+      // Log but don't throw - event emission failure shouldn't break order creation
+      this.logger.warn(
+        createErrorContext(this.contextService, "emitOrderEvents", error, {
+          orderId,
+          orderNumber,
+        }),
+        "Failed to emit order events",
+      );
+    }
 
     return orderResponse;
   }

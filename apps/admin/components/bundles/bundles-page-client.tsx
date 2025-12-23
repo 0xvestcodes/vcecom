@@ -4,6 +4,7 @@ import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PaginationControls } from "@/components/common/pagination-controls";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { DateTime } from "@/components/orders/date-time";
 import { Badge } from "@/components/ui/badge";
@@ -53,6 +54,21 @@ export function BundlesPageClient() {
     router.replace(`/bundles?${params.toString()}`, { scroll: false });
   }, [filters, router]);
 
+  const handlePageChange = (newPage: number) => {
+    setFilters((prev) => ({ ...prev, page: newPage }));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const paginationInfo = data
+    ? {
+        startItem: (data.page - 1) * data.limit + 1,
+        endItem: Math.min(data.page * data.limit, data.total),
+        total: data.total,
+        currentPage: data.page,
+        totalPages: data.totalPages,
+      }
+    : null;
+
   const handleDeleteClick = (bundleId: string) => {
     setBundleToDelete(bundleId);
     setDeleteDialogOpen(true);
@@ -79,43 +95,15 @@ export function BundlesPageClient() {
         </Button>
       }
       pagination={
-        data && (
-          <div className="w-full flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {data.total === 0 ? (
-                "Showing 0 bundles"
-              ) : (
-                <>
-                  Showing {(data.page - 1) * data.limit + 1} to{" "}
-                  {Math.min(data.page * data.limit, data.total)} of {data.total}{" "}
-                  bundles
-                </>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setFilters({ ...filters, page: (filters.page || 1) - 1 })
-                }
-                disabled={data.page <= 1 || isLoading}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setFilters({ ...filters, page: (filters.page || 1) + 1 })
-                }
-                disabled={data.page >= data.totalPages || isLoading}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        )
+        <PaginationControls
+          paginationInfo={paginationInfo}
+          onPreviousPage={() => handlePageChange((filters.page || 1) - 1)}
+          onNextPage={() => handlePageChange((filters.page || 1) + 1)}
+          canGoPrevious={data ? data.page > 1 : false}
+          canGoNext={data ? data.page < data.totalPages : false}
+          isLoading={isLoading}
+          itemLabel="bundles"
+        />
       }
     >
       <ConfirmDialog

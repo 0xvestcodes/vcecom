@@ -72,23 +72,8 @@ export class BundleSetItemsService {
     // Note: We assume variant is active if product exists
     // In Phase 14-2, we might add more sophisticated checks
 
-    // Check for duplicate variant in same set
-    const [existing] = await this.db
-      .select()
-      .from(bundleSetItems)
-      .where(
-        and(
-          eq(bundleSetItems.setId, setId),
-          eq(bundleSetItems.variantId, dto.variantId),
-        ),
-      )
-      .limit(1);
-
-    if (existing) {
-      throw new BadRequestException(
-        `Variant ${dto.variantId} is already in this bundle set`,
-      );
-    }
+    // Duplicates are now allowed in bundle sets
+    // No duplicate check needed
 
     const [newItem] = await this.db
       .insert(bundleSetItems)

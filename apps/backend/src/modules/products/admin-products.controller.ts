@@ -34,6 +34,7 @@ import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config
 import { ReviewsService } from "../reviews/services/reviews.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { CreateVariantDto } from "./dto/create-variant.dto";
+import { ProductCollectionResponseDto } from "./dto/product-collection-response.dto";
 import { ProductResponseDto } from "./dto/product-response.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { UpdateVariantDto } from "./dto/update-variant.dto";
@@ -68,7 +69,7 @@ export class AdminProductsController {
     summary: "Create a new product",
     description: "Create a new product (admin only)",
   })
-  @ApiOkResponse({
+  @ApiCreatedResponse({
     description: "Product created successfully",
     type: ProductResponseDto,
   })
@@ -194,6 +195,7 @@ export class AdminProductsController {
   })
   @ApiOkResponse({
     description: "Collections retrieved successfully",
+    type: [ProductCollectionResponseDto],
   })
   @ApiNotFoundResponse({
     description: "Product not found",
@@ -204,7 +206,9 @@ export class AdminProductsController {
   @ApiForbiddenResponse({
     description: "Access denied. Admin role required.",
   })
-  async getProductCollections(@Param("id") id: string) {
+  async getProductCollections(
+    @Param("id") id: string,
+  ): Promise<ProductCollectionResponseDto[]> {
     return this.productsService.getProductCollections(id);
   }
 

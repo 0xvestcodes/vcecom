@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  PayloadTooLargeException,
 } from "@nestjs/common";
 import { ContextService } from "../logging/context.service";
 import {
@@ -40,6 +41,19 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       response.requestContext ||
       ({} as Partial<import("../logging/context.service").RequestContext>);
     const requestId = requestContext.requestId || "unknown";
+
+    // Handle multer file size errors
+    if (
+      exception &&
+      typeof exception === "object" &&
+      "code" in exception &&
+      exception.code === "LIMIT_FILE_SIZE"
+    ) {
+      const payloadTooLargeException = new PayloadTooLargeException(
+        "File size exceeds maximum allowed size of 50MB",
+      );
+      exception = payloadTooLargeException;
+    }
 
     // Determine status code and message
     const status =

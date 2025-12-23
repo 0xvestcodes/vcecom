@@ -11,24 +11,9 @@
       "dependsOn": ["^build", "^check-types"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"]
     },
-    "test": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["coverage/**"],
-      "env": ["TEST_DATABASE_URL", "DATABASE_URL", "CI", "CI_STRICT"]
-    },
     "generate-build-info": {
       "cache": false,
       "outputs": ["src/build-info.ts"]
-    },
-    "test:watch": {
-      "cache": false,
-      "persistent": true
-    },
-    "test:cov": {
-      "dependsOn": ["^build"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["coverage/**"]
     },
     "dev": {
       "cache": false,

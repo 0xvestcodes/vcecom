@@ -11,17 +11,27 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiResponse,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import type {
   Request as ExpressRequest,
   Response as ExpressResponse,
 } from "express";
+import {
+  BadRequestErrorDto,
+  ConflictErrorDto,
+  ForbiddenErrorDto,
+  TooManyRequestsErrorDto,
+  UnauthorizedErrorDto,
+} from "../../common/dto/error-response.dto";
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
@@ -52,6 +62,11 @@ export class AuthController {
   })
   @ApiBadRequestResponse({
     description: "Invalid input or user already exists",
+    type: BadRequestErrorDto,
+  })
+  @ApiConflictResponse({
+    description: "Conflict - User with this email already exists",
+    type: ConflictErrorDto,
   })
   async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
     return this.authService.register(
@@ -76,9 +91,15 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({
     description: "Invalid credentials",
+    type: UnauthorizedErrorDto,
   })
   @ApiBadRequestResponse({
     description: "Invalid input",
+    type: BadRequestErrorDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async login(
     @Body() loginDto: LoginDto,
@@ -123,9 +144,11 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({
     description: "Invalid or expired refresh token",
+    type: UnauthorizedErrorDto,
   })
   @ApiBadRequestResponse({
     description: "Invalid input",
+    type: BadRequestErrorDto,
   })
   async refresh(
     @Body() refreshTokenDto: RefreshTokenDto,
