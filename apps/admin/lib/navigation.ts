@@ -45,7 +45,7 @@ export interface NavItem {
   icon: LucideIcon;
   badge?: number | string;
   children?: NavItem[];
-  roles?: AdminRole[]; // For future role-based access control
+  requiredRoles?: AdminRole[]; // Roles required to access this navigation item
 }
 
 export interface NavSection {
@@ -60,31 +60,37 @@ export const navigation: NavSection[] = [
         label: "Dashboard",
         href: "/",
         icon: LayoutDashboard,
+        requiredRoles: ["admin", "support", "reviewer", "marketing"],
         children: [
           {
             label: "Overview",
             href: "/",
             icon: LayoutDashboard,
+            requiredRoles: ["admin", "support", "reviewer", "marketing"],
           },
           {
             label: "Performance",
             href: "/dashboards/performance",
             icon: TrendingUp,
+            requiredRoles: ["admin", "support", "reviewer", "marketing"],
           },
           {
             label: "Operations",
             href: "/dashboards/operations",
             icon: Truck,
+            requiredRoles: ["admin", "support", "reviewer", "marketing"],
           },
           {
             label: "Customer & Support",
             href: "/dashboards/customer-support",
             icon: MessageSquare,
+            requiredRoles: ["admin", "support", "reviewer", "marketing"],
           },
           {
             label: "Product & Merchandising",
             href: "/dashboards/product-merchandising",
             icon: BarChart3,
+            requiredRoles: ["admin", "support", "reviewer", "marketing"],
           },
         ],
       },
@@ -97,16 +103,19 @@ export const navigation: NavSection[] = [
         label: "Orders",
         href: "/orders",
         icon: ShoppingCart,
+        requiredRoles: ["admin", "support"],
         children: [
           {
             label: "All Orders",
             href: "/orders",
             icon: ShoppingCart,
+            requiredRoles: ["admin", "support"],
           },
           {
             label: "Abandoned Checkouts",
             href: "/orders/abandoned",
             icon: ShoppingBag,
+            requiredRoles: ["admin", "support"],
           },
         ],
       },
@@ -119,16 +128,19 @@ export const navigation: NavSection[] = [
         label: "Products",
         href: "/products",
         icon: Package,
+        requiredRoles: ["admin", "marketing"],
         children: [
           {
             label: "All Products",
             href: "/products",
             icon: Package,
+            requiredRoles: ["admin", "marketing"],
           },
           {
             label: "Create Product",
             href: "/products/create",
             icon: Plus,
+            requiredRoles: ["admin", "marketing"],
           },
         ],
       },
@@ -136,36 +148,49 @@ export const navigation: NavSection[] = [
         label: "Categories",
         href: "/products/categories",
         icon: FolderTree,
+        requiredRoles: ["admin", "marketing"],
       },
       {
         label: "Collections",
         href: "/products/collections",
         icon: FolderOpen,
+        requiredRoles: ["admin", "marketing"],
       },
       {
         label: "Bundles",
         href: "/bundles",
         icon: Boxes,
+        requiredRoles: ["admin", "marketing"],
       },
       {
         label: "Inventory",
         href: "/inventory",
         icon: Boxes,
+        requiredRoles: ["admin"],
         children: [
           {
             label: "All Inventory",
             href: "/inventory",
             icon: Boxes,
+            requiredRoles: ["admin"],
+          },
+          {
+            label: "Health",
+            href: "/inventory/health",
+            icon: TrendingUp,
+            requiredRoles: ["admin"],
           },
           {
             label: "Settings",
             href: "/inventory/settings",
             icon: Settings,
+            requiredRoles: ["admin"],
           },
           {
             label: "Bulk Adjust",
             href: "/inventory/bulk-adjust",
             icon: Plus,
+            requiredRoles: ["admin"],
           },
         ],
       },
@@ -173,6 +198,7 @@ export const navigation: NavSection[] = [
         label: "Reviews",
         href: "/reviews",
         icon: Star,
+        requiredRoles: ["admin", "reviewer"],
       },
     ],
   },
@@ -183,11 +209,13 @@ export const navigation: NavSection[] = [
         label: "Customers",
         href: "/customers",
         icon: Users,
+        requiredRoles: ["admin", "support"],
       },
       {
         label: "Customer Groups",
         href: "/customer-groups",
         icon: UserCog,
+        requiredRoles: ["admin", "marketing"],
       },
     ],
   },
@@ -198,11 +226,13 @@ export const navigation: NavSection[] = [
         label: "Discounts",
         href: "/discounts",
         icon: Tag,
+        requiredRoles: ["admin", "marketing"],
       },
       {
         label: "Price Lists",
         href: "/price-lists",
         icon: DollarSign,
+        requiredRoles: ["admin", "marketing"],
       },
     ],
   },
@@ -213,31 +243,37 @@ export const navigation: NavSection[] = [
         label: "Store Settings",
         href: "/settings/store",
         icon: Store,
+        requiredRoles: ["admin"],
       },
       {
         label: "Currency",
         href: "/settings/currency",
         icon: DollarSign,
+        requiredRoles: ["admin"],
       },
       {
         label: "Shipping Methods",
         href: "/settings/shipping-methods",
         icon: Truck,
+        requiredRoles: ["admin"],
       },
       {
         label: "Payment Fees",
         href: "/settings/payment-fees",
         icon: CreditCard,
+        requiredRoles: ["admin"],
       },
       {
         label: "Roles & Permissions",
         href: "/settings/roles",
         icon: UserCog,
+        requiredRoles: ["admin"],
       },
       {
         label: "Settings",
         href: "/settings",
         icon: Settings,
+        requiredRoles: ["admin"],
       },
     ],
   },
@@ -248,26 +284,31 @@ export const navigation: NavSection[] = [
         label: "Storage",
         href: "/storage",
         icon: HardDrive,
+        requiredRoles: ["admin"],
       },
       {
         label: "Notifications",
         href: "/notifications",
         icon: Bell,
+        requiredRoles: ["admin"],
       },
       {
         label: "Activity Logs",
         href: "/activity-logs",
         icon: BookOpen,
+        requiredRoles: ["admin"],
       },
       {
         label: "System Logs",
         href: "/settings/system-logs",
         icon: FileText,
+        requiredRoles: ["admin"],
       },
       {
         label: "Audit Logs",
         href: "/audit-logs",
         icon: FileSearch,
+        requiredRoles: ["admin"],
       },
     ],
   },

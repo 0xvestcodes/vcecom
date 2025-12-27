@@ -26,6 +26,10 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "architecture/bugs",
+              "path": "/docs/architecture/bugs"
+            },
+            {
               "id": "architecture/dependencies",
               "path": "/docs/architecture/dependencies",
               "sidebar": "docsSidebar"
@@ -204,6 +208,10 @@
               "id": "observability/correlation",
               "path": "/docs/observability/correlation",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "observability/health-checks",
+              "path": "/docs/observability/health-checks"
             },
             {
               "id": "observability/logging",

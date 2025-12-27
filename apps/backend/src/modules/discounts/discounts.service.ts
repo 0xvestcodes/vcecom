@@ -208,35 +208,40 @@ export class DiscountsService {
    * Get all discounts with pagination
    */
   async findAll(page = 1, limit = 10) {
-    const offset = (page - 1) * limit;
+    try {
+      const offset = (page - 1) * limit;
 
-    const allDiscounts = await this.db
-      .select()
-      .from(discounts)
-      .orderBy(desc(discounts.createdAt))
-      .limit(limit)
-      .offset(offset);
+      const allDiscounts = await this.db
+        .select()
+        .from(discounts)
+        .orderBy(desc(discounts.createdAt))
+        .limit(limit)
+        .offset(offset);
 
-    // Get total count using COUNT(*) for performance
-    const countResult = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(discounts);
-    const total = Number(countResult[0]?.count || 0);
-    const totalPages = Math.ceil(total / limit);
+      // Get total count using COUNT(*) for performance
+      const countResult = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(discounts);
+      const total = Number(countResult[0]?.count || 0);
+      const totalPages = Math.ceil(total / limit);
 
-    const enrichedDiscounts = await Promise.all(
-      allDiscounts.map((discount) =>
-        this.enrichDiscountWithRelations(discount.id),
-      ),
-    );
+      const enrichedDiscounts = await Promise.all(
+        allDiscounts.map((discount) =>
+          this.enrichDiscountWithRelations(discount.id),
+        ),
+      );
 
-    return {
-      data: enrichedDiscounts,
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+      return {
+        data: enrichedDiscounts,
+        total,
+        page,
+        limit,
+        totalPages,
+      };
+    } catch (error) {
+      console.error("Error in findAll:", error);
+      throw error;
+    }
   }
 
   /**

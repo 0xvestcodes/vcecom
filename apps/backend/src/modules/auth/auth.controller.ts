@@ -16,7 +16,6 @@ import {
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
-  ApiResponse,
   ApiTags,
   ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
@@ -31,7 +30,6 @@ import { Roles } from "../../common/decorators/roles.decorator";
 import {
   BadRequestErrorDto,
   ConflictErrorDto,
-  ForbiddenErrorDto,
   TooManyRequestsErrorDto,
   UnauthorizedErrorDto,
 } from "../../common/dto/error-response.dto";

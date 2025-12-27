@@ -54,19 +54,22 @@ export function AdminPageLayout({
   pagination,
 }: AdminPageLayoutProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="space-y-2">
+      <div className="space-y-1.5">
         {breadcrumbs && breadcrumbs.length > 0 && (
-          <nav className="flex items-center space-x-2 text-sm text-muted-foreground">
+          <nav className="flex items-center space-x-1.5 text-xs text-muted-foreground">
             {breadcrumbs.map((crumb, index) => (
               <div
                 key={`breadcrumb-${index}-${crumb.label}`}
                 className="flex items-center"
               >
-                {index > 0 && <span className="mx-2">/</span>}
+                {index > 0 && <span className="mx-1.5">/</span>}
                 {crumb.href ? (
-                  <a href={crumb.href} className="hover:text-foreground">
+                  <a
+                    href={crumb.href}
+                    className="hover:text-foreground transition-colors"
+                  >
                     {crumb.label}
                   </a>
                 ) : (
@@ -78,9 +81,11 @@ export function AdminPageLayout({
         )}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
             {description && (
-              <p className="text-muted-foreground mt-1">{description}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {description}
+              </p>
             )}
           </div>
           {actions && <div className="flex items-center gap-2">{actions}</div>}
@@ -89,14 +94,18 @@ export function AdminPageLayout({
 
       {/* Filters */}
       {filters && (
-        <div className="rounded-lg border bg-card p-4">{filters}</div>
+        <div className="rounded-lg border border-border/50 bg-card/50 p-3">
+          {filters}
+        </div>
       )}
 
       {/* Content */}
       <div>{children}</div>
 
       {/* Pagination */}
-      {pagination && <div className="flex justify-center">{pagination}</div>}
+      {pagination && (
+        <div className="flex justify-center pt-2">{pagination}</div>
+      )}
     </div>
   );
 }

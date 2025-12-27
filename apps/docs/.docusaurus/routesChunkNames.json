@@ -1,284 +1,335 @@
 {
-  "/api-reference/admin-b62": {
-    "__comp": "b6ba75ac",
+  "/__docusaurus/debug-5ff": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
     "__context": {
-      "plugin": "a7456010"
-    },
-    "config": "5e9f5e1a"
-  },
-  "/api-reference/store-402": {
-    "__comp": "e8d1a882",
-    "__context": {
-      "plugin": "a7456010"
-    },
-    "config": "5e9f5e1a"
-  },
-  "/docs-4aa": {
-    "__comp": "5e95c892",
-    "__context": {
-      "plugin": "aba21aa0"
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
     }
   },
-  "/docs-414": {
-    "__comp": "a7bd4aaa",
-    "__props": "0058b4c6"
+  "/__docusaurus/debug/config-5ba": {
+    "__comp": "__comp---theme-debug-config-23-a-2ff",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
   },
-  "/docs-374": {
-    "__comp": "a94703ab"
+  "/__docusaurus/debug/content-a2b": {
+    "__comp": "__comp---theme-debug-contentba-8-ce7",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    },
+    "__props": "__props---docusaurus-debug-content-3-c-0-be2"
   },
-  "/docs/admin/pagination-9dc": {
-    "__comp": "17896441",
-    "content": "ce21933b"
+  "/__docusaurus/debug/globalData-c3c": {
+    "__comp": "__comp---theme-debug-global-dataede-0fa",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
   },
-  "/docs/api-reference/admin-api-8a5": {
-    "__comp": "17896441",
-    "content": "d8b6cdbf"
+  "/__docusaurus/debug/metadata-156": {
+    "__comp": "__comp---theme-debug-site-metadata-68-e-3d4",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
   },
-  "/docs/api-reference/store-api-2ad": {
-    "__comp": "17896441",
-    "content": "3fdde753"
+  "/__docusaurus/debug/registry-88c": {
+    "__comp": "__comp---theme-debug-registry-679-501",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
   },
-  "/docs/architecture/dependencies-255": {
-    "__comp": "17896441",
-    "content": "ce56f640"
+  "/__docusaurus/debug/routes-000": {
+    "__comp": "__comp---theme-debug-routes-946-699",
+    "__context": {
+      "plugin": "plugin---docusaurus-debugb-38-ad3"
+    }
   },
-  "/docs/architecture/modules-220": {
-    "__comp": "17896441",
-    "content": "1cd9f096"
+  "/api-reference/admin-b62": {
+    "__comp": "__comp---site-src-pages-api-reference-admin-tsxb-6-b-b71",
+    "__context": {
+      "plugin": "plugin---api-reference-admina-74-84e"
+    },
+    "config": "config---api-reference-admin-5-e-9-a74"
   },
-  "/docs/architecture/overview-2b6": {
-    "__comp": "17896441",
-    "content": "0b1ac180"
+  "/api-reference/store-402": {
+    "__comp": "__comp---site-src-pages-api-reference-store-tsxe-8-d-a6c",
+    "__context": {
+      "plugin": "plugin---api-reference-admina-74-84e"
+    },
+    "config": "config---api-reference-admin-5-e-9-a74"
   },
-  "/docs/authentication/admin-auth-922": {
-    "__comp": "17896441",
-    "content": "28c9f219"
+  "/docs-a88": {
+    "__comp": "__comp---theme-docs-root-5-e-9-0b6",
+    "__context": {
+      "plugin": "plugin---docsaba-d7c"
+    }
   },
-  "/docs/authentication/storefront-auth-193": {
-    "__comp": "17896441",
-    "content": "4da77233"
+  "/docs-8a9": {
+    "__comp": "__comp---theme-doc-version-roota-7-b-5de",
+    "__props": "__props---docs-005-788"
   },
-  "/docs/bundles/cart-integration-cc2": {
-    "__comp": "17896441",
-    "content": "8efba4bb"
+  "/docs-82e": {
+    "__comp": "__comp---theme-doc-roota-94-67a"
   },
-  "/docs/bundles/choice-sets-cee": {
-    "__comp": "17896441",
-    "content": "427aa2a0"
+  "/docs/admin/pagination-028": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-admin-paginationce-2-f2e"
   },
-  "/docs/bundles/definition-6fd": {
-    "__comp": "17896441",
-    "content": "ac2e62c3"
+  "/docs/api-reference/admin-api-da5": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-api-reference-admin-apid-8-b-152"
   },
-  "/docs/bundles/overview-e81": {
-    "__comp": "17896441",
-    "content": "c2042449"
+  "/docs/api-reference/store-api-847": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-api-reference-store-api-3-fd-51f"
   },
-  "/docs/bundles/pricing-c7e": {
-    "__comp": "17896441",
-    "content": "71a843cd"
+  "/docs/architecture/bugs-026": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-bugs-56-e-ef8"
   },
-  "/docs/catalog/collections-6da": {
-    "__comp": "17896441",
-    "content": "6aa1d44c"
+  "/docs/architecture/dependencies-83a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-dependenciesce-5-3be"
   },
-  "/docs/catalog/inventory-6bf": {
-    "__comp": "17896441",
-    "content": "f4f7ca35"
+  "/docs/architecture/modules-f0e": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-modules-1-cd-a6f"
   },
-  "/docs/catalog/products-d67": {
-    "__comp": "17896441",
-    "content": "62ea8477"
+  "/docs/architecture/overview-dc8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-overview-0-b-1-a4c"
   },
-  "/docs/catalog/variants-afa": {
-    "__comp": "17896441",
-    "content": "41972ccc"
+  "/docs/authentication/admin-auth-466": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-authentication-admin-auth-28-c-8e6"
   },
-  "/docs/checkout/guest-checkout-5e6": {
-    "__comp": "17896441",
-    "content": "499e6ef6"
+  "/docs/authentication/storefront-auth-2c9": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-authentication-storefront-auth-4-da-5f7"
   },
-  "/docs/checkout/inventory-flow-bb0": {
-    "__comp": "17896441",
-    "content": "8afc2c65"
+  "/docs/bundles/cart-integration-c02": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-bundles-cart-integration-8-ef-e0d"
   },
-  "/docs/checkout/overview-df5": {
-    "__comp": "17896441",
-    "content": "8053e6dc"
+  "/docs/bundles/choice-sets-af8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-bundles-choice-sets-427-588"
   },
-  "/docs/checkout/payment-intent-ed8": {
-    "__comp": "17896441",
-    "content": "a64b2381"
+  "/docs/bundles/definition-701": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-bundles-definitionac-2-4d7"
   },
-  "/docs/checkout/state-machine-5dd": {
-    "__comp": "17896441",
-    "content": "50aafbb1"
+  "/docs/bundles/overview-79d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-bundles-overviewc-20-11c"
   },
-  "/docs/checkout/webhooks-5ee": {
-    "__comp": "17896441",
-    "content": "b473dddb"
+  "/docs/bundles/pricing-fca": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-bundles-pricing-71-a-b54"
   },
-  "/docs/database-schema/erd-054": {
-    "__comp": "17896441",
-    "content": "22ed46b6"
+  "/docs/catalog/collections-f36": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-catalog-collections-6-aa-dac"
   },
-  "/docs/database-schema/overview-484": {
-    "__comp": "17896441",
-    "content": "b76438c1"
+  "/docs/catalog/inventory-d07": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-catalog-inventoryf-4-f-bfa"
   },
-  "/docs/database-schema/tables-f05": {
-    "__comp": "17896441",
-    "content": "f8e58cd3"
+  "/docs/catalog/products-ead": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-catalog-products-62-e-0bd"
   },
-  "/docs/deployment/docker-3d0": {
-    "__comp": "17896441",
-    "content": "ff8b1e34"
+  "/docs/catalog/variants-d73": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-catalog-variants-419-f75"
   },
-  "/docs/deployment/overview-d63": {
-    "__comp": "17896441",
-    "content": "69425d0e"
+  "/docs/checkout/guest-checkout-273": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-checkout-guest-checkout-499-784"
   },
-  "/docs/deployment/production-9ee": {
-    "__comp": "17896441",
-    "content": "1973956f"
+  "/docs/checkout/inventory-flow-045": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-checkout-inventory-flow-8-af-c13"
   },
-  "/docs/deployment/scaling-148": {
-    "__comp": "17896441",
-    "content": "bdbc3a07"
+  "/docs/checkout/overview-453": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-checkout-overview-805-42c"
   },
-  "/docs/discounts/definitions-95f": {
-    "__comp": "17896441",
-    "content": "42b5df3a"
+  "/docs/checkout/payment-intent-30b": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-checkout-payment-intenta-64-f6d"
   },
-  "/docs/discounts/drift-detection-b39": {
-    "__comp": "17896441",
-    "content": "325554f3"
+  "/docs/checkout/state-machine-93a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-checkout-state-machine-50-a-df1"
   },
-  "/docs/discounts/engine-b67": {
-    "__comp": "17896441",
-    "content": "26747f5c"
+  "/docs/checkout/webhooks-f72": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-checkout-webhooksb-47-554"
   },
-  "/docs/discounts/overview-e73": {
-    "__comp": "17896441",
-    "content": "aad49ae9"
+  "/docs/database-schema/erd-4f3": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-database-schema-erd-22-e-f10"
   },
-  "/docs/discounts/priority-stacking-8fc": {
-    "__comp": "17896441",
-    "content": "e4710e77"
+  "/docs/database-schema/overview-2d4": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-database-schema-overviewb-76-40c"
   },
-  "/docs/discounts/snapshots-410": {
-    "__comp": "17896441",
-    "content": "e8f2c13e"
+  "/docs/database-schema/tables-c9c": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-database-schema-tablesf-8-e-0d8"
   },
-  "/docs/introduction-e0e": {
-    "__comp": "17896441",
-    "content": "a09c2993"
+  "/docs/deployment/docker-18b": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-deployment-dockerff-8-1f0"
   },
-  "/docs/observability/context-3f6": {
-    "__comp": "17896441",
-    "content": "361d7a1c"
+  "/docs/deployment/overview-9ea": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-deployment-overview-694-a6a"
   },
-  "/docs/observability/correlation-b55": {
-    "__comp": "17896441",
-    "content": "fde88871"
+  "/docs/deployment/production-f51": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-deployment-production-197-2a5"
   },
-  "/docs/observability/logging-9e5": {
-    "__comp": "17896441",
-    "content": "2b5a7889"
+  "/docs/deployment/scaling-08c": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-deployment-scalingbdb-61f"
   },
-  "/docs/observability/tracing-3bf": {
-    "__comp": "17896441",
-    "content": "da03633c"
+  "/docs/discounts/definitions-33e": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-discounts-definitions-42-b-db9"
   },
-  "/docs/orders/creation-70a": {
-    "__comp": "17896441",
-    "content": "57b76398"
+  "/docs/discounts/drift-detection-c4f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-discounts-drift-detection-325-455"
   },
-  "/docs/orders/fulfillment-0a6": {
-    "__comp": "17896441",
-    "content": "f780f0b5"
+  "/docs/discounts/engine-66d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-discounts-engine-267-625"
   },
-  "/docs/orders/inventory-reconciliation-013": {
-    "__comp": "17896441",
-    "content": "b2376961"
+  "/docs/discounts/overview-98f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-discounts-overviewaad-36f"
   },
-  "/docs/orders/overview-e03": {
-    "__comp": "17896441",
-    "content": "593e8d2f"
+  "/docs/discounts/priority-stacking-41b": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-discounts-priority-stackinge-47-64e"
   },
-  "/docs/orders/reconciliation-a8b": {
-    "__comp": "17896441",
-    "content": "d05b1696"
+  "/docs/discounts/snapshots-52f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-discounts-snapshotse-8-f-501"
   },
-  "/docs/orders/refunds-3e8": {
-    "__comp": "17896441",
-    "content": "2ef541d3"
+  "/docs/introduction-78f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-introductiona-09-6b4"
   },
-  "/docs/pricing/customer-groups-cd5": {
-    "__comp": "17896441",
-    "content": "a3e5e60a"
+  "/docs/observability/context-c65": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-observability-context-361-33a"
   },
-  "/docs/pricing/drift-detection-a0d": {
-    "__comp": "17896441",
-    "content": "7bc26092"
+  "/docs/observability/correlation-726": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-observability-correlationfde-733"
   },
-  "/docs/pricing/overview-281": {
-    "__comp": "17896441",
-    "content": "ecd14ad9"
+  "/docs/observability/health-checks-a25": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-observability-health-checksf-67-af0"
   },
-  "/docs/pricing/price-lists-afe": {
-    "__comp": "17896441",
-    "content": "e7196e37"
+  "/docs/observability/logging-878": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-observability-logging-2-b-5-d48"
   },
-  "/docs/pricing/pricing-engine-9f7": {
-    "__comp": "17896441",
-    "content": "dc0fee91"
+  "/docs/observability/tracing-b6b": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-observability-tracingda-0-e7d"
   },
-  "/docs/pricing/snapshots-782": {
-    "__comp": "17896441",
-    "content": "b4254be9"
+  "/docs/orders/creation-209": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-orders-creation-57-b-e6a"
   },
-  "/docs/redis/caching-layers-096": {
-    "__comp": "17896441",
-    "content": "737a8b3b"
+  "/docs/orders/fulfillment-37d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-orders-fulfillmentf-78-bb4"
   },
-  "/docs/redis/expirations-22c": {
-    "__comp": "17896441",
-    "content": "95a32ece"
+  "/docs/orders/inventory-reconciliation-438": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-orders-inventory-reconciliationb-23-944"
   },
-  "/docs/redis/key-patterns-976": {
-    "__comp": "17896441",
-    "content": "3226a077"
+  "/docs/orders/overview-875": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-orders-overview-593-0b9"
   },
-  "/docs/redis/overview-af1": {
-    "__comp": "17896441",
-    "content": "e27b3cc1"
+  "/docs/orders/reconciliation-e9e": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-orders-reconciliationd-05-15d"
   },
-  "/docs/reviews/aggregation-a20": {
-    "__comp": "17896441",
-    "content": "0329dde4"
+  "/docs/orders/refunds-1d2": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-orders-refunds-2-ef-f91"
   },
-  "/docs/reviews/caching-26c": {
-    "__comp": "17896441",
-    "content": "a6bc3cca"
+  "/docs/pricing/customer-groups-9c9": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-pricing-customer-groupsa-3-e-78d"
   },
-  "/docs/reviews/moderation-a2c": {
-    "__comp": "17896441",
-    "content": "0dbac33d"
+  "/docs/pricing/drift-detection-cea": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-pricing-drift-detection-7-bc-5ea"
   },
-  "/docs/reviews/overview-0a4": {
-    "__comp": "17896441",
-    "content": "766752d4"
+  "/docs/pricing/overview-8f3": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-pricing-overviewecd-75f"
   },
-  "/docs/reviews/verified-purchase-96f": {
-    "__comp": "17896441",
-    "content": "07d217bc"
+  "/docs/pricing/price-lists-6e7": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-pricing-price-listse-71-475"
+  },
+  "/docs/pricing/pricing-engine-09d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-pricing-pricing-enginedc-0-b6d"
+  },
+  "/docs/pricing/snapshots-645": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-pricing-snapshotsb-42-137"
+  },
+  "/docs/redis/caching-layers-956": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-redis-caching-layers-737-1dc"
+  },
+  "/docs/redis/expirations-3c8": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-redis-expirations-95-a-e08"
+  },
+  "/docs/redis/key-patterns-217": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-redis-key-patterns-322-70d"
+  },
+  "/docs/redis/overview-57d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-redis-overviewe-27-8b7"
+  },
+  "/docs/reviews/aggregation-3ac": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reviews-aggregation-032-713"
+  },
+  "/docs/reviews/caching-adb": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reviews-cachinga-6-b-608"
+  },
+  "/docs/reviews/moderation-66a": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reviews-moderation-0-db-ee7"
+  },
+  "/docs/reviews/overview-c1f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reviews-overview-766-d28"
+  },
+  "/docs/reviews/verified-purchase-c4f": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-reviews-verified-purchase-07-d-116"
   },
   "/-e5f": {
-    "__comp": "1df93b7f",
+    "__comp": "__comp---site-src-pages-index-tsx-1-df-d3e",
     "__context": {
-      "plugin": "a7456010"
+      "plugin": "plugin---api-reference-admina-74-84e"
     },
-    "config": "5e9f5e1a"
+    "config": "config---api-reference-admin-5-e-9-a74"
   }
 }

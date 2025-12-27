@@ -111,7 +111,7 @@ export function QueryState<T>({
         return "Your session has expired. Please refresh the page.";
       }
       if (err.status === 403) {
-        return "You don't have permission to view this data.";
+        return "You don't have permission to view this data. Please contact your administrator if you believe this is an error.";
       }
       if (err.status === 404) {
         return "The requested resource was not found.";

@@ -2,7 +2,9 @@ import { Module } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { ConfigModule } from "./common/config/config.module";
 import { HealthDatabaseController } from "./common/health/health-database.controller";
+import { HealthJobsController } from "./common/health/health-jobs.controller";
 import { HealthLoggerController } from "./common/health/health-logger.controller";
+import { HealthRedisController } from "./common/health/health-redis.controller";
 import { HealthTracingController } from "./common/health/health-tracing.controller";
 import { ContextModule } from "./common/logging/context.module";
 import { LoggerModule } from "./common/logging/logger.module";
@@ -88,6 +90,8 @@ import { SystemLogsModule } from "./modules/system-logs/system-logs.module";
     HealthLoggerController,
     HealthTracingController,
     HealthDatabaseController,
+    HealthRedisController,
+    HealthJobsController,
   ],
 })
 export class AppModule {}

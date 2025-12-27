@@ -42,7 +42,7 @@ export function StorageFilesTable({
 
   if (isLoading) {
     return (
-      <div className="rounded-md border">
+      <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
         <Table>
           <TableHeader>
             <TableRow>
@@ -55,10 +55,10 @@ export function StorageFilesTable({
           <TableBody>
             {Array.from({ length: 5 }, (_, i) => (
               <TableRow key={`skeleton-row-${String(i)}`}>
-                <TableCell className="h-12 animate-pulse bg-muted" />
-                <TableCell className="h-12 animate-pulse bg-muted" />
-                <TableCell className="h-12 animate-pulse bg-muted" />
-                <TableCell className="h-12 animate-pulse bg-muted" />
+                <TableCell className="h-10 animate-pulse bg-muted/30" />
+                <TableCell className="h-10 animate-pulse bg-muted/30" />
+                <TableCell className="h-10 animate-pulse bg-muted/30" />
+                <TableCell className="h-10 animate-pulse bg-muted/30" />
               </TableRow>
             ))}
           </TableBody>
@@ -72,7 +72,7 @@ export function StorageFilesTable({
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
       <Table>
         <TableHeader>
           <TableRow>
@@ -85,10 +85,13 @@ export function StorageFilesTable({
         </TableHeader>
         <TableBody>
           {files.map((file) => (
-            <TableRow key={file.key}>
-              <TableCell>
+            <TableRow
+              key={file.key}
+              className="group hover:bg-muted/30 transition-colors"
+            >
+              <TableCell className="text-xs">
                 {isImageFile(file.key) ? (
-                  <div className="relative w-16 h-16 rounded-md overflow-hidden border bg-muted">
+                  <div className="relative w-12 h-12 rounded-lg overflow-hidden border border-border/50 bg-muted/30">
                     <NextImage
                       src={file.url}
                       alt={file.key}
@@ -101,26 +104,26 @@ export function StorageFilesTable({
                     />
                   </div>
                 ) : (
-                  <div className="w-16 h-16 rounded-md border bg-muted flex items-center justify-center">
-                    <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                  <div className="w-12 h-12 rounded-lg border border-border/50 bg-muted/30 flex items-center justify-center">
+                    <ImageIcon className="h-5 w-5 text-muted-foreground" />
                   </div>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell className="text-xs">
                 <div
-                  className="font-mono text-sm max-w-[300px] truncate"
+                  className="font-mono max-w-[300px] truncate"
                   title={file.key}
                 >
                   {file.key}
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="text-xs">
                 <div className="flex items-center gap-2 max-w-[400px]">
                   <a
                     href={file.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline text-sm truncate flex-1"
+                    className="text-blue-600 hover:underline truncate flex-1"
                     title={file.url}
                   >
                     {truncateUrl(file.url)}
@@ -128,7 +131,7 @@ export function StorageFilesTable({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 flex-shrink-0"
+                    className="h-7 w-7 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     onClick={() => copyToClipboard(file.url, "URL")}
                     title="Copy URL"
                   >
@@ -137,7 +140,7 @@ export function StorageFilesTable({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 flex-shrink-0"
+                    className="h-7 w-7 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     onClick={() => window.open(file.url, "_blank")}
                     title="Open in new tab"
                   >
@@ -145,10 +148,10 @@ export function StorageFilesTable({
                   </Button>
                 </div>
               </TableCell>
-              <TableCell>
+              <TableCell className="text-xs">
                 {file.size ? (
                   <div className="flex flex-col">
-                    <span className="text-sm font-medium">
+                    <span className="font-medium">
                       {formatFileSize(file.size)}
                     </span>
                     {file.contentType && (
@@ -159,39 +162,39 @@ export function StorageFilesTable({
                     )}
                   </div>
                 ) : (
-                  <span className="text-sm text-muted-foreground">-</span>
+                  <span className="text-muted-foreground">-</span>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell className="text-xs">
                 <div className="flex items-center gap-1">
                   {isImageFile(file.key) && (
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                       onClick={() => onPreview(file)}
                       title="Preview file"
                     >
-                      <Eye className="h-4 w-4" />
+                      <Eye className="h-3.5 w-3.5" />
                     </Button>
                   )}
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     onClick={() => copyToClipboard(file.key, "Key")}
                     title="Copy key"
                   >
-                    <Copy className="h-4 w-4" />
+                    <Copy className="h-3.5 w-3.5" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive"
+                    className="h-8 w-8 text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity duration-200"
                     onClick={() => onDelete(file.key)}
                     title="Delete file"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
               </TableCell>

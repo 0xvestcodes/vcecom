@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { Edit, MoreHorizontal, Plus, Trash2, Truck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { QueryState } from "@/components/common/query-state";
@@ -63,9 +63,9 @@ export function ShippingMethodsPageClient() {
       title="Shipping Methods"
       description="Manage shipping methods available during checkout"
       actions={
-        <Button asChild>
+        <Button asChild size="sm" className="text-xs">
           <Link href="/settings/shipping-methods/create">
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-3.5 w-3.5" />
             Create Shipping Method
           </Link>
         </Button>
@@ -108,18 +108,20 @@ export function ShippingMethodsPageClient() {
         data={methods}
         loadingComponent={<TableSkeleton columns={6} rows={5} />}
         emptyComponent={
-          <div className="py-12 text-center">
-            <p className="text-muted-foreground">
+          <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+            <Truck className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p className="text-sm font-medium mb-1">
               {includeInactive
                 ? "No shipping methods found"
                 : "No active shipping methods found"}
             </p>
+            <p className="text-xs">Create your first shipping method</p>
           </div>
         }
         onRetry={() => refetch()}
       >
         {methods && methods.length > 0 && (
-          <div className="rounded-md border">
+          <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -134,36 +136,50 @@ export function ShippingMethodsPageClient() {
               </TableHeader>
               <TableBody>
                 {methods.map((method) => (
-                  <TableRow key={method.id}>
-                    <TableCell className="font-medium">{method.name}</TableCell>
-                    <TableCell>
-                      <code className="rounded bg-muted px-2 py-1 text-xs">
+                  <TableRow
+                    key={method.id}
+                    className="group hover:bg-muted/30 transition-colors"
+                  >
+                    <TableCell className="font-medium text-xs">
+                      {method.name}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <code className="rounded bg-muted/50 px-2 py-1 text-xs">
                         {method.code}
                       </code>
                     </TableCell>
-                    <TableCell>₹{(method.baseRate / 100).toFixed(2)}</TableCell>
-                    <TableCell>{method.estimatedDays} days</TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs">
+                      ₹{(method.baseRate / 100).toFixed(2)}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {method.estimatedDays} days
+                    </TableCell>
+                    <TableCell className="text-xs">
                       <Badge
                         variant={method.isActive ? "default" : "secondary"}
+                        className="text-xs"
                       >
                         {method.isActive ? "Active" : "Inactive"}
                       </Badge>
                     </TableCell>
-                    <TableCell>{method.priority}</TableCell>
-                    <TableCell>
+                    <TableCell className="text-xs">{method.priority}</TableCell>
+                    <TableCell className="text-xs">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                          >
+                            <MoreHorizontal className="h-3.5 w-3.5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="text-xs">
                           <DropdownMenuItem asChild>
                             <Link
                               href={`/settings/shipping-methods/${method.id}`}
                             >
-                              <Edit className="mr-2 h-4 w-4" />
+                              <Edit className="mr-2 h-3.5 w-3.5" />
                               Edit
                             </Link>
                           </DropdownMenuItem>
@@ -171,7 +187,7 @@ export function ShippingMethodsPageClient() {
                             onClick={() => handleDeleteClick(method.id)}
                             className="text-destructive"
                           >
-                            <Trash2 className="mr-2 h-4 w-4" />
+                            <Trash2 className="mr-2 h-3.5 w-3.5" />
                             Delete
                           </DropdownMenuItem>
                         </DropdownMenuContent>

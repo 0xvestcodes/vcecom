@@ -14,8 +14,6 @@ import {
 } from "@/components/ui/select";
 import type {
   FulfillmentStatus,
-  OrderSortBy,
-  OrderSortOrder,
   OrderStatus,
   PaymentStatus,
 } from "@/lib/types/orders";
@@ -30,8 +28,9 @@ interface OrderFiltersBarProps {
   minValue?: number;
   maxValue?: number;
   paymentMethod?: "COD" | "prepaid" | "all";
-  sortBy?: OrderSortBy;
-  sortOrder?: OrderSortOrder;
+  // Note: Sort functionality temporarily disabled as backend doesn't support it yet
+  // sortBy?: OrderSortBy;
+  // sortOrder?: OrderSortOrder;
   onStatusChange: (status: OrderStatus | undefined) => void;
   onPaymentStatusChange: (status: PaymentStatus | undefined) => void;
   onFulfillmentStatusChange: (status: FulfillmentStatus | undefined) => void;
@@ -39,7 +38,7 @@ interface OrderFiltersBarProps {
   onDateRangeChange: (range: { from?: Date; to?: Date } | undefined) => void;
   onPriceRangeChange: (min?: number, max?: number) => void;
   onPaymentMethodChange: (method: "COD" | "prepaid" | "all") => void;
-  onSortChange: (sortBy: OrderSortBy, sortOrder: OrderSortOrder) => void;
+  // onSortChange: (sortBy: OrderSortBy, sortOrder: OrderSortOrder) => void;
   onClear: () => void;
 }
 
@@ -52,8 +51,9 @@ export function OrderFiltersBar({
   minValue,
   maxValue,
   paymentMethod = "all",
-  sortBy = "createdAt",
-  sortOrder = "desc",
+  // Note: Sort functionality temporarily disabled as backend doesn't support it yet
+  // sortBy = "createdAt",
+  // sortOrder = "desc",
   onStatusChange,
   onPaymentStatusChange,
   onFulfillmentStatusChange,
@@ -61,7 +61,7 @@ export function OrderFiltersBar({
   onDateRangeChange,
   onPriceRangeChange,
   onPaymentMethodChange,
-  onSortChange,
+  // onSortChange,
   onClear,
 }: OrderFiltersBarProps) {
   const [searchValue, setSearchValue] = useState(search || "");
@@ -200,7 +200,8 @@ export function OrderFiltersBar({
           onDateRangeChange={onDateRangeChange}
         />
 
-        <Select
+        {/* Note: Sort functionality temporarily disabled as backend doesn't support it yet */}
+        {/* <Select
           value={`${sortBy}-${sortOrder}`}
           onValueChange={(value) => {
             const [by, order] = value.split("-") as [
@@ -221,7 +222,7 @@ export function OrderFiltersBar({
             <SelectItem value="orderNumber-asc">Order # (A-Z)</SelectItem>
             <SelectItem value="orderNumber-desc">Order # (Z-A)</SelectItem>
           </SelectContent>
-        </Select>
+        </Select> */}
 
         {hasFilters && (
           <Button variant="ghost" size="sm" onClick={onClear}>

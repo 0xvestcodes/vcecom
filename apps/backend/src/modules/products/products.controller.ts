@@ -26,9 +26,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiQuery,
-  ApiResponse,
   ApiTags,
-  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { Request as ExpressRequest } from "express";
@@ -40,17 +38,13 @@ import {
   ConflictErrorDto,
   ForbiddenErrorDto,
   NotFoundErrorDto,
-  TooManyRequestsErrorDto,
   UnauthorizedErrorDto,
 } from "../../common/dto/error-response.dto";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { DB_TOKEN } from "../../modules/database/database.module";
 import type { Database } from "../../modules/database/db";
 import { ReviewQueryDto } from "../reviews/dto/review-query.dto";
-import {
-  PaginatedReviewsResponseDto,
-  ReviewResponseDto,
-} from "../reviews/dto/review-response.dto";
+import { PaginatedReviewsResponseDto } from "../reviews/dto/review-response.dto";
 import { ReviewsService } from "../reviews/services/reviews.service";
 import { ProductCollectionResponseDto } from "./dto/product-collection-response.dto";
 

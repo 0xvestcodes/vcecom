@@ -140,9 +140,9 @@ export function ActivityLogsPageClient() {
         )}
 
         {data && data.total === 0 && !isLoading && (
-          <div className="text-center py-12 text-muted-foreground">
-            <p className="text-lg font-medium mb-2">No activity logs found</p>
-            <p className="text-sm">
+          <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+            <p className="text-sm font-medium mb-1">No activity logs found</p>
+            <p className="text-xs">
               Activity logs will appear here as admins perform actions
             </p>
           </div>

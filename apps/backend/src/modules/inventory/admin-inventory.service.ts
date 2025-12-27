@@ -24,7 +24,10 @@ import {
 import Redis from "ioredis";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
-import { createErrorContext } from "../../common/logging/logging.helper";
+import {
+  createErrorContext,
+  createLogContext,
+} from "../../common/logging/logging.helper";
 import {
   generatePaginationMetadata,
   normalizePaginationParams,
@@ -933,33 +936,56 @@ export class AdminInventoryService implements OnModuleInit {
 
       // Get inventory counts
       let totalStock = 0;
-      let committedStock = 0;
+      let reservedStock = 0;
       let lowStockCount = 0;
       let outOfStockCount = 0;
 
       for (const key of keys) {
-        const variantId = key.split(":")[2];
-        const inventory = parseInt(
-          (await this.redisClient.get(key)) || "0",
-          10,
-        );
-        const committed =
-          (await this.inventoryStore.getReservedInventory(variantId)) || 0;
-        const available = Math.max(0, inventory - committed);
-        const threshold = await this.getLowStockThreshold(variantId);
+        try {
+          const variantId = key.split(":")[2];
+          if (!variantId) {
+            // Skip invalid keys
+            continue;
+          }
 
-        totalStock += inventory;
-        committedStock += committed;
+          const inventoryStr = await this.redisClient.get(key);
+          const inventory = inventoryStr ? parseInt(inventoryStr, 10) : 0;
 
-        if (available <= threshold && available > 0) {
-          lowStockCount++;
-        }
-        if (available === 0) {
-          outOfStockCount++;
+          // Handle negative or invalid inventory values
+          const validInventory = Math.max(
+            0,
+            Number.isNaN(inventory) ? 0 : inventory,
+          );
+
+          const reserved =
+            (await this.inventoryStore.getReservedInventory(variantId)) || 0;
+          const validReserved = Math.max(0, reserved);
+
+          const available = Math.max(0, validInventory - validReserved);
+          const threshold = await this.getLowStockThreshold(variantId);
+
+          totalStock += validInventory;
+          reservedStock += validReserved;
+
+          if (available <= threshold && available > 0) {
+            lowStockCount++;
+          }
+          if (available === 0) {
+            outOfStockCount++;
+          }
+        } catch (error) {
+          // Skip individual variant errors, log and continue
+          this.logger.warn(
+            createLogContext(this.contextService, "getInventoryHealth", {
+              key,
+              error: error instanceof Error ? error.message : "Unknown error",
+            }),
+            "Failed to process inventory key in health check",
+          );
         }
       }
 
-      const availableStock = totalStock - committedStock;
+      const availableStock = totalStock - reservedStock;
 
       // Get fastest/slowest moving SKUs from order_items
       const fastestMoving = await this.db
@@ -999,7 +1025,7 @@ export class AdminInventoryService implements OnModuleInit {
       return {
         totalStock,
         availableStock,
-        committedStock,
+        committedStock: reservedStock, // Keep DTO field name for backward compatibility
         lowStockCount,
         outOfStockCount,
         fastestMovingSkus: fastestMoving.map((item) => ({

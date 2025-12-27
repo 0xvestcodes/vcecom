@@ -31,7 +31,7 @@ export function InventoryTable({ items }: InventoryTableProps) {
   };
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
       <Table>
         <TableHeader>
           <TableRow>
@@ -50,7 +50,7 @@ export function InventoryTable({ items }: InventoryTableProps) {
             <TableRow>
               <TableCell
                 colSpan={8}
-                className="text-center text-muted-foreground py-8"
+                className="text-center text-muted-foreground py-8 text-xs"
               >
                 No inventory items found
               </TableCell>
@@ -59,29 +59,31 @@ export function InventoryTable({ items }: InventoryTableProps) {
             items.map((item) => (
               <TableRow
                 key={item.variantId}
-                className="cursor-pointer hover:bg-muted/50"
+                className="group cursor-pointer hover:bg-muted/30 transition-colors"
                 onClick={() => {
                   window.location.href = `/inventory/${item.variantId}`;
                 }}
               >
-                <TableCell className="font-mono text-sm">{item.sku}</TableCell>
-                <TableCell className="font-medium">{item.title}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="font-mono text-xs">{item.sku}</TableCell>
+                <TableCell className="font-medium text-xs">
+                  {item.title}
+                </TableCell>
+                <TableCell className="text-xs text-muted-foreground">
                   {formatAttributes(item.attributes)}
                 </TableCell>
-                <TableCell className="text-right font-medium">
+                <TableCell className="text-right font-medium text-xs">
                   {item.inventory}
                 </TableCell>
-                <TableCell className="text-right text-orange-600">
+                <TableCell className="text-right text-orange-600 text-xs">
                   {item.committed}
                 </TableCell>
-                <TableCell className="text-right text-green-600 font-medium">
+                <TableCell className="text-right text-green-600 font-medium text-xs">
                   {item.available}
                 </TableCell>
-                <TableCell>
+                <TableCell className="text-xs">
                   <LowStockBadge item={item} />
                 </TableCell>
-                <TableCell className="text-sm text-muted-foreground">
+                <TableCell className="text-xs text-muted-foreground">
                   {item.updatedAt
                     ? formatDistanceToNow(new Date(item.updatedAt), {
                         addSuffix: true,

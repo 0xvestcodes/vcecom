@@ -1150,23 +1150,8 @@ export class CartsService {
         .set({ quantity: newQuantity })
         .where(eq(cartItems.id, existingItem.id));
     } else {
-      // Check available inventory using InventoryStore
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(
-          addItemDto.productVariantId,
-        )) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        addItemDto.productVariantId,
-      );
-      const available = availableInventory - reservedInventory;
-
-      if (available < addItemDto.quantity) {
-        throw new BadRequestException(
-          `Insufficient inventory. Available: ${available}`,
-        );
-      }
-
-      // Reserve inventory
+      // Reserve inventory (atomic operation - Lua script handles validation)
+      // The Lua script will throw BadRequestException if insufficient inventory
       await this.inventoryStore.reserveInventory(
         cart.id,
         addItemDto.productVariantId,
@@ -1254,20 +1239,8 @@ export class CartsService {
       const quantity = breakdown.quantity;
       const unitPrice = breakdown.unitPrice;
 
-      // Check available inventory
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(variantId)) ?? 0;
-      const reservedInventory =
-        await this.inventoryStore.getReservedInventory(variantId);
-      const available = availableInventory - reservedInventory;
-
-      if (available < quantity) {
-        throw new BadRequestException(
-          `Insufficient inventory for variant ${variantId}. Available: ${available}, Required: ${quantity}`,
-        );
-      }
-
-      // Reserve inventory
+      // Reserve inventory (atomic operation - Lua script handles validation)
+      // The Lua script will throw BadRequestException if insufficient inventory
       await this.inventoryStore.reserveInventory(cartId, variantId, quantity);
       await this.inventoryStore.refreshReservationTTL(cartId, variantId);
 
@@ -1404,23 +1377,9 @@ export class CartsService {
     const delta = updateDto.quantity - item.quantity;
 
     if (delta > 0) {
-      // Increasing quantity - check available inventory and reserve additional
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(
-          item.productVariantId,
-        )) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        item.productVariantId,
-      );
-      const available = availableInventory - reservedInventory;
-
-      if (available < updateDto.quantity) {
-        throw new BadRequestException(
-          `Insufficient inventory. Available: ${available}`,
-        );
-      }
-
-      // Reserve new quantity (Lua script handles delta automatically)
+      // Increasing quantity - reserve additional inventory
+      // Lua script handles delta calculation automatically (newQuantity - existingReservation)
+      // The Lua script will throw BadRequestException if insufficient inventory
       await this.inventoryStore.reserveInventory(
         cart.id,
         item.productVariantId,

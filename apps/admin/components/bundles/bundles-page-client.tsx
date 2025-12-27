@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { Boxes, Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -127,7 +127,7 @@ export function BundlesPageClient() {
       )}
 
       {isLoading ? (
-        <div className="rounded-md border">
+        <div className="rounded-lg border border-border/50 overflow-hidden transition-opacity duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -141,29 +141,32 @@ export function BundlesPageClient() {
             <TableBody>
               {Array.from({ length: 5 }, (_, i) => (
                 <TableRow key={`skeleton-row-${String(i)}`}>
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       ) : data && data.data.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <p className="text-lg font-medium mb-2">No bundles found</p>
-          <p className="text-sm mb-4">Create your first bundle</p>
-          <Button asChild>
+        <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+          <Boxes className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p className="text-sm font-medium mb-1">No bundles found</p>
+          <p className="text-xs mb-4">
+            Create your first bundle to get started
+          </p>
+          <Button asChild size="sm">
             <Link href="/bundles/create">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-3.5 w-3.5" />
               Create Bundle
             </Link>
           </Button>
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-lg border border-border/50 overflow-hidden transition-all duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -176,10 +179,13 @@ export function BundlesPageClient() {
             </TableHeader>
             <TableBody>
               {data?.data.map((bundle) => (
-                <TableRow key={bundle.id}>
+                <TableRow key={bundle.id} className="group">
                   <TableCell className="font-medium">{bundle.title}</TableCell>
                   <TableCell>
-                    <Badge variant={bundle.isActive ? "default" : "secondary"}>
+                    <Badge
+                      variant={bundle.isActive ? "default" : "secondary"}
+                      className="text-xs"
+                    >
                       {bundle.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
@@ -190,14 +196,18 @@ export function BundlesPageClient() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        >
+                          <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="text-xs">
                         <DropdownMenuItem asChild>
                           <Link href={`/bundles/${bundle.id}`}>
-                            <Edit className="mr-2 h-4 w-4" />
+                            <Edit className="mr-2 h-3.5 w-3.5" />
                             Edit
                           </Link>
                         </DropdownMenuItem>
@@ -205,7 +215,7 @@ export function BundlesPageClient() {
                           onClick={() => handleDeleteClick(bundle.id)}
                           className="text-destructive"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
+                          <Trash2 className="mr-2 h-3.5 w-3.5" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>

@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { FolderOpen, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -99,9 +99,9 @@ export function CollectionsPageClient() {
       title="Collections"
       description="Manage product collections"
       actions={
-        <Button asChild>
+        <Button asChild size="sm" className="text-xs">
           <Link href="/products/collections/create">
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-3.5 w-3.5" />
             Create Collection
           </Link>
         </Button>
@@ -147,17 +147,18 @@ export function CollectionsPageClient() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-lg font-medium mb-2">No collections found</p>
-          <p className="text-sm text-muted-foreground mb-4">
+        <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+          <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p className="text-sm font-medium mb-1">No collections found</p>
+          <p className="text-xs mb-4">
             {filters.search
               ? "Try adjusting your search"
               : "Create your first collection to get started"}
           </p>
           {!filters.search && (
-            <Button asChild>
+            <Button asChild size="sm" className="text-xs">
               <Link href="/products/collections/create">
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="mr-2 h-3.5 w-3.5" />
                 Create Collection
               </Link>
             </Button>

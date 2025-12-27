@@ -512,15 +512,18 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
         cartId,
         reservation.variantId,
       );
-      const quantity = await this.getReservation(cartId, reservation.variantId);
 
-      if (quantity !== null && quantity > 0) {
+      // Use quantity directly from getCartReservations result (already contains quantity)
+      if (reservation.quantity > 0) {
         // Delete individual reservation
         await this.delete(reservationKey);
         // Decrement aggregated reserved count
-        await this.releaseInventory(reservation.variantId, quantity);
+        await this.releaseInventory(
+          reservation.variantId,
+          reservation.quantity,
+        );
         this.logger.debug(
-          `Released ${quantity} units for cart ${cartId}, variant ${reservation.variantId}`,
+          `Released ${reservation.quantity} units for cart ${cartId}, variant ${reservation.variantId}`,
         );
       }
     }

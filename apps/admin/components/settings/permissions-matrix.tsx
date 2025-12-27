@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, X } from "lucide-react";
+import { QueryState } from "@/components/common/query-state";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -9,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useAdminRoles } from "@/hooks/admin/use-admin-roles";
 
 /**
  * Permission categories and actions
@@ -87,113 +89,121 @@ const PERMISSIONS = [
   },
 ] as const;
 
-/**
- * Role permissions mapping
- * Currently hardcoded - will be dynamic when backend adds permissions API
- */
-const ROLE_PERMISSIONS: Record<string, string[]> = {
-  admin: PERMISSIONS.flatMap((p) => p.actions.map((a) => a.id)),
-  support: [
-    "orders:read",
-    "orders:update",
-    "orders:notes",
-    "customers:read",
-    "customers:update",
-  ],
-  reviewer: [
-    "reviews:read",
-    "reviews:approve",
-    "reviews:reject",
-    "reviews:delete",
-  ],
-  marketing: [
-    "discounts:read",
-    "discounts:create",
-    "discounts:update",
-    "discounts:delete",
-    "price-lists:read",
-    "price-lists:create",
-    "price-lists:update",
-    "price-lists:delete",
-    "products:read",
-  ],
-};
-
-const ROLES = ["admin", "support", "reviewer", "marketing"] as const;
+// Helper function to convert role permissions to flat array
+function getRolePermissionsFlat(
+  permissions: Record<string, string[]>,
+): string[] {
+  return Object.entries(permissions).flatMap(([resource, actions]) =>
+    actions.map((action) => `${resource}:${action}`),
+  );
+}
 
 /**
  * Permissions matrix component
- * Shows which permissions each role has
+ * Shows which permissions each role has from backend API
  */
 export function PermissionsMatrix() {
+  const { data: roles, isLoading, error } = useAdminRoles();
+
+  // Build role permissions map from API data
+  const rolePermissionsMap = roles
+    ? Object.fromEntries(
+        roles.map((role) => [
+          role.name.toLowerCase(),
+          getRolePermissionsFlat(role.permissions),
+        ]),
+      )
+    : {};
+
+  const rolesList = roles
+    ? roles.map((r) => r.name.toLowerCase())
+    : ["admin", "support", "reviewer", "marketing"];
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Permissions Matrix</CardTitle>
-        <CardDescription>
+    <Card className="rounded-xl border-border/50 bg-card/50">
+      <CardHeader className="p-4">
+        <CardTitle className="text-sm">Permissions Matrix</CardTitle>
+        <CardDescription className="text-xs">
           View which permissions are available for each role
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="border-b">
-                <th className="text-left p-2 font-semibold">Permission</th>
-                {ROLES.map((role) => (
-                  <th
-                    key={role}
-                    className="text-center p-2 font-semibold min-w-[100px]"
-                  >
-                    <Badge variant="outline" className="capitalize">
-                      {role}
-                    </Badge>
+      <CardContent className="p-4">
+        <QueryState
+          isLoading={isLoading}
+          error={error}
+          data={roles}
+          loadingComponent={
+            <div className="text-xs text-muted-foreground">
+              Loading permissions...
+            </div>
+          }
+          emptyComponent={
+            <div className="text-center py-8 text-xs text-muted-foreground">
+              No roles found
+            </div>
+          }
+        >
+          <div className="overflow-x-auto rounded-xl border border-border/50">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-left p-2 font-semibold text-xs">
+                    Permission
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {PERMISSIONS.map((permission) => (
-                <tr key={permission.category} className="border-b">
-                  <td
-                    colSpan={ROLES.length + 1}
-                    className="p-2 font-semibold bg-muted/50"
-                  >
-                    {permission.category}
-                  </td>
+                  {rolesList.map((role) => (
+                    <th
+                      key={role}
+                      className="text-center p-2 font-semibold min-w-[100px] text-xs"
+                    >
+                      <Badge variant="outline" className="capitalize text-xs">
+                        {role}
+                      </Badge>
+                    </th>
+                  ))}
                 </tr>
-              ))}
-              {PERMISSIONS.flatMap((permission) =>
-                permission.actions.map((action) => (
-                  <tr key={action.id} className="border-b hover:bg-muted/50">
-                    <td className="p-2 pl-6 text-sm">{action.name}</td>
-                    {ROLES.map((role) => {
-                      const hasPermission = ROLE_PERMISSIONS[role]?.includes(
-                        action.id,
-                      );
-                      return (
-                        <td key={role} className="p-2 text-center">
-                          {hasPermission ? (
-                            <Check className="h-5 w-5 text-green-600 mx-auto" />
-                          ) : (
-                            <X className="h-5 w-5 text-muted-foreground mx-auto" />
-                          )}
-                        </td>
-                      );
-                    })}
+              </thead>
+              <tbody>
+                {PERMISSIONS.map((permission) => (
+                  <tr
+                    key={permission.category}
+                    className="border-b border-border/50"
+                  >
+                    <td
+                      colSpan={rolesList.length + 1}
+                      className="p-2 font-semibold bg-muted/30 text-xs"
+                    >
+                      {permission.category}
+                    </td>
                   </tr>
-                )),
-              )}
-            </tbody>
-          </table>
-        </div>
-        <div className="mt-4 rounded-md bg-muted/50 p-4">
-          <p className="text-sm text-muted-foreground">
-            <strong>Note:</strong> This is a preview of the permissions system
-            structure. Full role and permission management will be available
-            when backend APIs are implemented.
-          </p>
-        </div>
+                ))}
+                {PERMISSIONS.flatMap((permission) =>
+                  permission.actions.map((action) => (
+                    <tr
+                      key={action.id}
+                      className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="p-2 pl-6 text-xs">{action.name}</td>
+                      {rolesList.map((role) => {
+                        const hasPermission = rolePermissionsMap[
+                          role
+                        ]?.includes(action.id);
+                        return (
+                          <td key={role} className="p-2 text-center">
+                            {hasPermission ? (
+                              <Check className="h-4 w-4 text-green-600 mx-auto" />
+                            ) : (
+                              <X className="h-4 w-4 text-muted-foreground mx-auto" />
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  )),
+                )}
+              </tbody>
+            </table>
+          </div>
+        </QueryState>
       </CardContent>
     </Card>
   );

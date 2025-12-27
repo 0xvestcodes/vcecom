@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { DollarSign, Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
@@ -58,9 +58,9 @@ export function PriceListsPageClient() {
       title="Price Lists"
       description="Manage price lists for customer groups"
       actions={
-        <Button asChild>
+        <Button asChild size="sm" className="text-xs">
           <Link href="/price-lists/create">
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-3.5 w-3.5" />
             Create Price List
           </Link>
         </Button>
@@ -87,7 +87,7 @@ export function PriceListsPageClient() {
       )}
 
       {isLoading ? (
-        <div className="rounded-md border">
+        <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -101,29 +101,30 @@ export function PriceListsPageClient() {
             <TableBody>
               {Array.from({ length: 5 }, (_, i) => (
                 <TableRow key={`skeleton-row-${String(i)}`}>
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       ) : priceLists && priceLists.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <p className="text-lg font-medium mb-2">No price lists found</p>
-          <p className="text-sm mb-4">Create your first price list</p>
-          <Button asChild>
+        <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+          <DollarSign className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p className="text-sm font-medium mb-1">No price lists found</p>
+          <p className="text-xs mb-4">Create your first price list</p>
+          <Button asChild size="sm" className="text-xs">
             <Link href="/price-lists/create">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-3.5 w-3.5" />
               Create Price List
             </Link>
           </Button>
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -136,32 +137,42 @@ export function PriceListsPageClient() {
             </TableHeader>
             <TableBody>
               {priceLists?.map((priceList) => (
-                <TableRow key={priceList.id}>
-                  <TableCell className="font-medium">
+                <TableRow
+                  key={priceList.id}
+                  className="group hover:bg-muted/30 transition-colors"
+                >
+                  <TableCell className="font-medium text-xs">
                     {priceList.name}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
                     <Badge
                       variant={priceList.isActive ? "default" : "secondary"}
+                      className="text-xs"
                     >
                       {priceList.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell>{priceList.items?.length || 0}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
+                    {priceList.items?.length || 0}
+                  </TableCell>
+                  <TableCell className="text-xs">
                     <DateTime date={priceList.createdAt} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        >
+                          <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="text-xs">
                         <DropdownMenuItem asChild>
                           <Link href={`/price-lists/${priceList.id}`}>
-                            <Edit className="mr-2 h-4 w-4" />
+                            <Edit className="mr-2 h-3.5 w-3.5" />
                             Edit
                           </Link>
                         </DropdownMenuItem>
@@ -169,7 +180,7 @@ export function PriceListsPageClient() {
                           onClick={() => handleDeleteClick(priceList.id)}
                           className="text-destructive"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
+                          <Trash2 className="mr-2 h-3.5 w-3.5" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>
