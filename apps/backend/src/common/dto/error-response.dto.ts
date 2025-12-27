@@ -186,4 +186,3 @@ export class ServiceUnavailableErrorDto {
   })
   error: string;
 }
-

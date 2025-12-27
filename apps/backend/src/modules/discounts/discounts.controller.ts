@@ -18,6 +18,8 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
+import { Public } from "../../common/decorators/public.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
 import {
   BadRequestErrorDto,
   ConflictErrorDto,
@@ -26,8 +28,6 @@ import {
   TooManyRequestsErrorDto,
   UnauthorizedErrorDto,
 } from "../../common/dto/error-response.dto";
-import { Public } from "../../common/decorators/public.decorator";
-import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { DriftSeverity } from "./audit/discount-audit.types";
@@ -397,7 +397,8 @@ export class PublicDiscountsController {
   })
   @ApiResponse({
     status: 422,
-    description: "Unprocessable entity - Discount not applicable (minimum order amount, customer group, etc.)",
+    description:
+      "Unprocessable entity - Discount not applicable (minimum order amount, customer group, etc.)",
     type: BadRequestErrorDto,
   })
   async validateDiscount(

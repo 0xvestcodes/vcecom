@@ -55,4 +55,3 @@ export class FrequentlyBoughtTogetherResponseDto {
   })
   associations: FrequentlyBoughtTogetherItemDto[];
 }
-

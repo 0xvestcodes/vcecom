@@ -25,6 +25,9 @@ import type {
   Request as ExpressRequest,
   Response as ExpressResponse,
 } from "express";
+import { Public } from "../../common/decorators/public.decorator";
+import { RateLimit } from "../../common/decorators/rate-limit.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
 import {
   BadRequestErrorDto,
   ConflictErrorDto,
@@ -32,9 +35,6 @@ import {
   TooManyRequestsErrorDto,
   UnauthorizedErrorDto,
 } from "../../common/dto/error-response.dto";
-import { Public } from "../../common/decorators/public.decorator";
-import { RateLimit } from "../../common/decorators/rate-limit.decorator";
-import { Roles } from "../../common/decorators/roles.decorator";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { AuthService } from "./auth.service";
 import { AuthResponseDto } from "./dto/auth-response.dto";

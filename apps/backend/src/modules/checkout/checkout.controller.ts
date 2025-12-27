@@ -16,14 +16,14 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { customers, eq } from "@vcecom/db";
+import { Public } from "../../common/decorators/public.decorator";
+import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import {
   BadRequestErrorDto,
   ConflictErrorDto,
   NotFoundErrorDto,
   TooManyRequestsErrorDto,
 } from "../../common/dto/error-response.dto";
-import { Public } from "../../common/decorators/public.decorator";
-import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { extractSessionId } from "../../common/utils/session.utils";
 import type { Database } from "../../modules/database/db";
@@ -37,12 +37,6 @@ import {
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { CheckoutService } from "./checkout.service";
 import {
-  ApplyAddressResponseDto,
-  ConfirmCheckoutResponseDto,
-  SelectShippingResponseDto,
-  StartCheckoutResponseDto,
-} from "./dto/checkout-response.dto";
-import {
   CheckoutAddressDto,
   CheckoutConfirmDto,
   CheckoutShippingDto,
@@ -50,6 +44,12 @@ import {
   SelectPaymentMethodDto,
   StartCheckoutDto,
 } from "./dto/checkout.dto";
+import {
+  ApplyAddressResponseDto,
+  ConfirmCheckoutResponseDto,
+  SelectShippingResponseDto,
+  StartCheckoutResponseDto,
+} from "./dto/checkout-response.dto";
 
 @ApiTags("store")
 @Controller("store/checkout")
@@ -135,7 +135,8 @@ export class CheckoutController {
   })
   @ApiResponse({
     status: 422,
-    description: "Unprocessable entity - Invalid PIN code format or address validation failed",
+    description:
+      "Unprocessable entity - Invalid PIN code format or address validation failed",
     type: BadRequestErrorDto,
   })
   @ApiResponse({
@@ -541,7 +542,8 @@ export class CheckoutController {
   })
   @ApiResponse({
     status: 409,
-    description: "Conflict - Checkout session in invalid state or order already created",
+    description:
+      "Conflict - Checkout session in invalid state or order already created",
     type: ConflictErrorDto,
   })
   @ApiResponse({

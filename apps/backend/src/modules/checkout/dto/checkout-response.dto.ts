@@ -63,7 +63,8 @@ export class ApplyAddressResponseDto {
   };
 
   @ApiProperty({
-    description: "Auto-selected shipping method ID (if only one method available)",
+    description:
+      "Auto-selected shipping method ID (if only one method available)",
     example: "123e4567-e89b-12d3-a456-426614174000",
     required: false,
   })
@@ -112,7 +113,8 @@ export class SelectShippingResponseDto {
 
 export class ConfirmCheckoutResponseDto {
   @ApiProperty({
-    description: "Order ID (null for online payments until payment confirmation)",
+    description:
+      "Order ID (null for online payments until payment confirmation)",
     example: "123e4567-e89b-12d3-a456-426614174000",
     nullable: true,
   })
@@ -138,4 +140,3 @@ export class ConfirmCheckoutResponseDto {
   })
   checkoutSessionId: string;
 }
-

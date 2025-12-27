@@ -23,14 +23,14 @@ import {
   ApiTags,
   ApiTooManyRequestsResponse,
 } from "@nestjs/swagger";
+import { Public } from "../../common/decorators/public.decorator";
+import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import {
   BadRequestErrorDto,
   ConflictErrorDto,
   NotFoundErrorDto,
   TooManyRequestsErrorDto,
 } from "../../common/dto/error-response.dto";
-import { Public } from "../../common/decorators/public.decorator";
-import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { extractSessionId } from "../../common/utils/session.utils";
 import { CartsService } from "./carts.service";
@@ -258,7 +258,8 @@ export class CartsController {
   })
   @ApiResponse({
     status: 422,
-    description: "Unprocessable entity - Discount validation failed (minimum order amount, customer group, etc.)",
+    description:
+      "Unprocessable entity - Discount validation failed (minimum order amount, customer group, etc.)",
     type: BadRequestErrorDto,
   })
   async applyDiscount(

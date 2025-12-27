@@ -32,6 +32,9 @@ import {
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { Request as ExpressRequest } from "express";
+import { Public } from "../../common/decorators/public.decorator";
+import { RateLimit } from "../../common/decorators/rate-limit.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
 import {
   BadRequestErrorDto,
   ConflictErrorDto,
@@ -40,19 +43,16 @@ import {
   TooManyRequestsErrorDto,
   UnauthorizedErrorDto,
 } from "../../common/dto/error-response.dto";
-import { Public } from "../../common/decorators/public.decorator";
-import { RateLimit } from "../../common/decorators/rate-limit.decorator";
-import { Roles } from "../../common/decorators/roles.decorator";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { DB_TOKEN } from "../../modules/database/database.module";
 import type { Database } from "../../modules/database/db";
-import { ProductCollectionResponseDto } from "./dto/product-collection-response.dto";
 import { ReviewQueryDto } from "../reviews/dto/review-query.dto";
 import {
   PaginatedReviewsResponseDto,
   ReviewResponseDto,
 } from "../reviews/dto/review-response.dto";
 import { ReviewsService } from "../reviews/services/reviews.service";
+import { ProductCollectionResponseDto } from "./dto/product-collection-response.dto";
 
 interface AuthenticatedRequest extends ExpressRequest {
   user?: {

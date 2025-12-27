@@ -45,4 +45,3 @@ export class ProductCollectionResponseDto {
   })
   updatedAt: Date;
 }
-
