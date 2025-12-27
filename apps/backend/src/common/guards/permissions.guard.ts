@@ -2,11 +2,14 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { db, eq, users } from "@vcecom/db";
+import { eq, users } from "@vcecom/db";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 import {
   PERMISSIONS_KEY,
   PermissionsMetadata,
@@ -14,7 +17,10 @@ import {
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
+  constructor(
+    private reflector: Reflector,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const metadata = this.reflector.getAllAndOverride<PermissionsMetadata>(
@@ -63,7 +69,7 @@ export class PermissionsGuard implements CanActivate {
   ): Promise<boolean> {
     try {
       // Get user with role
-      const [user] = await db
+      const [user] = await this.db
         .select({
           role: users.role,
           roleId: users.roleId,
@@ -90,7 +96,7 @@ export class PermissionsGuard implements CanActivate {
 
       // Get role permissions
       const { adminRoles } = await import("@vcecom/db");
-      const [role] = await db
+      const [role] = await this.db
         .select()
         .from(adminRoles)
         .where(eq(adminRoles.id, user.roleId))

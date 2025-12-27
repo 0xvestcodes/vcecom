@@ -76,10 +76,11 @@ export class InventoryRecoveryService implements OnModuleInit {
   }
 
   /**
-   * Periodic reconciliation job (runs every 7 minutes)
+   * Periodic reconciliation job (runs every 15 minutes)
    * Idempotent and safe under concurrency
+   * Reduced frequency to avoid connection pool saturation
    */
-  @Cron("*/7 * * * *")
+  @Cron("*/15 * * * *")
   async handleReconciliation() {
     return this.tracingService
       .startSpan({

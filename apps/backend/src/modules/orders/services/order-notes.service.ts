@@ -1,10 +1,13 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { db, desc, eq, orderNotes, orders } from "@vcecom/db";
+import { desc, eq, orderNotes, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { TimelineEventType } from "../dto/order-timeline.dto";
 import { OrderTimelineService } from "./order-timeline.service";
 
@@ -13,6 +16,7 @@ export class OrderNotesService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly timelineService: OrderTimelineService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -22,7 +26,7 @@ export class OrderNotesService {
    */
   async findByOrderId(orderId: string) {
     // Verify order exists
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -32,7 +36,7 @@ export class OrderNotesService {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    const notes = await db
+    const notes = await this.db
       .select()
       .from(orderNotes)
       .where(eq(orderNotes.orderId, orderId))
@@ -64,7 +68,7 @@ export class OrderNotesService {
     }
 
     // Verify order exists
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -74,7 +78,7 @@ export class OrderNotesService {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    const [createdNote] = await db
+    const [createdNote] = await this.db
       .insert(orderNotes)
       .values({
         orderId,

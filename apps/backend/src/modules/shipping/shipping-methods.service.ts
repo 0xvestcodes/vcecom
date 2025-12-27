@@ -1,10 +1,13 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { and, db, desc, eq, shippingMethods } from "@vcecom/db";
+import { and, desc, eq, shippingMethods } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 import {
   AvailableShippingMethod,
   CreateShippingMethodDto,
@@ -17,6 +20,7 @@ export class ShippingMethodsService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly shippingRulesService: ShippingRulesService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -24,7 +28,7 @@ export class ShippingMethodsService {
    */
   async create(dto: CreateShippingMethodDto) {
     // Check if code already exists
-    const existing = await db
+    const existing = await this.db
       .select()
       .from(shippingMethods)
       .where(eq(shippingMethods.code, dto.code))
@@ -36,7 +40,7 @@ export class ShippingMethodsService {
       );
     }
 
-    const [method] = await db
+    const [method] = await this.db
       .insert(shippingMethods)
       .values({
         name: dto.name,
@@ -67,7 +71,7 @@ export class ShippingMethodsService {
       ? undefined
       : eq(shippingMethods.isActive, true);
 
-    return await db
+    return await this.db
       .select()
       .from(shippingMethods)
       .where(conditions)
@@ -78,7 +82,7 @@ export class ShippingMethodsService {
    * Get a single shipping method by ID
    */
   async findOne(id: string) {
-    const [method] = await db
+    const [method] = await this.db
       .select()
       .from(shippingMethods)
       .where(eq(shippingMethods.id, id))
@@ -100,7 +104,7 @@ export class ShippingMethodsService {
 
     // If code is being updated, check for duplicates
     if (dto.code) {
-      const existing = await db
+      const existing = await this.db
         .select()
         .from(shippingMethods)
         .where(
@@ -110,7 +114,7 @@ export class ShippingMethodsService {
 
       if (existing.length === 0) {
         // Check if another method has this code
-        const duplicate = await db
+        const duplicate = await this.db
           .select()
           .from(shippingMethods)
           .where(eq(shippingMethods.code, dto.code))
@@ -124,7 +128,7 @@ export class ShippingMethodsService {
       }
     }
 
-    const [updated] = await db
+    const [updated] = await this.db
       .update(shippingMethods)
       .set({
         ...dto,
@@ -143,7 +147,7 @@ export class ShippingMethodsService {
   async remove(id: string) {
     await this.findOne(id);
 
-    await db.delete(shippingMethods).where(eq(shippingMethods.id, id));
+    await this.db.delete(shippingMethods).where(eq(shippingMethods.id, id));
 
     this.logger.info(`Deleted shipping method: ${id}`);
   }

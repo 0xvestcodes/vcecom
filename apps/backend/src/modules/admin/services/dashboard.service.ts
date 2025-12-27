@@ -1,9 +1,12 @@
-import { Injectable, InternalServerErrorException } from "@nestjs/common";
+import {
+  Inject,
+  Injectable,
+  InternalServerErrorException,
+} from "@nestjs/common";
 import {
   and,
   categories,
   customers,
-  db,
   desc,
   eq,
   gte,
@@ -24,6 +27,8 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { CustomerSupportDashboardResponseDto } from "../dto/dashboard-customer-support.dto";
 import { OperationsDashboardResponseDto } from "../dto/dashboard-operations.dto";
 import { OverviewDashboardResponseDto } from "../dto/dashboard-overview.dto";
@@ -35,6 +40,7 @@ export class DashboardService {
   constructor(
     readonly _logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -62,7 +68,7 @@ export class DashboardService {
       createdAt: Date;
     }>;
     try {
-      completedOrders = await db
+      completedOrders = await this.db
         .select({
           id: orders.id,
           total: orders.total,
@@ -119,7 +125,7 @@ export class DashboardService {
       status: string;
     }>;
     try {
-      refundData = await db
+      refundData = await this.db
         .select({
           amount: refunds.amount,
           status: refunds.status,
@@ -148,7 +154,7 @@ export class DashboardService {
     // Get cancelled orders
     let cancelledOrders: Array<{ count: number }>;
     try {
-      cancelledOrders = await db
+      cancelledOrders = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(orders)
         .where(eq(orders.status, "cancelled"));
@@ -316,7 +322,7 @@ export class DashboardService {
     // Get order status counts
     let statusCounts: Array<{ status: string; count: number }>;
     try {
-      statusCounts = await db
+      statusCounts = await this.db
         .select({
           status: orders.status,
           count: sql<number>`count(*)`,
@@ -355,7 +361,7 @@ export class DashboardService {
       createdAt: Date;
     }>;
     try {
-      delayedOrdersData = await db
+      delayedOrdersData = await this.db
         .select({
           id: orders.id,
           orderNumber: orders.orderNumber,
@@ -400,7 +406,7 @@ export class DashboardService {
     // Get RTO data (returned shipments)
     let rtoShipments: Array<{ count: number }>;
     try {
-      rtoShipments = await db
+      rtoShipments = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(shipments)
         .where(eq(shipments.status, "returned"));
@@ -420,7 +426,7 @@ export class DashboardService {
     const totalRtoOrders = Number(rtoShipments[0]?.count || 0);
     let totalOrders: Array<{ count: number }>;
     try {
-      totalOrders = await db
+      totalOrders = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(orders);
     } catch (error) {
@@ -446,7 +452,7 @@ export class DashboardService {
 
     let rtoThisMonth: Array<{ count: number }>;
     try {
-      rtoThisMonth = await db
+      rtoThisMonth = await this.db
         .select({ count: sql<number>`count(*)` })
         .from(shipments)
         .where(
@@ -475,7 +481,7 @@ export class DashboardService {
       updatedAt: Date;
     }>;
     try {
-      variants = await db
+      variants = await this.db
         .select({
           id: productVariants.id,
           inventory: productVariants.inventory,
@@ -523,7 +529,7 @@ export class DashboardService {
       updatedAt: Date;
     }>;
     try {
-      outOfStockVariants = await db
+      outOfStockVariants = await this.db
         .select({
           productId: productVariants.productId,
           inventory: productVariants.inventory,
@@ -553,7 +559,7 @@ export class DashboardService {
     try {
       productTitles =
         productIds.length > 0
-          ? await db
+          ? await this.db
               .select({
                 id: products.id,
                 title: products.title,
@@ -602,7 +608,7 @@ export class DashboardService {
       shippingProvider: string | null;
     }>;
     try {
-      shippedOrders = await db
+      shippedOrders = await this.db
         .select({
           id: orders.id,
           createdAt: orders.createdAt,
@@ -629,7 +635,7 @@ export class DashboardService {
     for (const order of shippedOrders) {
       let shipment: { createdAt: Date; updatedAt: Date } | undefined;
       try {
-        const shipmentResult = await db
+        const shipmentResult = await this.db
           .select({
             createdAt: shipments.createdAt,
             updatedAt: shipments.updatedAt,
@@ -720,7 +726,7 @@ export class DashboardService {
     // Customer segmentation
     let allCustomers: Array<typeof customers.$inferSelect>;
     try {
-      allCustomers = await db.select().from(customers);
+      allCustomers = await this.db.select().from(customers);
     } catch (error) {
       this._logger.error(
         createErrorContext(
@@ -739,7 +745,7 @@ export class DashboardService {
       count: number;
     }>;
     try {
-      customerOrders = await db
+      customerOrders = await this.db
         .select({
           customerId: orders.customerId,
           count: sql<number>`count(*)`,
@@ -795,7 +801,7 @@ export class DashboardService {
       customerId: string;
     }>;
     try {
-      allOrders = await db
+      allOrders = await this.db
         .select({
           total: orders.total,
           customerId: orders.customerId,
@@ -838,7 +844,7 @@ export class DashboardService {
       count: number;
     }>;
     try {
-      refundReasons = await db
+      refundReasons = await this.db
         .select({
           reason: refunds.reason,
           count: sql<number>`count(*)`,
@@ -876,7 +882,7 @@ export class DashboardService {
       refundCount: number;
     }>;
     try {
-      productRefunds = await db
+      productRefunds = await this.db
         .select({
           productId: products.id,
           productTitle: products.title,
@@ -910,7 +916,7 @@ export class DashboardService {
       orderCount: number;
     }>;
     try {
-      productOrders = await db
+      productOrders = await this.db
         .select({
           productId: products.id,
           orderCount: sql<number>`count(*)`,
@@ -960,7 +966,7 @@ export class DashboardService {
       count: number;
     }>;
     try {
-      reviewData = await db
+      reviewData = await this.db
         .select({
           rating: reviews.rating,
           count: sql<number>`count(*)`,
@@ -1044,7 +1050,7 @@ export class DashboardService {
    */
   async getProductMerchandisingDashboard(): Promise<ProductMerchandisingDashboardResponseDto> {
     // Best and worst selling products
-    const productSales = await db
+    const productSales = await this.db
       .select({
         productId: products.id,
         productTitle: products.title,
@@ -1095,7 +1101,7 @@ export class DashboardService {
       });
 
     // Category performance
-    const categorySales = await db
+    const categorySales = await this.db
       .select({
         categoryId: categories.id,
         categoryName: categories.name,
@@ -1124,7 +1130,7 @@ export class DashboardService {
     }));
 
     // Variant performance
-    const variantSales = await db
+    const variantSales = await this.db
       .select({
         variantId: productVariants.id,
         productId: products.id,
@@ -1174,7 +1180,7 @@ export class DashboardService {
     }));
 
     // Inventory turnover
-    const inventoryData = await db
+    const inventoryData = await this.db
       .select({
         productId: products.id,
         productTitle: products.title,
@@ -1246,7 +1252,7 @@ export class DashboardService {
       // Get all orders with error handling
       let allOrders: Array<typeof orders.$inferSelect>;
       try {
-        allOrders = await db.select().from(orders);
+        allOrders = await this.db.select().from(orders);
       } catch (error) {
         this._logger.error(
           createErrorContext(
@@ -1292,7 +1298,7 @@ export class DashboardService {
         count: number;
       }>;
       try {
-        orderStatusCounts = await db
+        orderStatusCounts = await this.db
           .select({
             status: orders.status,
             count: sql<number>`count(*)`,
@@ -1323,7 +1329,7 @@ export class DashboardService {
       // Customers
       let allCustomers: Array<typeof customers.$inferSelect>;
       try {
-        allCustomers = await db.select().from(customers);
+        allCustomers = await this.db.select().from(customers);
       } catch (error) {
         this._logger.error(
           createErrorContext(
@@ -1345,7 +1351,7 @@ export class DashboardService {
       // Products
       let allProducts: Array<typeof products.$inferSelect>;
       try {
-        allProducts = await db.select().from(products);
+        allProducts = await this.db.select().from(products);
       } catch (error) {
         this._logger.error(
           createErrorContext(
@@ -1369,7 +1375,7 @@ export class DashboardService {
         productId: string;
       }>;
       try {
-        outOfStockVariants = await db
+        outOfStockVariants = await this.db
           .select({
             productId: productVariants.productId,
           })
@@ -1395,7 +1401,7 @@ export class DashboardService {
       // Refunds
       let refundData: Array<{ count: number }>;
       try {
-        refundData = await db
+        refundData = await this.db
           .select({ count: sql<number>`count(*)` })
           .from(refunds);
       } catch (error) {
@@ -1421,7 +1427,7 @@ export class DashboardService {
         count: number;
       }>;
       try {
-        reviewData = await db
+        reviewData = await this.db
           .select({
             rating: reviews.rating,
             count: sql<number>`count(*)`,

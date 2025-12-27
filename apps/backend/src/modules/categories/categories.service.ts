@@ -1,13 +1,16 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from "@nestjs/common";
-import { categories, db, eq } from "@vcecom/db";
+import { categories, eq } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 import { CreateCategoryDto } from "./dto/create-category.dto";
 import { UpdateCategoryDto } from "./dto/update-category.dto";
 
@@ -16,6 +19,7 @@ export class CategoriesService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
   /**
    * Generate a slug from a name
@@ -42,7 +46,7 @@ export class CategoriesService {
     while (true) {
       let existing: typeof categories.$inferSelect | undefined;
       try {
-        const existingResult = await db
+        const existingResult = await this.db
           .select()
           .from(categories)
           .where(eq(categories.slug, slug))
@@ -80,7 +84,7 @@ export class CategoriesService {
     if (createCategoryDto.parentId) {
       let parent: typeof categories.$inferSelect | undefined;
       try {
-        const parentResult = await db
+        const parentResult = await this.db
           .select()
           .from(categories)
           .where(eq(categories.id, createCategoryDto.parentId))
@@ -116,7 +120,7 @@ export class CategoriesService {
     // Create category
     let newCategory: typeof categories.$inferSelect | undefined;
     try {
-      const categoryResult = await db
+      const categoryResult = await this.db
         .insert(categories)
         .values({
           name: createCategoryDto.name,
@@ -152,7 +156,7 @@ export class CategoriesService {
    */
   async findAll() {
     try {
-      return await db.select().from(categories);
+      return await this.db.select().from(categories);
     } catch (error) {
       this.logger.error(
         createErrorContext(
@@ -173,7 +177,7 @@ export class CategoriesService {
   async findTree() {
     let allCategories: Array<typeof categories.$inferSelect>;
     try {
-      allCategories = await db.select().from(categories);
+      allCategories = await this.db.select().from(categories);
     } catch (error) {
       this.logger.error(
         createErrorContext(
@@ -229,7 +233,7 @@ export class CategoriesService {
   async findOne(id: string) {
     let category: typeof categories.$inferSelect | undefined;
     try {
-      const categoryResult = await db
+      const categoryResult = await this.db
         .select()
         .from(categories)
         .where(eq(categories.id, id))
@@ -261,7 +265,7 @@ export class CategoriesService {
   async findBySlug(slug: string) {
     let category: typeof categories.$inferSelect | undefined;
     try {
-      const categoryResult = await db
+      const categoryResult = await this.db
         .select()
         .from(categories)
         .where(eq(categories.slug, slug))
@@ -294,7 +298,7 @@ export class CategoriesService {
     // Check if category exists
     let existing: typeof categories.$inferSelect | undefined;
     try {
-      const existingResult = await db
+      const existingResult = await this.db
         .select()
         .from(categories)
         .where(eq(categories.id, id))
@@ -325,7 +329,7 @@ export class CategoriesService {
 
       let parent: typeof categories.$inferSelect | undefined;
       try {
-        const parentResult = await db
+        const parentResult = await this.db
           .select()
           .from(categories)
           .where(eq(categories.id, updateCategoryDto.parentId))
@@ -384,7 +388,7 @@ export class CategoriesService {
     if (updateCategoryDto.imageUrl !== undefined)
       updateData.imageUrl = updateCategoryDto.imageUrl || null;
 
-    const [updated] = await db
+    const [updated] = await this.db
       .update(categories)
       .set(updateData)
       .where(eq(categories.id, id))
@@ -398,7 +402,7 @@ export class CategoriesService {
    */
   async remove(id: string) {
     // Check if category exists
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(categories)
       .where(eq(categories.id, id))
@@ -409,7 +413,7 @@ export class CategoriesService {
     }
 
     // Check if category has children
-    const [child] = await db
+    const [child] = await this.db
       .select()
       .from(categories)
       .where(eq(categories.parentId, id))
@@ -422,7 +426,7 @@ export class CategoriesService {
     }
 
     // Delete category
-    await db.delete(categories).where(eq(categories.id, id));
+    await this.db.delete(categories).where(eq(categories.id, id));
 
     return { message: "Category deleted successfully" };
   }
@@ -439,7 +443,7 @@ export class CategoriesService {
     while (queue.length > 0) {
       const currentId = queue.shift();
       if (!currentId) break;
-      const children = await db
+      const children = await this.db
         .select()
         .from(categories)
         .where(eq(categories.parentId, currentId));

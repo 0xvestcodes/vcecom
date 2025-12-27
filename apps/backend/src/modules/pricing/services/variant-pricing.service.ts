@@ -1,5 +1,7 @@
-import { Injectable } from "@nestjs/common";
-import { db, eq, productVariants } from "@vcecom/db";
+import { Inject, Injectable } from "@nestjs/common";
+import { eq, productVariants } from "@vcecom/db";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { VariantPricingDto } from "../dto/variant-pricing.dto";
 
 /**
@@ -7,6 +9,10 @@ import { VariantPricingDto } from "../dto/variant-pricing.dto";
  */
 @Injectable()
 export class VariantPricingService {
+  constructor(
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
+
   /**
    * Get effective price for a variant
    * Considers base price, sale price, and scheduled sales
@@ -15,7 +21,7 @@ export class VariantPricingService {
     variantId: string,
     now: Date = new Date(),
   ): Promise<number> {
-    const [variant] = await db
+    const [variant] = await this.db
       .select()
       .from(productVariants)
       .where(eq(productVariants.id, variantId))
@@ -66,7 +72,7 @@ export class VariantPricingService {
     variantId: string,
     now: Date = new Date(),
   ): Promise<VariantPricingDto> {
-    const [variant] = await db
+    const [variant] = await this.db
       .select()
       .from(productVariants)
       .where(eq(productVariants.id, variantId))

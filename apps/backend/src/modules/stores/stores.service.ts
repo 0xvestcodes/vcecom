@@ -1,8 +1,10 @@
-import { Injectable } from "@nestjs/common";
-import { db, eq, stores } from "@vcecom/db";
+import { Inject, Injectable } from "@nestjs/common";
+import { eq, stores } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 import { StoreResponseDto, UpdateStoreDto } from "./dto/stores.dto";
 
 @Injectable()
@@ -10,6 +12,7 @@ export class StoresService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -41,7 +44,7 @@ export class StoresService {
         null;
 
       // Try to get default store first
-      let [store] = await db
+      let [store] = await this.db
         .select()
         .from(stores)
         .where(eq(stores.isDefault, true))
@@ -49,12 +52,12 @@ export class StoresService {
 
       // If no default store, get the first one
       if (!store) {
-        [store] = await db.select().from(stores).limit(1);
+        [store] = await this.db.select().from(stores).limit(1);
       }
 
       // If still no store, create a default one using ENV vars
       if (!store) {
-        const [created] = await db
+        const [created] = await this.db
           .insert(stores)
           .values({
             name: storeName,
@@ -98,14 +101,14 @@ export class StoresService {
 
       // If setting a new default, unset all other defaults first
       if (dto.isDefault === true) {
-        await db
+        await this.db
           .update(stores)
           .set({ isDefault: false })
           .where(eq(stores.isDefault, true));
       }
 
       // Update store
-      const [updated] = await db
+      const [updated] = await this.db
         .update(stores)
         .set({
           name: dto.name ?? currentStore.name,

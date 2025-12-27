@@ -1,14 +1,19 @@
-import { Controller, Get } from "@nestjs/common";
+import { Controller, Get, Inject } from "@nestjs/common";
 import { ApiOperation, ApiResponse, ApiTags } from "@nestjs/swagger";
-import { db, sql } from "@vcecom/db";
+import { sql } from "@vcecom/db";
+import { DB_TOKEN } from "../../modules/database/database.module";
 import { DatabaseService } from "../../modules/database/database.service";
+import type { Database } from "../../modules/database/db";
 import { Public } from "../decorators/public.decorator";
 
 @ApiTags("admin")
 @Controller("_health")
 @Public()
 export class HealthDatabaseController {
-  constructor(private readonly databaseService: DatabaseService) {}
+  constructor(
+    private readonly databaseService: DatabaseService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
 
   @Get("database")
   @ApiOperation({
@@ -29,7 +34,7 @@ export class HealthDatabaseController {
     if (healthStatus.healthy) {
       try {
         const startTime = Date.now();
-        await db.execute(sql`SELECT 1`);
+        await this.db.execute(sql`SELECT 1`); // Use injected db instance
         queryLatency = Date.now() - startTime;
         connectivityStatus = "OK";
       } catch (_error) {
@@ -47,8 +52,11 @@ export class HealthDatabaseController {
         stats: healthStatus.stats
           ? {
               totalConnections: healthStatus.stats.totalCount,
+              usedConnections: healthStatus.stats.usedCount,
               idleConnections: healthStatus.stats.idleCount,
               waitingConnections: healthStatus.stats.waitingCount,
+              usagePercent: healthStatus.stats.usagePercent,
+              maxConnections: healthStatus.stats.maxConnections,
             }
           : null,
       },

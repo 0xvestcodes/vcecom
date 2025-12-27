@@ -1,11 +1,13 @@
-import { Injectable } from "@nestjs/common";
-import { db, productImages, sql } from "@vcecom/db";
+import { Inject, Injectable } from "@nestjs/common";
+import { productImages, sql } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
 import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAY_MS = 100;
@@ -15,6 +17,7 @@ export class MediaTransactionService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -28,7 +31,7 @@ export class MediaTransactionService {
 
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
-        return await db.transaction(async (tx) => {
+        return await this.db.transaction(async (tx) => {
           return await operation();
         });
       } catch (error) {
@@ -80,7 +83,7 @@ export class MediaTransactionService {
   async lockProductImages(productId: string): Promise<void> {
     try {
       // Use SELECT FOR UPDATE to acquire row-level lock
-      await db.execute(
+      await this.db.execute(
         sql`SELECT * FROM ${productImages} WHERE ${productImages.productId} = ${productId} FOR UPDATE`,
       );
 
@@ -108,7 +111,7 @@ export class MediaTransactionService {
   async lockVariantImages(productId: string, variantId: string): Promise<void> {
     try {
       // Use SELECT FOR UPDATE to acquire row-level lock
-      await db.execute(
+      await this.db.execute(
         sql`SELECT * FROM ${productImages} WHERE ${productImages.productId} = ${productId} AND ${productImages.variantId} = ${variantId} FOR UPDATE`,
       );
 

@@ -1,15 +1,18 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { and, db, eq, orderItems, orders, payments } from "@vcecom/db";
+import { and, eq, orderItems, orders, payments } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
 import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { BundleCartItemMetadata } from "../../carts/dto/bundle-cart-item.dto";
 import { BundlePricingService } from "../../pricing/services/bundle-pricing.service";
 import { InventoryStore } from "../../redis-store/stores/inventory-store";
@@ -34,6 +37,7 @@ export class OrderCancelService {
     private readonly timelineService: OrderTimelineService,
     private readonly gstService: OrderGstService,
     private readonly bundlePricingService: BundlePricingService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -74,7 +78,7 @@ export class OrderCancelService {
   private async releaseInventory(orderId: string): Promise<void> {
     try {
       // Get order items
-      const items = await db
+      const items = await this.db
         .select()
         .from(orderItems)
         .where(eq(orderItems.orderId, orderId));
@@ -147,7 +151,7 @@ export class OrderCancelService {
     const customerId = await this.validationService.getCustomerId(userId);
 
     // Get order and validate ownership
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)))
@@ -176,7 +180,7 @@ export class OrderCancelService {
     adminId: string,
   ): Promise<OrderResponseDto> {
     // Get order (no customer validation for admin)
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -212,7 +216,7 @@ export class OrderCancelService {
     await this.releaseInventory(orderId);
 
     // Check if payment was captured and handle refund
-    const [payment] = await db
+    const [payment] = await this.db
       .select()
       .from(payments)
       .where(
@@ -236,7 +240,7 @@ export class OrderCancelService {
     }
 
     // Update order status to cancelled
-    const [updatedOrder] = await db
+    const [updatedOrder] = await this.db
       .update(orders)
       .set({
         status: "cancelled",
@@ -262,7 +266,7 @@ export class OrderCancelService {
     });
 
     // Get order items
-    const items = await db
+    const items = await this.db
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, orderId));

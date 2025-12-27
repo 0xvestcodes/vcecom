@@ -12,16 +12,25 @@ import {
 } from "@nestjs/common";
 import {
   ApiBadRequestResponse,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiHeader,
   ApiNotFoundResponse,
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiResponse,
   ApiTags,
+  ApiTooManyRequestsResponse,
 } from "@nestjs/swagger";
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
+import {
+  BadRequestErrorDto,
+  ConflictErrorDto,
+  NotFoundErrorDto,
+  TooManyRequestsErrorDto,
+} from "../../common/dto/error-response.dto";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { extractSessionId } from "../../common/utils/session.utils";
 import { CartsService } from "./carts.service";
@@ -77,9 +86,19 @@ export class CartsController {
   })
   @ApiBadRequestResponse({
     description: "Invalid input or insufficient inventory",
+    type: BadRequestErrorDto,
   })
   @ApiNotFoundResponse({
     description: "Product variant not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiConflictResponse({
+    description: "Conflict - Cart item already exists or inventory conflict",
+    type: ConflictErrorDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async addItem(
     @Request() req,
@@ -227,6 +246,21 @@ export class CartsController {
   })
   @ApiBadRequestResponse({
     description: "Invalid discount code or discount not applicable",
+    type: BadRequestErrorDto,
+  })
+  @ApiNotFoundResponse({
+    description: "Discount code not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiConflictResponse({
+    description: "Conflict - Discount already applied or not applicable",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      "Unprocessable entity - Discount validation failed (minimum order amount, customer group, etc.)",
+    type: BadRequestErrorDto,
   })
   async applyDiscount(
     @Request() req,

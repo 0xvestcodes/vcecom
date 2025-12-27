@@ -1,5 +1,6 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
+import { DatabaseModule } from "../database/database.module";
 import { RedisStoreService } from "./redis-store.service";
 import { InventoryRecoveryService } from "./services/inventory-recovery.service";
 import { BundleCacheStore } from "./stores/bundle-cache-store";
@@ -12,8 +13,10 @@ import { InventoryStore } from "./stores/inventory-store";
 import { ProductMappingStore } from "./stores/product-mapping-store";
 
 @Module({
-  imports: [ScheduleModule.forRoot()],
-  // LoggerModule and ContextModule are global, so no need to import them
+  imports: [
+    ScheduleModule.forRoot(),
+    forwardRef(() => DatabaseModule), // Use forwardRef to break circular dependency
+  ],
   providers: [
     RedisStoreService,
     InventoryStore,

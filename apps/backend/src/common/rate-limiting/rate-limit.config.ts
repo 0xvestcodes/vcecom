@@ -23,7 +23,7 @@ export const RATE_LIMIT_PRESETS = {
    * Storefront GET endpoints - high throughput for browsing
    */
   STOREFRONT_GET: {
-    limit: isDevelopment ? 5000 : 1000,
+    limit: isDevelopment ? 50000 : 5000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -32,7 +32,7 @@ export const RATE_LIMIT_PRESETS = {
    * Product detail pages - high cache hit rate
    */
   PRODUCT_DETAIL: {
-    limit: 1000,
+    limit: 100000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -41,7 +41,7 @@ export const RATE_LIMIT_PRESETS = {
    * Reviews listing - moderate traffic
    */
   REVIEWS_LISTING: {
-    limit: 600,
+    limit: 60000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -50,7 +50,7 @@ export const RATE_LIMIT_PRESETS = {
    * Bundle listing - high throughput
    */
   BUNDLE_LISTING: {
-    limit: 1000,
+    limit: 100000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -59,7 +59,7 @@ export const RATE_LIMIT_PRESETS = {
    * Categories, tags, search - moderate traffic
    */
   CATEGORIES_SEARCH: {
-    limit: 800,
+    limit: 800000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -68,7 +68,7 @@ export const RATE_LIMIT_PRESETS = {
    * Checkout session creation - tighter limits to prevent abuse
    */
   CHECKOUT_SESSION: {
-    limit: isDevelopment ? 200 : 50,
+    limit: isDevelopment ? 20000 : 5000,
     window: 300, // 5 minutes
     keyType: "sessionId" as RateLimitKeyType,
   },
@@ -77,7 +77,7 @@ export const RATE_LIMIT_PRESETS = {
    * Payment intent creation - strictest checkout limit
    */
   PAYMENT_INTENT: {
-    limit: isDevelopment ? 100 : 30,
+    limit: isDevelopment ? 10000 : 3000,
     window: 300, // 5 minutes
     keyType: "sessionId" as RateLimitKeyType,
   },
@@ -86,7 +86,7 @@ export const RATE_LIMIT_PRESETS = {
    * Cart updates - moderate limits
    */
   CART_UPDATES: {
-    limit: isDevelopment ? 1000 : 300,
+    limit: isDevelopment ? 10000 : 3000,
     window: 300, // 5 minutes
     keyType: "sessionId" as RateLimitKeyType,
   },
@@ -95,7 +95,7 @@ export const RATE_LIMIT_PRESETS = {
    * Login attempts - strict for brute force protection
    */
   LOGIN: {
-    limit: isDevelopment ? 100 : 10,
+    limit: isDevelopment ? 10000 : 1000,
     window: isDevelopment ? 300 : 600, // 5 min in dev, 10 min in prod
     keyType: "ip+email" as RateLimitKeyType,
   },
@@ -104,7 +104,7 @@ export const RATE_LIMIT_PRESETS = {
    * Reset password - strict for security
    */
   RESET_PASSWORD: {
-    limit: isDevelopment ? 50 : 8,
+    limit: isDevelopment ? 5000 : 800,
     window: isDevelopment ? 300 : 600, // 5 min in dev, 10 min in prod
     keyType: "ip+email" as RateLimitKeyType,
   },
@@ -113,25 +113,25 @@ export const RATE_LIMIT_PRESETS = {
    * Claim account - strict for security
    */
   CLAIM_ACCOUNT: {
-    limit: isDevelopment ? 50 : 8,
+    limit: isDevelopment ? 5000 : 800,
     window: isDevelopment ? 300 : 600, // 5 min in dev, 10 min in prod
     keyType: "ip+email" as RateLimitKeyType,
   },
 
   /**
-   * Admin GET endpoints - high throughput for admin UI
+   * Admin GET endpoints - unlimited for admin UI (temporarily set to infinity)
    */
   ADMIN_GET: {
-    limit: isDevelopment ? 5000 : 1000,
+    limit: Number.MAX_SAFE_INTEGER, // Effectively unlimited
     window: 300, // 5 minutes
     keyType: "userId" as RateLimitKeyType,
   },
 
   /**
-   * Admin POST/PATCH/DELETE - moderate limits
+   * Admin POST/PATCH/DELETE - unlimited (temporarily set to infinity)
    */
   ADMIN_MUTATE: {
-    limit: isDevelopment ? 1000 : 200,
+    limit: Number.MAX_SAFE_INTEGER, // Effectively unlimited
     window: 300, // 5 minutes
     keyType: "userId" as RateLimitKeyType,
   },
@@ -140,7 +140,7 @@ export const RATE_LIMIT_PRESETS = {
    * Generic store GET - catch-all fallback for public GET endpoints
    */
   GENERIC_STORE_GET: {
-    limit: 1500,
+    limit: 150000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -149,7 +149,7 @@ export const RATE_LIMIT_PRESETS = {
    * Export endpoints - strict limits (5 per minute)
    */
   EXPORT: {
-    limit: isDevelopment ? 20 : 5,
+    limit: isDevelopment ? 20000 : 5000,
     window: 60, // 1 minute
     keyType: "userId" as RateLimitKeyType,
   },

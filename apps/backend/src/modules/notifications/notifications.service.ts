@@ -1,5 +1,5 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { and, db, desc, eq, isNull, notifications, or, sql } from "@vcecom/db";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { and, desc, eq, isNull, notifications, or, sql } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
@@ -7,6 +7,8 @@ import {
   generatePaginationMetadata,
   normalizePaginationParams,
 } from "../../common/utils/pagination.utils";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 import {
   CreateNotificationDto,
   NotificationResponseDto,
@@ -23,6 +25,7 @@ export class NotificationsService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -30,7 +33,7 @@ export class NotificationsService {
    */
   async create(dto: CreateNotificationDto): Promise<NotificationResponseDto> {
     try {
-      const [notification] = await db
+      const [notification] = await this.db
         .insert(notifications)
         .values({
           adminId: dto.adminId || null,
@@ -98,7 +101,7 @@ export class NotificationsService {
     const whereCondition = and(...conditions);
 
     // Get total count
-    const countQuery = db
+    const countQuery = this.db
       .select({ count: sql<number>`count(*)` })
       .from(notifications)
       .where(whereCondition);
@@ -117,7 +120,7 @@ export class NotificationsService {
     }
 
     // Get notifications
-    const notificationsQuery = db
+    const notificationsQuery = this.db
       .select()
       .from(notifications)
       .where(whereCondition)
@@ -147,7 +150,7 @@ export class NotificationsService {
    */
   async markRead(adminId: string, notificationId: string): Promise<void> {
     // Verify notification exists and belongs to admin or is broadcast
-    const [notification] = await db
+    const [notification] = await this.db
       .select()
       .from(notifications)
       .where(
@@ -164,7 +167,7 @@ export class NotificationsService {
       );
     }
 
-    await db
+    await this.db
       .update(notifications)
       .set({ read: true })
       .where(eq(notifications.id, notificationId));
@@ -174,7 +177,7 @@ export class NotificationsService {
    * Mark all notifications as read for an admin
    */
   async markAllRead(adminId: string): Promise<void> {
-    await db
+    await this.db
       .update(notifications)
       .set({ read: true })
       .where(
@@ -190,7 +193,7 @@ export class NotificationsService {
    */
   async delete(adminId: string, notificationId: string): Promise<void> {
     // Verify notification exists and belongs to admin or is broadcast
-    const [notification] = await db
+    const [notification] = await this.db
       .select()
       .from(notifications)
       .where(
@@ -207,7 +210,9 @@ export class NotificationsService {
       );
     }
 
-    await db.delete(notifications).where(eq(notifications.id, notificationId));
+    await this.db
+      .delete(notifications)
+      .where(eq(notifications.id, notificationId));
   }
 
   /**

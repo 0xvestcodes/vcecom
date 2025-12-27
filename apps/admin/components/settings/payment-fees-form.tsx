@@ -366,9 +366,7 @@ export function PaymentFeesForm({
                         value={field.value || ""}
                         onChange={(e) =>
                           field.onChange(
-                            e.target.value
-                              ? parseFloat(e.target.value)
-                              : null,
+                            e.target.value ? parseFloat(e.target.value) : null,
                           )
                         }
                       />

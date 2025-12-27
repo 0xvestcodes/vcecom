@@ -91,3 +91,35 @@ export class ReviewResponseDto {
   })
   updatedAt: Date;
 }
+
+export class PaginatedReviewsResponseDto {
+  @ApiProperty({
+    description: "List of reviews",
+    type: [ReviewResponseDto],
+  })
+  data: ReviewResponseDto[];
+
+  @ApiProperty({
+    description: "Total number of reviews",
+    example: 50,
+  })
+  total: number;
+
+  @ApiProperty({
+    description: "Current page number",
+    example: 1,
+  })
+  page: number;
+
+  @ApiProperty({
+    description: "Number of items per page",
+    example: 20,
+  })
+  limit: number;
+
+  @ApiProperty({
+    description: "Total number of pages",
+    example: 3,
+  })
+  totalPages: number;
+}

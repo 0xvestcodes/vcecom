@@ -24,6 +24,7 @@ export class PricingCacheHydrationService implements OnModuleInit {
   /**
    * Hydrate pricing caches on module initialization
    * Runs in background to avoid blocking app startup
+   * Starts immediately (0s delay) to serialize with discount hydration
    */
   async onModuleInit(): Promise<void> {
     this.logger.info(
@@ -31,6 +32,7 @@ export class PricingCacheHydrationService implements OnModuleInit {
       "Starting pricing cache hydration in background",
     );
     // Run hydration in background - don't block startup
+    // No delay - runs first to serialize with discount hydration
     this.hydrate()
       .then(() => {
         this.logger.info(

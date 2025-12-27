@@ -34,31 +34,35 @@ export class DiscountCacheHydrationService implements OnModuleInit {
   /**
    * Bootstrap Redis caches on app startup
    * Runs in background to avoid blocking app startup
+   * Delayed by 3 seconds to serialize with pricing hydration and prevent connection pool saturation
    */
   async onModuleInit() {
     this.logger.info(
       createLogContext(this.contextService, "onModuleInit", {}),
-      "Starting discount cache hydration in background",
+      "Starting discount cache hydration in background (delayed 3s to serialize DB load)",
     );
-    // Run hydration in background - don't block startup
-    this.hydrate()
-      .then(() => {
-        this.logger.info(
-          createLogContext(this.contextService, "onModuleInit", {}),
-          "Discount cache hydration completed successfully",
-        );
-      })
-      .catch((error) => {
-        // Don't block startup if hydration fails
-        this.logger.error(
-          createErrorContext(this.contextService, "onModuleInit", error),
-          "Failed to hydrate discount caches on startup - will retry later",
-        );
-        this.logger.warn(
-          createLogContext(this.contextService, "onModuleInit", {}),
-          "Continuing startup without discount cache hydration, system will fallback to DB queries",
-        );
-      });
+    // Delay hydration to serialize with pricing hydration and prevent connection pool saturation
+    setTimeout(() => {
+      // Run hydration in background - don't block startup
+      this.hydrate()
+        .then(() => {
+          this.logger.info(
+            createLogContext(this.contextService, "onModuleInit", {}),
+            "Discount cache hydration completed successfully",
+          );
+        })
+        .catch((error) => {
+          // Don't block startup if hydration fails
+          this.logger.error(
+            createErrorContext(this.contextService, "onModuleInit", error),
+            "Failed to hydrate discount caches on startup - will retry later",
+          );
+          this.logger.warn(
+            createLogContext(this.contextService, "onModuleInit", {}),
+            "Continuing startup without discount cache hydration, system will fallback to DB queries",
+          );
+        });
+    }, 3000); // 3 second delay to serialize with pricing hydration
   }
 
   /**

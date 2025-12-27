@@ -1,9 +1,10 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { addresses } from "@vcecom/db";
+import { addresses, eq, orderItems, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
 import {
@@ -11,6 +12,8 @@ import {
   createLogContext,
 } from "../../common/logging/logging.helper";
 import { calculateGstBreakdown } from "../../common/utils/gst.utils";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 import { CheckoutState } from "../redis-store/constants/checkout-states";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { OrderResponseDto } from "./dto/order-response.dto";
@@ -23,6 +26,7 @@ export class ReconciliationService {
     private readonly ordersService: OrdersService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database,
   ) {}
 
   /**
@@ -52,11 +56,9 @@ export class ReconciliationService {
       );
       // Fetch and return existing order directly from database
       // (bypassing user check since this is admin reconciliation)
-      const { db, eq, orders, orderItems } = await import("@vcecom/db");
-
       let order: typeof orders.$inferSelect | undefined;
       try {
-        const orderResult = await db
+        const orderResult = await this.db
           .select()
           .from(orders)
           .where(eq(orders.id, existingOrderId))
@@ -96,7 +98,7 @@ export class ReconciliationService {
         updatedAt: Date;
       }>;
       try {
-        items = await db
+        items = await this.db
           .select({
             id: orderItems.id,
             orderId: orderItems.orderId,
@@ -128,7 +130,7 @@ export class ReconciliationService {
       // Get shipping address for GST calculation
       let shippingAddress: { state: string } | undefined;
       try {
-        const addressResult = await db
+        const addressResult = await this.db
           .select({ state: addresses.state })
           .from(addresses)
           .where(eq(addresses.id, order.shippingAddressId))

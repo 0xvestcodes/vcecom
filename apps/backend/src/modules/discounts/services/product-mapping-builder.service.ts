@@ -1,6 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import {
-  db,
   eq,
   inArray,
   productCollections,
@@ -8,6 +7,8 @@ import {
   productVariants,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import {
   ProductMapping,
   VariantMapping,
@@ -15,7 +16,10 @@ import {
 
 @Injectable()
 export class ProductMappingBuilder {
-  constructor(private readonly logger: PinoLogger) {}
+  constructor(
+    private readonly logger: PinoLogger,
+    @Inject(DB_TOKEN) private readonly db: Database,
+  ) {}
 
   /**
    * Build product mapping (collections, tags, variants)
@@ -23,19 +27,19 @@ export class ProductMappingBuilder {
   async buildProductMapping(productId: string): Promise<ProductMapping> {
     try {
       // Get collections for product
-      const collections = await db
+      const collections = await this.db
         .select({ collectionId: productCollections.collectionId })
         .from(productCollections)
         .where(eq(productCollections.productId, productId));
 
       // Get tags for product
-      const tags = await db
+      const tags = await this.db
         .select({ tagId: productTags.tagId })
         .from(productTags)
         .where(eq(productTags.productId, productId));
 
       // Get variants for product
-      const variants = await db
+      const variants = await this.db
         .select({ variantId: productVariants.id })
         .from(productVariants)
         .where(eq(productVariants.productId, productId));
@@ -59,7 +63,7 @@ export class ProductMappingBuilder {
   async buildVariantMapping(variantId: string): Promise<VariantMapping> {
     try {
       // Get variant to get product ID
-      const [variant] = await db
+      const [variant] = await this.db
         .select({ productId: productVariants.productId })
         .from(productVariants)
         .where(eq(productVariants.id, variantId))
@@ -70,13 +74,13 @@ export class ProductMappingBuilder {
       }
 
       // Get collections for product
-      const collections = await db
+      const collections = await this.db
         .select({ collectionId: productCollections.collectionId })
         .from(productCollections)
         .where(eq(productCollections.productId, variant.productId));
 
       // Get tags for product
-      const tags = await db
+      const tags = await this.db
         .select({ tagId: productTags.tagId })
         .from(productTags)
         .where(eq(productTags.productId, variant.productId));
@@ -99,7 +103,7 @@ export class ProductMappingBuilder {
    */
   async buildCollectionMapping(collectionId: string): Promise<string[]> {
     try {
-      const productCollectionsData = await db
+      const productCollectionsData = await this.db
         .select({ productId: productCollections.productId })
         .from(productCollections)
         .where(eq(productCollections.collectionId, collectionId));
@@ -118,7 +122,7 @@ export class ProductMappingBuilder {
    */
   async buildTagMapping(tagId: string): Promise<string[]> {
     try {
-      const productTagsData = await db
+      const productTagsData = await this.db
         .select({ productId: productTags.productId })
         .from(productTags)
         .where(eq(productTags.tagId, tagId));
@@ -146,7 +150,7 @@ export class ProductMappingBuilder {
 
     try {
       // Batch fetch collections
-      const collections = await db
+      const collections = await this.db
         .select({
           productId: productCollections.productId,
           collectionId: productCollections.collectionId,
@@ -155,7 +159,7 @@ export class ProductMappingBuilder {
         .where(inArray(productCollections.productId, productIds));
 
       // Batch fetch tags
-      const tags = await db
+      const tags = await this.db
         .select({
           productId: productTags.productId,
           tagId: productTags.tagId,
@@ -164,7 +168,7 @@ export class ProductMappingBuilder {
         .where(inArray(productTags.productId, productIds));
 
       // Batch fetch variants
-      const variants = await db
+      const variants = await this.db
         .select({
           productId: productVariants.productId,
           variantId: productVariants.id,

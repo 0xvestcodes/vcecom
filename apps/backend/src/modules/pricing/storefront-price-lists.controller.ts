@@ -1,9 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import {
-  ApiOkResponse,
-  ApiOperation,
-  ApiTags,
-} from "@nestjs/swagger";
+import { ApiOkResponse, ApiOperation, ApiTags } from "@nestjs/swagger";
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
@@ -31,4 +27,3 @@ export class StorefrontPriceListsController {
     return this.priceListService.findActive();
   }
 }
-

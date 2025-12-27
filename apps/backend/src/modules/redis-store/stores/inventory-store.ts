@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BadRequestException, Injectable, OnModuleInit } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  OnModuleInit,
+} from "@nestjs/common";
 import Redis from "ioredis";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
@@ -8,6 +13,8 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.constants";
+import type { Database } from "../../../modules/database/db";
 import { KEY_PATTERNS, TTL } from "../constants/key-patterns";
 import { IInventoryStore } from "../interfaces/redis-store.interface";
 import { RedisStoreService } from "../redis-store.service";
@@ -63,6 +70,7 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
     redisStoreService: RedisStoreService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database,
   ) {
     this.redisStoreService = redisStoreService;
   }
@@ -364,10 +372,9 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
    */
   private async syncInventoryFromDatabase(variantId: string): Promise<void> {
     try {
-      // Import here to avoid circular dependency
-      const { db, eq, productVariants } = await import("@vcecom/db");
+      const { eq, productVariants } = await import("@vcecom/db");
 
-      const [variant] = await db
+      const [variant] = await this.db
         .select({ inventory: productVariants.inventory })
         .from(productVariants)
         .where(eq(productVariants.id, variantId))

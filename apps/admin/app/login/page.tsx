@@ -23,9 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { api } from "@/lib/api";
 import { setAuthToken } from "@/lib/auth";
-import { endpoints } from "@/lib/endpoints";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -36,7 +34,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 function LoginForm() {
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
 
@@ -69,15 +67,32 @@ function LoginForm() {
 
   const mutation = useMutation({
     mutationFn: async (data: LoginFormValues) => {
-      // Call backend directly - cookies are set automatically by browser
-      return api.post<{
+      // Use Next.js API route to properly handle cookies
+      // The API route proxies to backend and forwards cookies with correct settings
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const error = await response
+          .json()
+          .catch(() => ({ message: "Login failed" }));
+        throw new Error(error.message || "Login failed");
+      }
+
+      return response.json() as Promise<{
         accessToken: string;
         refreshToken: string;
         id: string;
         email: string;
         role: string;
         requires2fa: boolean;
-      }>(endpoints.auth.login, data);
+      }>;
     },
     onSuccess: (data) => {
       if (data.requires2fa) {
@@ -94,9 +109,13 @@ function LoginForm() {
       }
 
       // Redirect to dashboard or original destination
+      // Use window.location.href instead of router.push to ensure cookies are set
+      // This ensures a full page navigation which properly handles cookie setting
       const redirectTo = searchParams.get("redirect") || "/";
-      router.push(redirectTo);
-      router.refresh();
+      // Small delay to ensure cookies are set before redirect
+      setTimeout(() => {
+        window.location.href = redirectTo;
+      }, 100);
     },
     onError: (error: Error & { status?: number }) => {
       if (error.status === 401) {

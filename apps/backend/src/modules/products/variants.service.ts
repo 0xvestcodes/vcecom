@@ -1,10 +1,10 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import {
-  db,
   eq,
   inArray,
   products,
@@ -12,13 +12,18 @@ import {
   variantOptionValueAssignments,
   variantOptionValues,
 } from "@vcecom/db";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
 import { CreateVariantDto } from "./dto/create-variant.dto";
 import { UpdateVariantDto } from "./dto/update-variant.dto";
 
 @Injectable()
 export class VariantsService {
-  constructor(private readonly inventoryStore: InventoryStore) {}
+  constructor(
+    private readonly inventoryStore: InventoryStore,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
   /**
    * Generate a SKU from product and variant attributes
    */
@@ -28,7 +33,7 @@ export class VariantsService {
     color?: string,
   ): Promise<string> {
     // Get product title for SKU base
-    const [product] = await db
+    const [product] = await this.db
       .select()
       .from(products)
       .where(eq(products.id, productId))
@@ -68,7 +73,7 @@ export class VariantsService {
 
     // Ensure SKU is unique
     while (true) {
-      const [existing] = await db
+      const [existing] = await this.db
         .select()
         .from(productVariants)
         .where(eq(productVariants.sku, sku))
@@ -90,7 +95,7 @@ export class VariantsService {
    */
   async create(createVariantDto: CreateVariantDto) {
     // Validate product exists
-    const [product] = await db
+    const [product] = await this.db
       .select()
       .from(products)
       .where(eq(products.id, createVariantDto.productId))
@@ -112,7 +117,7 @@ export class VariantsService {
         );
 
     // Create variant
-    const [newVariant] = await db
+    const [newVariant] = await this.db
       .insert(productVariants)
       .values({
         productId: createVariantDto.productId,
@@ -136,7 +141,7 @@ export class VariantsService {
       createVariantDto.optionValueIds.length > 0
     ) {
       // Validate all option values exist
-      const optionValues = await db
+      const optionValues = await this.db
         .select()
         .from(variantOptionValues)
         .where(
@@ -150,7 +155,7 @@ export class VariantsService {
       }
 
       // Create assignments
-      await db.insert(variantOptionValueAssignments).values(
+      await this.db.insert(variantOptionValueAssignments).values(
         createVariantDto.optionValueIds.map((optionValueId) => ({
           variantId: newVariant.id,
           optionValueId,
@@ -174,7 +179,7 @@ export class VariantsService {
    */
   async findByProductId(productId: string) {
     // Validate product exists
-    const [product] = await db
+    const [product] = await this.db
       .select()
       .from(products)
       .where(eq(products.id, productId))
@@ -184,7 +189,7 @@ export class VariantsService {
       throw new NotFoundException(`Product with ID ${productId} not found`);
     }
 
-    return db
+    return this.db
       .select()
       .from(productVariants)
       .where(eq(productVariants.productId, productId));
@@ -194,7 +199,7 @@ export class VariantsService {
    * Get variant by ID
    */
   async findOne(id: string) {
-    const [variant] = await db
+    const [variant] = await this.db
       .select()
       .from(productVariants)
       .where(eq(productVariants.id, id))
@@ -211,7 +216,7 @@ export class VariantsService {
    * Get variant by SKU
    */
   async findBySku(sku: string) {
-    const [variant] = await db
+    const [variant] = await this.db
       .select()
       .from(productVariants)
       .where(eq(productVariants.sku, sku))
@@ -229,7 +234,7 @@ export class VariantsService {
    */
   async update(id: string, updateVariantDto: UpdateVariantDto) {
     // Check if variant exists
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(productVariants)
       .where(eq(productVariants.id, id))
@@ -270,7 +275,7 @@ export class VariantsService {
       updateData.weight = updateVariantDto.weight || null;
 
     // Update variant
-    const [updated] = await db
+    const [updated] = await this.db
       .update(productVariants)
       .set(updateData)
       .where(eq(productVariants.id, id))
@@ -284,14 +289,14 @@ export class VariantsService {
     // Handle option value assignments update (new flexible system)
     if (updateVariantDto.optionValueIds !== undefined) {
       // Delete existing assignments
-      await db
+      await this.db
         .delete(variantOptionValueAssignments)
         .where(eq(variantOptionValueAssignments.variantId, id));
 
       // Create new assignments if provided
       if (updateVariantDto.optionValueIds.length > 0) {
         // Validate all option values exist
-        const optionValues = await db
+        const optionValues = await this.db
           .select()
           .from(variantOptionValues)
           .where(
@@ -305,7 +310,7 @@ export class VariantsService {
         }
 
         // Create assignments
-        await db.insert(variantOptionValueAssignments).values(
+        await this.db.insert(variantOptionValueAssignments).values(
           updateVariantDto.optionValueIds.map((optionValueId) => ({
             variantId: id,
             optionValueId,
@@ -322,7 +327,7 @@ export class VariantsService {
    */
   async remove(id: string) {
     // Check if variant exists
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(productVariants)
       .where(eq(productVariants.id, id))
@@ -333,7 +338,7 @@ export class VariantsService {
     }
 
     // Delete variant (images will be cascade deleted)
-    await db.delete(productVariants).where(eq(productVariants.id, id));
+    await this.db.delete(productVariants).where(eq(productVariants.id, id));
 
     return { message: "Variant deleted successfully" };
   }
@@ -349,7 +354,7 @@ export class VariantsService {
     let counter = 1;
 
     while (true) {
-      const [existing] = await db
+      const [existing] = await this.db
         .select()
         .from(productVariants)
         .where(eq(productVariants.sku, sku))

@@ -4,7 +4,6 @@ import { BundlesModule } from "../bundles/bundles.module";
 import { RedisStoreModule } from "../redis-store/redis-store.module";
 import { CustomerGroupsController } from "./customer-groups.controller";
 import { PriceListsController } from "./price-lists.controller";
-import { StorefrontPriceListsController } from "./storefront-price-lists.controller";
 import { AdminPricingDriftReportService } from "./services/admin-pricing-drift-report.service";
 import { BundlePricingService } from "./services/bundle-pricing.service";
 import { CustomerGroupService } from "./services/customer-group.service";
@@ -20,10 +19,15 @@ import { PricingSnapshotValidator } from "./services/pricing-snapshot-validator.
 import { PricingVersionManager } from "./services/pricing-version-manager.service";
 import { PricingWarmupWorker } from "./services/pricing-warmup-worker.service";
 import { VariantPricingService } from "./services/variant-pricing.service";
+import { StorefrontPriceListsController } from "./storefront-price-lists.controller";
 
 @Module({
   imports: [RedisStoreModule, ScheduleModule, BundlesModule],
-  controllers: [PriceListsController, CustomerGroupsController, StorefrontPriceListsController],
+  controllers: [
+    PriceListsController,
+    CustomerGroupsController,
+    StorefrontPriceListsController,
+  ],
   providers: [
     PriceListService,
     VariantPricingService,

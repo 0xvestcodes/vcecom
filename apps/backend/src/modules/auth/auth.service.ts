@@ -1,18 +1,24 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { db, eq, users } from "@vcecom/db";
+import { eq, users } from "@vcecom/db";
 import * as bcrypt from "bcrypt";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 
 @Injectable()
 export class AuthService {
-  constructor(private jwtService: JwtService) {}
+  constructor(
+    private jwtService: JwtService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
 
   async validateUser(email: string, password: string) {
-    const [user] = await db
+    const [user] = await this.db
       .select()
       .from(users)
       .where(eq(users.email, email))
@@ -48,7 +54,7 @@ export class AuthService {
     }
 
     // Check if user already exists
-    const [existingUser] = await db
+    const [existingUser] = await this.db
       .select()
       .from(users)
       .where(eq(users.email, email))
@@ -62,7 +68,7 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(password, 10);
 
     // Create user
-    const [newUser] = await db
+    const [newUser] = await this.db
       .insert(users)
       .values({
         email,
@@ -96,7 +102,7 @@ export class AuthService {
       const payload = this.jwtService.verify(refreshToken);
 
       // Verify user still exists
-      const [user] = await db
+      const [user] = await this.db
         .select()
         .from(users)
         .where(eq(users.id, payload.sub))

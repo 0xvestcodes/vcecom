@@ -1,10 +1,13 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { addresses, db, eq, orders } from "@vcecom/db";
+import { addresses, eq, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { TimelineEventType } from "../dto/order-timeline.dto";
 import { OrderTimelineService } from "./order-timeline.service";
 
@@ -22,6 +25,7 @@ export class OrderAddressService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly timelineService: OrderTimelineService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -39,7 +43,7 @@ export class OrderAddressService {
     adminId: string,
   ) {
     // Get order
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -69,7 +73,7 @@ export class OrderAddressService {
         : order.billingAddressId;
 
     // Update address
-    const [updatedAddress] = await db
+    const [updatedAddress] = await this.db
       .update(addresses)
       .set({
         street: addressData.street,
@@ -102,7 +106,7 @@ export class OrderAddressService {
     });
 
     // Fetch updated order
-    const [updatedOrder] = await db
+    const [updatedOrder] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))

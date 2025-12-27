@@ -72,9 +72,11 @@ export async function POST(request: NextRequest) {
 
         // Set cookie on Next.js response
         // For same-origin, we can use lax and httpOnly
+        // In production, cookies must be secure (HTTPS required)
+        const isProduction = process.env.NODE_ENV === "production";
         nextResponse.cookies.set(name, value, {
           httpOnly: cookieOptions.httpOnly ?? true,
-          secure: cookieOptions.secure ?? false, // false in dev, true in prod
+          secure: cookieOptions.secure ?? isProduction, // true in prod, false in dev
           sameSite: cookieOptions.sameSite || "lax",
           path: cookieOptions.path || "/",
           maxAge: cookieOptions.maxAge,

@@ -3,6 +3,7 @@ import { BundlesModule } from "../bundles/bundles.module";
 import { CartsModule } from "../carts/carts.module";
 import { CustomersModule } from "../customers/customers.module";
 import { DiscountsModule } from "../discounts/discounts.module";
+import { EventsModule } from "../events/events.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { PaymentsModule } from "../payments/payments.module";
 import { PricingModule } from "../pricing/pricing.module";
@@ -32,6 +33,7 @@ import { RefundsService } from "./services/refunds.service";
     RedisStoreModule,
     CustomersModule,
     NotificationsModule,
+    EventsModule,
     forwardRef(() => PaymentsModule),
   ],
   controllers: [OrdersController],

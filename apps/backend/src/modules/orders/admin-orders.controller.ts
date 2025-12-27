@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Inject,
   InternalServerErrorException,
   NotFoundException,
   Param,
@@ -19,7 +20,7 @@ import {
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
-import { addresses, db, eq, orderItems, orders } from "@vcecom/db";
+import { addresses, eq, orderItems, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
@@ -32,6 +33,8 @@ import {
 } from "../../common/logging/logging.helper";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { calculateGstBreakdown } from "../../common/utils/gst.utils";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 import { CreateOrderNoteDto } from "../admin/dto/create-order-note.dto";
 import { CreateRefundDto } from "../admin/dto/create-refund.dto";
 import { MarkOrderPaidResponseDto } from "../admin/dto/mark-order-paid.dto";
@@ -82,6 +85,7 @@ export class AdminOrdersController {
     private readonly duplicateService: OrderDuplicateService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   @Get(":id")
@@ -108,7 +112,7 @@ export class AdminOrdersController {
     try {
       let order: typeof orders.$inferSelect | undefined;
       try {
-        const orderResult = await db
+        const orderResult = await this.db
           .select()
           .from(orders)
           .where(eq(orders.id, id))
@@ -144,7 +148,7 @@ export class AdminOrdersController {
         updatedAt: Date;
       }>;
       try {
-        items = await db
+        items = await this.db
           .select({
             id: orderItems.id,
             orderId: orderItems.orderId,
@@ -174,7 +178,7 @@ export class AdminOrdersController {
       // Get shipping address for GST calculation
       let shippingAddress: { state: string } | undefined;
       try {
-        const addressResult = await db
+        const addressResult = await this.db
           .select({ state: addresses.state })
           .from(addresses)
           .where(eq(addresses.id, order.shippingAddressId))

@@ -8,7 +8,6 @@ import {
 } from "@nestjs/common";
 import {
   and,
-  db,
   desc,
   discountCategories,
   discountCollections,
@@ -28,6 +27,8 @@ import {
   or,
   sql,
 } from "@vcecom/db";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 
 // Internal modules - Redis stores
 import { DiscountRuleStore } from "../redis-store/stores/discount-rule-store";
@@ -37,6 +38,7 @@ import { EligibilityStore } from "../redis-store/stores/eligibility-store";
 import {
   CreateDiscountDto,
   DiscountApplicationType,
+  DiscountAppliesTo,
   DiscountScope,
   DiscountType,
   DiscountValueType,
@@ -66,6 +68,7 @@ export class DiscountsService {
     @Inject(forwardRef(() => RulesetRebuilder))
     private readonly rulesetRebuilder: RulesetRebuilder,
     private readonly profiler: DiscountProfiler,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   // ============================================================================
@@ -79,7 +82,7 @@ export class DiscountsService {
     createDiscountDto: CreateDiscountDto,
   ): Promise<DiscountResponseDto> {
     // Validate discount code uniqueness
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(discounts)
       .where(eq(discounts.code, createDiscountDto.code))
@@ -110,7 +113,7 @@ export class DiscountsService {
     }
 
     // Create discount
-    const [newDiscount] = await db
+    const [newDiscount] = await this.db
       .insert(discounts)
       .values({
         code: createDiscountDto.code,
@@ -125,6 +128,7 @@ export class DiscountsService {
         minQuantity: createDiscountDto.minQuantity || null,
         customerGroupIds: createDiscountDto.customerGroupIds || null,
         scope: createDiscountDto.scope || "PRODUCT",
+        appliesTo: createDiscountDto.appliesTo || "SUBTOTAL",
         priority: createDiscountDto.priority || 1,
         canStack: createDiscountDto.canStack ?? true,
         mutuallyExclusive: createDiscountDto.mutuallyExclusive ?? false,
@@ -206,7 +210,7 @@ export class DiscountsService {
   async findAll(page = 1, limit = 10) {
     const offset = (page - 1) * limit;
 
-    const allDiscounts = await db
+    const allDiscounts = await this.db
       .select()
       .from(discounts)
       .orderBy(desc(discounts.createdAt))
@@ -214,7 +218,7 @@ export class DiscountsService {
       .offset(offset);
 
     // Get total count using COUNT(*) for performance
-    const countResult = await db
+    const countResult = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(discounts);
     const total = Number(countResult[0]?.count || 0);
@@ -239,7 +243,7 @@ export class DiscountsService {
    * Get all discounts without pagination (for cache hydration)
    */
   async findAllUnpaginated(): Promise<DiscountResponseDto[]> {
-    const allDiscounts = await db
+    const allDiscounts = await this.db
       .select()
       .from(discounts)
       .orderBy(desc(discounts.createdAt));
@@ -257,7 +261,7 @@ export class DiscountsService {
    * Get discount by ID
    */
   async findOne(id: string): Promise<DiscountResponseDto> {
-    const [discount] = await db
+    const [discount] = await this.db
       .select()
       .from(discounts)
       .where(eq(discounts.id, id))
@@ -274,7 +278,7 @@ export class DiscountsService {
    * Get discount by code
    */
   async findByCode(code: string): Promise<DiscountResponseDto> {
-    const [discount] = await db
+    const [discount] = await this.db
       .select()
       .from(discounts)
       .where(eq(discounts.code, code))
@@ -294,7 +298,7 @@ export class DiscountsService {
     id: string,
     updateDiscountDto: UpdateDiscountDto,
   ): Promise<DiscountResponseDto> {
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(discounts)
       .where(eq(discounts.id, id))
@@ -306,7 +310,7 @@ export class DiscountsService {
 
     // Validate code uniqueness if code is being updated
     if (updateDiscountDto.code && updateDiscountDto.code !== existing.code) {
-      const [codeExists] = await db
+      const [codeExists] = await this.db
         .select()
         .from(discounts)
         .where(eq(discounts.code, updateDiscountDto.code))
@@ -365,7 +369,7 @@ export class DiscountsService {
       updateData.perUserLimit = updateDiscountDto.perUserLimit || null;
 
     // Update discount
-    const [updated] = await db
+    const [updated] = await this.db
       .update(discounts)
       .set(updateData)
       .where(eq(discounts.id, id))
@@ -436,7 +440,7 @@ export class DiscountsService {
    * Delete discount
    */
   async remove(id: string): Promise<{ message: string }> {
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(discounts)
       .where(eq(discounts.id, id))
@@ -450,7 +454,7 @@ export class DiscountsService {
     const existingEnriched = await this.enrichDiscountWithRelations(id);
 
     // Delete discount (cascade will delete relationships)
-    await db.delete(discounts).where(eq(discounts.id, id));
+    await this.db.delete(discounts).where(eq(discounts.id, id));
 
     // Track rule deletion
     try {
@@ -524,7 +528,7 @@ export class DiscountsService {
 
       // Check per user limit
       if (userId && discount.perUserLimit) {
-        const userUsages = await db
+        const userUsages = await this.db
           .select()
           .from(discountUsages)
           .where(
@@ -608,8 +612,16 @@ export class DiscountsService {
     }
 
     // STEP 2: Filter by eligibility using Redis sets (if variant IDs provided)
+    // This is an optimization - if Redis cache isn't available, we'll check eligibility
+    // in the discount engine based on product/category/collection/tag matching
     if (cartVariantIds && cartVariantIds.length > 0) {
-      rules = await this.filterByEligibility(rules, cartVariantIds);
+      try {
+        rules = await this.filterByEligibility(rules, cartVariantIds);
+      } catch (_error) {
+        // If eligibility filtering fails (Redis unavailable), continue with all rules
+        // The discount engine will filter based on product matching
+        // This ensures automatic discounts work even if Redis cache isn't warmed up
+      }
     }
 
     // STEP 3: Apply constraints (dates, limits, amounts)
@@ -634,6 +646,7 @@ export class DiscountsService {
           discount,
           cartSubtotal,
           userId,
+          this.db, // Pass injected db instance
         );
 
         if (isEligible) {
@@ -673,7 +686,7 @@ export class DiscountsService {
    */
   private async loadRulesFromDb(): Promise<DiscountResponseDto[]> {
     const now = new Date();
-    const automaticDiscounts = await db
+    const automaticDiscounts = await this.db
       .select()
       .from(discounts)
       .where(
@@ -697,6 +710,8 @@ export class DiscountsService {
 
   /**
    * Filter discounts by eligibility using Redis sets
+   * Falls back to including all discounts if Redis cache is unavailable
+   * (The discount engine will filter based on product/category/collection/tag matching)
    */
   private async filterByEligibility(
     rules: DiscountResponseDto[],
@@ -704,28 +719,40 @@ export class DiscountsService {
   ): Promise<DiscountResponseDto[]> {
     const variantIdSet = new Set(variantIds);
     const eligible: DiscountResponseDto[] = [];
+    let _hasCacheMiss = false;
 
     for (const rule of rules) {
-      // Check eligibility from Redis
-      const eligibilitySet = await this.eligibilityStore.getEligibility(
-        rule.id,
-      );
+      try {
+        // Check eligibility from Redis
+        const eligibilitySet = await this.eligibilityStore.getEligibility(
+          rule.id,
+        );
 
-      if (!eligibilitySet) {
-        // Not cached - skip for now (will be populated by warmup worker)
-        // Or could compute on-demand if needed, but for performance, skip
-        continue;
-      }
+        if (!eligibilitySet) {
+          // Not cached - include it anyway, discount engine will check eligibility
+          // This ensures automatic discounts work even if Redis cache isn't warmed up
+          _hasCacheMiss = true;
+          eligible.push(rule);
+          continue;
+        }
 
-      // Check if any cart variant is eligible
-      const hasEligibleVariant = Array.from(variantIdSet).some((vid) =>
-        eligibilitySet.has(vid),
-      );
+        // Check if any cart variant is eligible
+        const hasEligibleVariant = Array.from(variantIdSet).some((vid) =>
+          eligibilitySet.has(vid),
+        );
 
-      if (hasEligibleVariant) {
+        if (hasEligibleVariant) {
+          eligible.push(rule);
+        }
+      } catch (_error) {
+        // Redis error - include discount anyway, let discount engine filter it
+        _hasCacheMiss = true;
         eligible.push(rule);
       }
     }
+
+    // Note: If cache misses occur, discounts are still included
+    // The discount engine will filter them based on product/category/collection/tag matching
 
     return eligible;
   }
@@ -742,21 +769,21 @@ export class DiscountsService {
     orderId: string,
     userId?: string,
   ): Promise<void> {
-    await db.insert(discountUsages).values({
+    await this.db.insert(discountUsages).values({
       discountId,
       orderId,
       userId: userId || null,
     });
 
     // Increment usage count
-    const [currentDiscount] = await db
+    const [currentDiscount] = await this.db
       .select({ usageCount: discounts.usageCount })
       .from(discounts)
       .where(eq(discounts.id, discountId))
       .limit(1);
 
     if (currentDiscount) {
-      await db
+      await this.db
         .update(discounts)
         .set({
           usageCount: currentDiscount.usageCount + 1,
@@ -774,7 +801,7 @@ export class DiscountsService {
   ): Promise<void> {
     // Products
     if (dto.productIds && dto.productIds.length > 0) {
-      await db.insert(discountProducts).values(
+      await this.db.insert(discountProducts).values(
         dto.productIds.map((productId) => ({
           discountId,
           productId,
@@ -784,7 +811,7 @@ export class DiscountsService {
 
     // Categories
     if (dto.categoryIds && dto.categoryIds.length > 0) {
-      await db.insert(discountCategories).values(
+      await this.db.insert(discountCategories).values(
         dto.categoryIds.map((categoryId) => ({
           discountId,
           categoryId,
@@ -794,7 +821,7 @@ export class DiscountsService {
 
     // Collections
     if (dto.collectionIds && dto.collectionIds.length > 0) {
-      await db.insert(discountCollections).values(
+      await this.db.insert(discountCollections).values(
         dto.collectionIds.map((collectionId) => ({
           discountId,
           collectionId,
@@ -804,7 +831,7 @@ export class DiscountsService {
 
     // Tags
     if (dto.tagIds && dto.tagIds.length > 0) {
-      await db.insert(discountTags).values(
+      await this.db.insert(discountTags).values(
         dto.tagIds.map((tagId) => ({
           discountId,
           tagId,
@@ -822,7 +849,7 @@ export class DiscountsService {
   ): Promise<void> {
     // Buy products
     if (dto.buyProductIds && dto.buyProductIds.length > 0) {
-      await db.insert(discountProducts).values(
+      await this.db.insert(discountProducts).values(
         dto.buyProductIds.map((productId) => ({
           discountId,
           productId,
@@ -832,7 +859,7 @@ export class DiscountsService {
 
     // Buy categories
     if (dto.buyCategoryIds && dto.buyCategoryIds.length > 0) {
-      await db.insert(discountCategories).values(
+      await this.db.insert(discountCategories).values(
         dto.buyCategoryIds.map((categoryId) => ({
           discountId,
           categoryId,
@@ -842,7 +869,7 @@ export class DiscountsService {
 
     // Buy collections
     if (dto.buyCollectionIds && dto.buyCollectionIds.length > 0) {
-      await db.insert(discountCollections).values(
+      await this.db.insert(discountCollections).values(
         dto.buyCollectionIds.map((collectionId) => ({
           discountId,
           collectionId,
@@ -852,7 +879,7 @@ export class DiscountsService {
 
     // Buy tags
     if (dto.buyTagIds && dto.buyTagIds.length > 0) {
-      await db.insert(discountTags).values(
+      await this.db.insert(discountTags).values(
         dto.buyTagIds.map((tagId) => ({
           discountId,
           tagId,
@@ -862,7 +889,7 @@ export class DiscountsService {
 
     // Get products
     if (dto.getProductIds && dto.getProductIds.length > 0) {
-      await db.insert(discountGetProducts).values(
+      await this.db.insert(discountGetProducts).values(
         dto.getProductIds.map((productId) => ({
           discountId,
           productId,
@@ -872,7 +899,7 @@ export class DiscountsService {
 
     // Get categories
     if (dto.getCategoryIds && dto.getCategoryIds.length > 0) {
-      await db.insert(discountGetCategories).values(
+      await this.db.insert(discountGetCategories).values(
         dto.getCategoryIds.map((categoryId) => ({
           discountId,
           categoryId,
@@ -882,7 +909,7 @@ export class DiscountsService {
 
     // Get collections
     if (dto.getCollectionIds && dto.getCollectionIds.length > 0) {
-      await db.insert(discountGetCollections).values(
+      await this.db.insert(discountGetCollections).values(
         dto.getCollectionIds.map((collectionId) => ({
           discountId,
           collectionId,
@@ -892,7 +919,7 @@ export class DiscountsService {
 
     // Get tags
     if (dto.getTagIds && dto.getTagIds.length > 0) {
-      await db.insert(discountGetTags).values(
+      await this.db.insert(discountGetTags).values(
         dto.getTagIds.map((tagId) => ({
           discountId,
           tagId,
@@ -909,31 +936,31 @@ export class DiscountsService {
     type: string,
   ): Promise<void> {
     // Delete STANDARD relationships
-    await db
+    await this.db
       .delete(discountProducts)
       .where(eq(discountProducts.discountId, discountId));
-    await db
+    await this.db
       .delete(discountCategories)
       .where(eq(discountCategories.discountId, discountId));
-    await db
+    await this.db
       .delete(discountCollections)
       .where(eq(discountCollections.discountId, discountId));
-    await db
+    await this.db
       .delete(discountTags)
       .where(eq(discountTags.discountId, discountId));
 
     // Delete BUY_X_GET_Y relationships
     if (type === DiscountType.BUY_X_GET_Y) {
-      await db
+      await this.db
         .delete(discountGetProducts)
         .where(eq(discountGetProducts.discountId, discountId));
-      await db
+      await this.db
         .delete(discountGetCategories)
         .where(eq(discountGetCategories.discountId, discountId));
-      await db
+      await this.db
         .delete(discountGetCollections)
         .where(eq(discountGetCollections.discountId, discountId));
-      await db
+      await this.db
         .delete(discountGetTags)
         .where(eq(discountGetTags.discountId, discountId));
     }
@@ -945,7 +972,7 @@ export class DiscountsService {
   private async enrichDiscountWithRelations(
     discountId: string,
   ): Promise<DiscountResponseDto> {
-    const [discount] = await db
+    const [discount] = await this.db
       .select()
       .from(discounts)
       .where(eq(discounts.id, discountId))
@@ -956,52 +983,52 @@ export class DiscountsService {
     }
 
     // Get product IDs
-    const discountProductsList = await db
+    const discountProductsList = await this.db
       .select({ productId: discountProducts.productId })
       .from(discountProducts)
       .where(eq(discountProducts.discountId, discountId));
 
     // Get category IDs
-    const discountCategoriesList = await db
+    const discountCategoriesList = await this.db
       .select({ categoryId: discountCategories.categoryId })
       .from(discountCategories)
       .where(eq(discountCategories.discountId, discountId));
 
     // Get collection IDs
-    const discountCollectionsList = await db
+    const discountCollectionsList = await this.db
       .select({ collectionId: discountCollections.collectionId })
       .from(discountCollections)
       .where(eq(discountCollections.discountId, discountId));
 
     // Get tag IDs
-    const discountTagsList = await db
+    const discountTagsList = await this.db
       .select({ tagId: discountTags.tagId })
       .from(discountTags)
       .where(eq(discountTags.discountId, discountId));
 
     // Get BUY_GET relationships
-    const getProductsList = await db
+    const getProductsList = await this.db
       .select({ productId: discountGetProducts.productId })
       .from(discountGetProducts)
       .where(eq(discountGetProducts.discountId, discountId));
 
-    const getCategoriesList = await db
+    const getCategoriesList = await this.db
       .select({ categoryId: discountGetCategories.categoryId })
       .from(discountGetCategories)
       .where(eq(discountGetCategories.discountId, discountId));
 
-    const getCollectionsList = await db
+    const getCollectionsList = await this.db
       .select({ collectionId: discountGetCollections.collectionId })
       .from(discountGetCollections)
       .where(eq(discountGetCollections.discountId, discountId));
 
-    const getTagsList = await db
+    const getTagsList = await this.db
       .select({ tagId: discountGetTags.tagId })
       .from(discountGetTags)
       .where(eq(discountGetTags.discountId, discountId));
 
     // Get tiered rules
-    const tieredRulesList = await db
+    const tieredRulesList = await this.db
       .select({
         minQuantity: discountTieredRules.minQuantity,
         value: discountTieredRules.value,
@@ -1012,7 +1039,7 @@ export class DiscountsService {
       .orderBy(discountTieredRules.minQuantity);
 
     // Get exclusions
-    const exclusionsList = await db
+    const exclusionsList = await this.db
       .select({ excludedDiscountId: discountExclusions.excludedDiscountId })
       .from(discountExclusions)
       .where(eq(discountExclusions.discountId, discountId));
@@ -1033,6 +1060,7 @@ export class DiscountsService {
         ? Number(discount.maxDiscountAmount)
         : null,
       scope: discount.scope as DiscountScope,
+      appliesTo: discount.appliesTo as DiscountAppliesTo,
       priority: discount.priority,
       canStack: discount.canStack,
       mutuallyExclusive: discount.mutuallyExclusive,
@@ -1117,7 +1145,7 @@ export class DiscountsService {
       valueType: rule.valueType as DiscountValueType,
     }));
 
-    await db.insert(discountTieredRules).values(rules);
+    await this.db.insert(discountTieredRules).values(rules);
   }
 
   /**
@@ -1132,6 +1160,6 @@ export class DiscountsService {
       excludedDiscountId: excludedId,
     }));
 
-    await db.insert(discountExclusions).values(exclusions);
+    await this.db.insert(discountExclusions).values(exclusions);
   }
 }

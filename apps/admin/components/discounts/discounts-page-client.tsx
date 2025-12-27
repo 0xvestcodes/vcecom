@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PaginationControls } from "@/components/common/pagination-controls";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { DateTime } from "@/components/orders/date-time";
 import { Money } from "@/components/orders/money";
@@ -58,6 +59,21 @@ export function DiscountsPageClient() {
     router.replace(`/discounts?${params.toString()}`, { scroll: false });
   }, [filters, router]);
 
+  const handlePageChange = (newPage: number) => {
+    setFilters((prev) => ({ ...prev, page: newPage }));
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const paginationInfo = data
+    ? {
+        startItem: (data.page - 1) * data.limit + 1,
+        endItem: Math.min(data.page * data.limit, data.total),
+        total: data.total,
+        currentPage: data.page,
+        totalPages: data.totalPages,
+      }
+    : null;
+
   const handleDeleteClick = (discountId: string) => {
     setDiscountToDelete(discountId);
     setDeleteDialogOpen(true);
@@ -93,43 +109,15 @@ export function DiscountsPageClient() {
         </Button>
       }
       pagination={
-        data && (
-          <div className="w-full flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {data.total === 0 ? (
-                "Showing 0 discounts"
-              ) : (
-                <>
-                  Showing {(data.page - 1) * data.limit + 1} to{" "}
-                  {Math.min(data.page * data.limit, data.total)} of {data.total}{" "}
-                  discounts
-                </>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setFilters({ ...filters, page: (filters.page || 1) - 1 })
-                }
-                disabled={data.page <= 1 || isLoading}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setFilters({ ...filters, page: (filters.page || 1) + 1 })
-                }
-                disabled={data.page >= data.totalPages || isLoading}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        )
+        <PaginationControls
+          paginationInfo={paginationInfo}
+          onPreviousPage={() => handlePageChange((filters.page || 1) - 1)}
+          onNextPage={() => handlePageChange((filters.page || 1) + 1)}
+          canGoPrevious={data ? data.page > 1 : false}
+          canGoNext={data ? data.page < data.totalPages : false}
+          isLoading={isLoading}
+          itemLabel="discounts"
+        />
       }
     >
       <ConfirmDialog

@@ -13,13 +13,13 @@ export interface PaymentMethodChargeConfig {
   id: string;
   method: PaymentMethodCharge;
   chargeType: ChargeType;
-  flatAmount: number; // in paise
+  flatAmount: number; // in rupees (backend returns in rupees)
   percentage: number;
-  mixCap: number | null;
-  mixMin: number | null;
+  mixCap: number | null; // in rupees
+  mixMin: number | null; // in rupees
   isTaxable: boolean;
   currency: string;
-  codMaxAmount: number | null;
+  codMaxAmount: number | null; // in rupees
   codDisallowHighValue: boolean;
   codDisallowDigital: boolean;
   codDisallowPreorder: boolean;

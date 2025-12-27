@@ -1,14 +1,17 @@
 import {
   CallHandler,
   ExecutionContext,
+  Inject,
   Injectable,
   NestInterceptor,
 } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { db, discounts, eq, orders, products } from "@vcecom/db";
+import { discounts, eq, orders, products } from "@vcecom/db";
 import { Observable } from "rxjs";
 import { tap } from "rxjs/operators";
 import { ContextService } from "../../../common/logging/context.service";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { AdminActivityService } from "../admin-activity.service";
 import {
   LOG_ACTIVITY_KEY,
@@ -21,6 +24,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
     private readonly activityService: AdminActivityService,
     readonly _contextService: ContextService, // Renamed to _contextService to avoid unused private member lint error
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -180,7 +184,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
     try {
       switch (entityType.toLowerCase()) {
         case "product": {
-          const [product] = await db
+          const [product] = await this.db
             .select()
             .from(products)
             .where(eq(products.id, entityId))
@@ -189,7 +193,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
         }
 
         case "discount": {
-          const [discount] = await db
+          const [discount] = await this.db
             .select()
             .from(discounts)
             .where(eq(discounts.id, entityId))
@@ -198,7 +202,7 @@ export class ActivityLoggingInterceptor implements NestInterceptor {
         }
 
         case "order": {
-          const [order] = await db
+          const [order] = await this.db
             .select()
             .from(orders)
             .where(eq(orders.id, entityId))

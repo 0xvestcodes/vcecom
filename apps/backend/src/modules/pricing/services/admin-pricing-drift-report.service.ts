@@ -1,5 +1,7 @@
-import { Injectable } from "@nestjs/common";
-import { and, db, desc, eq, gte, lte, pricingAuditLogs } from "@vcecom/db";
+import { Inject, Injectable } from "@nestjs/common";
+import { and, desc, eq, gte, lte, pricingAuditLogs } from "@vcecom/db";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import {
   PricingAuditEventType,
   PricingDriftSeverity,
@@ -36,6 +38,10 @@ export interface PricingDriftReportEntry {
 
 @Injectable()
 export class AdminPricingDriftReportService {
+  constructor(
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
+
   /**
    * Get pricing drift report with filtering
    */
@@ -82,7 +88,7 @@ export class AdminPricingDriftReportService {
       conditions.push(eq(pricingAuditLogs.severity, query.severity));
     }
 
-    const logs = await db
+    const logs = await this.db
       .select()
       .from(pricingAuditLogs)
       .where(and(...conditions))
@@ -90,7 +96,7 @@ export class AdminPricingDriftReportService {
       .limit(limit)
       .offset(offset);
 
-    const totalResult = await db
+    const totalResult = await this.db
       .select()
       .from(pricingAuditLogs)
       .where(and(...conditions));

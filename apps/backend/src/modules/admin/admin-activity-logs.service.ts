@@ -1,8 +1,7 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
   adminActivityLogs,
   and,
-  db,
   desc,
   eq,
   gte,
@@ -16,6 +15,8 @@ import {
   generatePaginationMetadata,
   normalizePaginationParams,
 } from "../../common/utils/pagination.utils";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 import {
   ActivityLogResponseDto,
   AdminQueryActivityLogsDto,
@@ -24,6 +25,7 @@ import {
 
 @Injectable()
 export class AdminActivityLogsService {
+  constructor(@Inject(DB_TOKEN) private readonly db: Database) {}
   /**
    * Extract resource type from action string
    * Examples:
@@ -116,12 +118,12 @@ export class AdminActivityLogsService {
 
     // Get total count
     const countQuery = whereCondition
-      ? db
+      ? this.db
           .select({ count: sql<number>`count(*)` })
           .from(adminActivityLogs)
           .leftJoin(users, eq(adminActivityLogs.adminId, users.id))
           .where(whereCondition)
-      : db
+      : this.db
           .select({ count: sql<number>`count(*)` })
           .from(adminActivityLogs)
           .leftJoin(users, eq(adminActivityLogs.adminId, users.id));
@@ -140,7 +142,7 @@ export class AdminActivityLogsService {
     }
 
     // Get activity logs with admin info
-    const logsQuery = db
+    const logsQuery = this.db
       .select({
         id: adminActivityLogs.id,
         adminId: adminActivityLogs.adminId,
@@ -197,7 +199,7 @@ export class AdminActivityLogsService {
    * Get a single activity log by ID
    */
   async getActivityLog(id: string): Promise<ActivityLogResponseDto> {
-    const [log] = await db
+    const [log] = await this.db
       .select({
         id: adminActivityLogs.id,
         adminId: adminActivityLogs.adminId,
@@ -246,7 +248,7 @@ export class AdminActivityLogsService {
     before: Record<string, unknown> | null;
     after: Record<string, unknown> | null;
   }> {
-    const [log] = await db
+    const [log] = await this.db
       .select({
         diff: adminActivityLogs.diff,
       })

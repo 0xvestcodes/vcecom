@@ -1,6 +1,5 @@
 import {
   and,
-  db,
   desc,
   eq,
   gte,
@@ -14,6 +13,7 @@ import {
   GRAMS_PER_KILOGRAM,
 } from "../../../common/constants";
 import { getShippingRateByZone } from "../../../common/utils/pincode.utils";
+import type { Database } from "../../../modules/database/db";
 
 export interface ZoneRateData {
   baseRate: number;
@@ -37,6 +37,7 @@ export interface StateRuleData {
  * Example: If weight is 1500g, we want the rate for "1000g+" not "500g+"
  */
 export async function getZoneRatesFromDatabase(
+  db: Database,
   zone: string,
 ): Promise<ZoneRateData | null> {
   const defaultZone = zone || DEFAULT_SHIPPING_ZONE;
@@ -120,6 +121,7 @@ export function calculateExcessWeightCharges(
  * Get state-specific shipping rules from database
  */
 export async function getStateRulesFromDatabase(
+  db: Database,
   state: string | null | undefined,
 ): Promise<StateRuleData | null> {
   if (!state) {

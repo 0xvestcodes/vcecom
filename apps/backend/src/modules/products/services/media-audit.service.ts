@@ -1,7 +1,6 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import {
   and,
-  db,
   desc,
   eq,
   mediaAuditActionEnum,
@@ -14,6 +13,8 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 
 export interface AuditLogFilters {
   productId?: string;
@@ -43,6 +44,7 @@ export class MediaAuditService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -59,7 +61,7 @@ export class MediaAuditService {
     },
   ): Promise<void> {
     try {
-      await db.insert(mediaAuditLogs).values({
+      await this.db.insert(mediaAuditLogs).values({
         action: action as (typeof mediaAuditActionEnum.enumValues)[number],
         performedBy,
         productId: options?.productId || null,
@@ -133,7 +135,7 @@ export class MediaAuditService {
     const whereCondition =
       conditions.length > 0 ? and(...conditions) : undefined;
 
-    const baseQuery = db
+    const baseQuery = this.db
       .select()
       .from(mediaAuditLogs)
       .where(whereCondition)
@@ -156,7 +158,7 @@ export class MediaAuditService {
    * Get audit log statistics
    */
   async getAuditStats(): Promise<AuditLogStats> {
-    const allLogs = await db.select().from(mediaAuditLogs);
+    const allLogs = await this.db.select().from(mediaAuditLogs);
 
     const byAction: Record<string, number> = {};
     const byPerformedBy: Record<string, number> = {};

@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PaginationControls } from "@/components/common/pagination-controls";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { Button } from "@/components/ui/button";
 import { useAdminCollections } from "@/hooks/collections/use-admin-collections";
@@ -113,40 +114,25 @@ export function CollectionsPageClient() {
         />
       }
       pagination={
-        data && data.pagination.totalPages > 1 ? (
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Showing{" "}
-              {(
-                (data.pagination.page - 1) * data.pagination.limit +
-                1
-              ).toLocaleString()}{" "}
-              to{" "}
-              {Math.min(
+        data ? (
+          <PaginationControls
+            paginationInfo={{
+              startItem: (data.pagination.page - 1) * data.pagination.limit + 1,
+              endItem: Math.min(
                 data.pagination.page * data.pagination.limit,
                 data.pagination.total,
-              ).toLocaleString()}{" "}
-              of {data.pagination.total.toLocaleString()} collections
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(data.pagination.page - 1)}
-                disabled={!data.pagination.hasPreviousPage}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(data.pagination.page + 1)}
-                disabled={!data.pagination.hasNextPage}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+              ),
+              total: data.pagination.total,
+              currentPage: data.pagination.page,
+              totalPages: data.pagination.totalPages,
+            }}
+            onPreviousPage={() => handlePageChange(data.pagination.page - 1)}
+            onNextPage={() => handlePageChange(data.pagination.page + 1)}
+            canGoPrevious={data.pagination.hasPreviousPage}
+            canGoNext={data.pagination.hasNextPage}
+            isLoading={isLoading}
+            itemLabel="collections"
+          />
         ) : null
       }
     >

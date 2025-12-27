@@ -1,8 +1,7 @@
 // External libraries
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import {
   and,
-  db,
   desc,
   eq,
   pincodes,
@@ -17,6 +16,8 @@ import {
   checkPincodeServiceability,
   ServiceabilityResult,
 } from "../../common/utils/pincode.utils";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 
 // Relative imports
 import {
@@ -45,7 +46,10 @@ export interface ShippingRateRequest {
 
 @Injectable()
 export class ShippingRulesService {
-  constructor(private readonly logger: PinoLogger) {}
+  constructor(
+    private readonly logger: PinoLogger,
+    @Inject(DB_TOKEN) private readonly db: Database,
+  ) {}
 
   /**
    * Check if a PIN code is serviceable and get shipping details
@@ -53,7 +57,7 @@ export class ShippingRulesService {
   async checkServiceability(pincode: string): Promise<ServiceabilityResult> {
     try {
       // First try to get data from database
-      const pincodeData = await db
+      const pincodeData = await this.db
         .select({
           pincode: pincodes.pincode,
           state: pincodes.state,
@@ -114,7 +118,7 @@ export class ShippingRulesService {
     const zone = serviceability.shippingZone || "zone_c";
 
     // Get zone-based rates from database or fallback
-    const zoneRateData = await getZoneRatesFromDatabase(zone);
+    const zoneRateData = await getZoneRatesFromDatabase(this.db, zone);
     let baseRate: number;
     let estimatedDays: number;
     let codCharge: number | undefined;
@@ -141,7 +145,10 @@ export class ShippingRulesService {
     }
 
     // Apply state-specific rules
-    const stateRuleData = await getStateRulesFromDatabase(serviceability.state);
+    const stateRuleData = await getStateRulesFromDatabase(
+      this.db,
+      serviceability.state,
+    );
     let additionalDays = 0;
     let finalCodAvailable = serviceability.codAvailable ?? false;
 
@@ -180,7 +187,7 @@ export class ShippingRulesService {
    * Get all active shipping rules
    */
   async getShippingRules() {
-    return await db
+    return await this.db
       .select()
       .from(shippingRules)
       .where(eq(shippingRules.isActive, true))
@@ -191,7 +198,7 @@ export class ShippingRulesService {
    * Get shipping zone rates
    */
   async getShippingZoneRates() {
-    return await db
+    return await this.db
       .select()
       .from(shippingZoneRates)
       .where(eq(shippingZoneRates.isActive, true))
@@ -202,7 +209,7 @@ export class ShippingRulesService {
    * Get state shipping rules
    */
   async getStateShippingRules() {
-    return await db
+    return await this.db
       .select()
       .from(stateShippingRules)
       .where(eq(stateShippingRules.isActive, true))
@@ -218,7 +225,7 @@ export class ShippingRulesService {
     const results = new Map<string, ServiceabilityResult>();
 
     // Get data from database first
-    const dbResults = await db
+    const dbResults = await this.db
       .select({
         pincode: pincodes.pincode,
         state: pincodes.state,

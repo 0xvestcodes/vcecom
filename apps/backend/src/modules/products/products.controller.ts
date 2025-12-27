@@ -18,6 +18,7 @@ import {
   ApiBadRequestResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
@@ -25,16 +26,33 @@ import {
   ApiOperation,
   ApiParam,
   ApiQuery,
+  ApiResponse,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { Request as ExpressRequest } from "express";
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
+import {
+  BadRequestErrorDto,
+  ConflictErrorDto,
+  ForbiddenErrorDto,
+  NotFoundErrorDto,
+  TooManyRequestsErrorDto,
+  UnauthorizedErrorDto,
+} from "../../common/dto/error-response.dto";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 import { ReviewQueryDto } from "../reviews/dto/review-query.dto";
+import {
+  PaginatedReviewsResponseDto,
+  ReviewResponseDto,
+} from "../reviews/dto/review-response.dto";
 import { ReviewsService } from "../reviews/services/reviews.service";
+import { ProductCollectionResponseDto } from "./dto/product-collection-response.dto";
 
 interface AuthenticatedRequest extends ExpressRequest {
   user?: {
@@ -60,6 +78,7 @@ import {
   ProductVariantOptionTypeResponseDto,
   VariantOptionTypeResponseDto,
 } from "./dto/variant-option-types/variant-option-type-response.dto";
+import { VariantResponseDto } from "./dto/variant-response.dto";
 import { ProductsService } from "./products.service";
 import { VariantsService } from "./variants.service";
 
@@ -71,6 +90,7 @@ export class ProductsController {
     private readonly variantsService: VariantsService,
     @Inject(forwardRef(() => ReviewsService))
     private readonly reviewsService: ReviewsService,
+    @Inject(DB_TOKEN) private readonly db: Database,
   ) {}
 
   @Public()
@@ -234,11 +254,14 @@ export class ProductsController {
   })
   @ApiOkResponse({
     description: "List of variants retrieved successfully",
+    type: [VariantResponseDto],
   })
   @ApiNotFoundResponse({
     description: "Product not found",
   })
-  async getVariants(@Param("id") productId: string) {
+  async getVariants(
+    @Param("id") productId: string,
+  ): Promise<VariantResponseDto[]> {
     return this.variantsService.findByProductId(productId);
   }
 
@@ -257,6 +280,7 @@ export class ProductsController {
   })
   @ApiOkResponse({
     description: "Reviews retrieved successfully",
+    type: PaginatedReviewsResponseDto,
   })
   @ApiNotFoundResponse({
     description: "Product not found",
@@ -265,7 +289,7 @@ export class ProductsController {
     @Param("id") productId: string,
     @Query() query: ReviewQueryDto,
     @Request() req?: AuthenticatedRequest,
-  ) {
+  ): Promise<PaginatedReviewsResponseDto> {
     // Get first variant of product for reviews (reviews are variant-specific)
     const variants = await this.variantsService.findByProductId(productId);
     if (variants.length === 0) {
@@ -274,8 +298,8 @@ export class ProductsController {
     // Get customer ID if authenticated
     let customerId: string | undefined;
     if (req?.user?.userId) {
-      const { customers, db, eq } = await import("@vcecom/db");
-      const [customer] = await db
+      const { customers, eq } = await import("@vcecom/db");
+      const [customer] = await this.db
         .select({ id: customers.id })
         .from(customers)
         .where(eq(customers.userId, req.user.userId))
@@ -325,7 +349,7 @@ export class ProductsController {
     summary: "Create a new product",
     description: "Create a new product (admin only)",
   })
-  @ApiOkResponse({
+  @ApiCreatedResponse({
     description: "Product created successfully",
     type: ProductResponseDto,
   })
@@ -362,15 +386,23 @@ export class ProductsController {
   })
   @ApiNotFoundResponse({
     description: "Product not found",
+    type: NotFoundErrorDto,
   })
   @ApiBadRequestResponse({
     description: "Invalid input or category not found",
+    type: BadRequestErrorDto,
   })
   @ApiUnauthorizedResponse({
     description: "Authentication required",
+    type: UnauthorizedErrorDto,
   })
   @ApiForbiddenResponse({
     description: "Access denied. Admin role required.",
+    type: ForbiddenErrorDto,
+  })
+  @ApiConflictResponse({
+    description: "Conflict - Product update conflicts with existing data",
+    type: ConflictErrorDto,
   })
   async update(
     @Param("id") id: string,
@@ -433,6 +465,7 @@ export class ProductsController {
   })
   @ApiOkResponse({
     description: "Collections retrieved successfully",
+    type: [ProductCollectionResponseDto],
   })
   @ApiNotFoundResponse({
     description: "Product not found",
@@ -443,7 +476,9 @@ export class ProductsController {
   @ApiForbiddenResponse({
     description: "Access denied. Admin role required.",
   })
-  async getProductCollections(@Param("id") id: string) {
+  async getProductCollections(
+    @Param("id") id: string,
+  ): Promise<ProductCollectionResponseDto[]> {
     return this.productsService.getProductCollections(id);
   }
 

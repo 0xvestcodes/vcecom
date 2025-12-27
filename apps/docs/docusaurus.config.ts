@@ -57,6 +57,9 @@ const config: Config = {
         theme: {
           customCss: "./src/css/custom.css",
         },
+        pages: {
+          path: "src/pages",
+        },
       } satisfies Preset.Options,
     ],
   ],
@@ -80,6 +83,21 @@ const config: Config = {
           sidebarId: "docsSidebar",
           position: "left",
           label: "Documentation",
+        },
+        {
+          type: "dropdown",
+          label: "API Reference",
+          position: "left",
+          items: [
+            {
+              label: "Store API",
+              to: "/api-reference/store",
+            },
+            {
+              label: "Admin API",
+              to: "/api-reference/admin",
+            },
+          ],
         },
         {
           href: "https://github.com/Vestcodes/vcecom",

@@ -11,6 +11,11 @@
           "mainDocId": "introduction",
           "docs": [
             {
+              "id": "admin/pagination",
+              "path": "/docs/admin/pagination",
+              "sidebar": "docsSidebar"
+            },
+            {
               "id": "api-reference/admin-api",
               "path": "/docs/api-reference/admin-api",
               "sidebar": "docsSidebar"
@@ -218,6 +223,11 @@
             {
               "id": "orders/fulfillment",
               "path": "/docs/orders/fulfillment",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "orders/inventory-reconciliation",
+              "path": "/docs/orders/inventory-reconciliation",
               "sidebar": "docsSidebar"
             },
             {

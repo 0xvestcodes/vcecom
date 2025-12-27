@@ -1,6 +1,8 @@
-import { Injectable } from "@nestjs/common";
-import { and, db, eq, reviews, variantReviewAggregate } from "@vcecom/db";
+import { Inject, Injectable } from "@nestjs/common";
+import { and, eq, reviews, variantReviewAggregate } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { ReviewAggregateDto } from "../dto/review-aggregate.dto";
 import { ReviewCacheService } from "./review-cache.service";
 
@@ -9,6 +11,7 @@ export class ReviewAggregationService {
   constructor(
     private readonly cacheService: ReviewCacheService,
     private readonly logger: PinoLogger,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -20,7 +23,7 @@ export class ReviewAggregationService {
    */
   async recomputeAggregate(variantId: string): Promise<void> {
     // Get all approved reviews for this variant
-    const approvedReviews = await db
+    const approvedReviews = await this.db
       .select({
         rating: reviews.rating,
       })
@@ -33,7 +36,7 @@ export class ReviewAggregationService {
 
     if (reviewCount === 0) {
       // No reviews - set to zero/default
-      await db
+      await this.db
         .insert(variantReviewAggregate)
         .values({
           variantId,
@@ -93,7 +96,7 @@ export class ReviewAggregationService {
     const averageRating = totalRating / reviewCount;
 
     // Update database
-    await db
+    await this.db
       .insert(variantReviewAggregate)
       .values({
         variantId,
@@ -149,7 +152,7 @@ export class ReviewAggregationService {
     }
 
     // Get from database
-    const [aggregate] = await db
+    const [aggregate] = await this.db
       .select()
       .from(variantReviewAggregate)
       .where(eq(variantReviewAggregate.variantId, variantId))

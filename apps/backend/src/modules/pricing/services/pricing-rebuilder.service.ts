@@ -1,11 +1,13 @@
-import { Injectable } from "@nestjs/common";
-import { db, productVariants } from "@vcecom/db";
+import { Inject, Injectable } from "@nestjs/common";
+import { productVariants } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
 import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { PriceList } from "../engine/pricing-engine.types";
 import { PriceListService } from "./price-list.service";
 import { PricingBundleService } from "./pricing-bundle.service";
@@ -21,6 +23,7 @@ export class PricingRebuilder {
     private readonly versionManager: PricingVersionManager,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -122,7 +125,7 @@ export class PricingRebuilder {
       saleEndDate?: Date;
     }>
   > {
-    const variants = await db.select().from(productVariants);
+    const variants = await this.db.select().from(productVariants);
 
     // Get product category IDs (simplified - you may need to join with products table)
     return variants.map((v) => ({

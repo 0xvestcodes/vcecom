@@ -2,6 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import {
   BadRequestException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -9,7 +10,6 @@ import {
 import {
   addresses,
   customers,
-  db,
   eq,
   invoices,
   orderItems,
@@ -23,6 +23,8 @@ import PDFDocument from "pdfkit";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
 import { calculateGstBreakdown } from "../../common/utils/gst.utils";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 import { InvoiceResponseDto } from "./dto/invoice-response.dto";
 
 @Injectable()
@@ -36,6 +38,7 @@ export class InvoicesService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database,
   ) {
     // Ensure invoices directory exists
     this.ensureInvoicesDirectory();
@@ -72,7 +75,7 @@ export class InvoicesService {
     // Get the last invoice number for this year
     let lastInvoice: { invoiceNumber: string } | undefined;
     try {
-      const invoiceResult = await db
+      const invoiceResult = await this.db
         .select({ invoiceNumber: invoices.invoiceNumber })
         .from(invoices)
         .where(sql`${invoices.invoiceNumber} LIKE ${`${prefix}%`}`)
@@ -130,7 +133,7 @@ export class InvoicesService {
     // Check if invoice already exists
     let existingInvoice: typeof invoices.$inferSelect | undefined;
     try {
-      const invoiceResult = await db
+      const invoiceResult = await this.db
         .select()
         .from(invoices)
         .where(eq(invoices.orderId, orderId))
@@ -161,7 +164,7 @@ export class InvoicesService {
     // Get order details
     let order: typeof orders.$inferSelect | undefined;
     try {
-      const orderResult = await db
+      const orderResult = await this.db
         .select()
         .from(orders)
         .where(eq(orders.id, orderId))
@@ -208,7 +211,7 @@ export class InvoicesService {
       productHsnCode: string | null;
     }>;
     try {
-      orderItemsData = await db
+      orderItemsData = await this.db
         .select({
           id: orderItems.id,
           quantity: orderItems.quantity,
@@ -251,7 +254,7 @@ export class InvoicesService {
         }
       | undefined;
     try {
-      const customerResult = await db
+      const customerResult = await this.db
         .select({
           id: customers.id,
           name: customers.name,
@@ -283,7 +286,7 @@ export class InvoicesService {
     // Get billing address
     let billingAddress: typeof addresses.$inferSelect | undefined;
     try {
-      const addressResult = await db
+      const addressResult = await this.db
         .select()
         .from(addresses)
         .where(eq(addresses.id, order.billingAddressId))
@@ -309,7 +312,7 @@ export class InvoicesService {
     // Get shipping address for GST calculation
     let shippingAddress: typeof addresses.$inferSelect | undefined;
     try {
-      const addressResult = await db
+      const addressResult = await this.db
         .select()
         .from(addresses)
         .where(eq(addresses.id, order.shippingAddressId))
@@ -381,7 +384,7 @@ export class InvoicesService {
     // Save invoice to database
     let invoice: typeof invoices.$inferSelect | undefined;
     try {
-      const invoiceResult = await db
+      const invoiceResult = await this.db
         .insert(invoices)
         .values({
           invoiceNumber,
@@ -683,7 +686,7 @@ export class InvoicesService {
    * Get invoice by ID
    */
   async findOne(invoiceId: string): Promise<InvoiceResponseDto> {
-    const [invoice] = await db
+    const [invoice] = await this.db
       .select()
       .from(invoices)
       .where(eq(invoices.id, invoiceId))
@@ -703,7 +706,7 @@ export class InvoicesService {
    * Get invoice by order ID
    */
   async findByOrderId(orderId: string): Promise<InvoiceResponseDto | null> {
-    const [invoice] = await db
+    const [invoice] = await this.db
       .select()
       .from(invoices)
       .where(eq(invoices.orderId, orderId))
@@ -723,7 +726,7 @@ export class InvoicesService {
    * Get invoice PDF file path
    */
   async getInvoicePdfPath(invoiceId: string): Promise<string> {
-    const [invoice] = await db
+    const [invoice] = await this.db
       .select({ pdfPath: invoices.pdfPath })
       .from(invoices)
       .where(eq(invoices.id, invoiceId))

@@ -16,9 +16,19 @@ if (!process.env.DATABASE_URL) {
 }
 
 import * as bcrypt from "bcrypt";
-import { and, db, eq } from "./db/index";
+import { and, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
+import * as schema from "./schema";
 import { paymentMethodCharges, users } from "./schema";
 import type { NewPaymentMethodCharge } from "./schema/payment-method-charges";
+
+// Create database connection for seeding
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const db = drizzle(pool, { schema });
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@vcecom.local";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@123";
@@ -151,7 +161,14 @@ async function seed() {
   process.exit(0);
 }
 
-seed().catch((error) => {
-  console.error("❌ Seed failed:", error);
-  process.exit(1);
-});
+seed()
+  .catch((error) => {
+    console.error("❌ Seed failed:", error);
+    process.exit(1);
+  })
+  .finally(() => {
+    // Close the pool when done
+    pool.end().catch(() => {
+      // Ignore errors on pool close
+    });
+  });

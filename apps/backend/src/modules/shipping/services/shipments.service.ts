@@ -1,7 +1,9 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { and, db, desc, eq, gte, lte, shipments, sql } from "@vcecom/db";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { and, desc, eq, gte, lte, shipments, sql } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../../../common/constants";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 
 // Shipment status enum values - defined inline to match DTO
 const SHIPMENT_STATUS_VALUES = [
@@ -28,7 +30,10 @@ interface ShipmentFilters {
 
 @Injectable()
 export class ShipmentsService {
-  constructor(readonly _logger: PinoLogger) {}
+  constructor(
+    readonly _logger: PinoLogger,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
 
   /**
    * Get all shipments with optional filters
@@ -67,7 +72,7 @@ export class ShipmentsService {
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
     // Get total count
-    const totalCount = await db
+    const totalCount = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(shipments)
       .where(whereClause);
@@ -75,7 +80,7 @@ export class ShipmentsService {
     const total = Number(totalCount[0]?.count || 0);
 
     // Get shipments
-    const shipmentsList = await db
+    const shipmentsList = await this.db
       .select()
       .from(shipments)
       .where(whereClause)
@@ -100,7 +105,7 @@ export class ShipmentsService {
    * @returns Shipment details
    */
   async findOne(id: string) {
-    const [shipment] = await db
+    const [shipment] = await this.db
       .select()
       .from(shipments)
       .where(eq(shipments.id, id))
@@ -119,7 +124,7 @@ export class ShipmentsService {
    * @returns Array of shipments
    */
   async findByOrderId(orderId: string) {
-    const shipmentsList = await db
+    const shipmentsList = await this.db
       .select()
       .from(shipments)
       .where(eq(shipments.orderId, orderId))

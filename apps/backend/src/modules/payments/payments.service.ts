@@ -7,7 +7,7 @@ import {
   NotFoundException,
   OnModuleInit,
 } from "@nestjs/common";
-import { db, eq, orders, payments } from "@vcecom/db";
+import { eq, orders, payments } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import Razorpay from "razorpay";
 import { AppConfigService } from "../../common/config/app.config.service";
@@ -17,6 +17,8 @@ import {
   createLogContext,
 } from "../../common/logging/logging.helper";
 import { Trace } from "../../common/tracing/trace.decorator";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 import { OrdersService } from "../orders/orders.service";
 import { CheckoutState } from "../redis-store/constants/checkout-states";
 import {
@@ -44,6 +46,7 @@ export class PaymentsService implements OnModuleInit {
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
     private readonly appConfigService: AppConfigService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -444,7 +447,7 @@ export class PaymentsService implements OnModuleInit {
     // Verify order exists in our system
     let order: typeof orders.$inferSelect | undefined;
     try {
-      const orderResult = await db
+      const orderResult = await this.db
         .select()
         .from(orders)
         .where(eq(orders.id, createRazorpayOrderDto.orderId))
@@ -497,7 +500,7 @@ export class PaymentsService implements OnModuleInit {
 
       // Update our order with Razorpay order ID
       try {
-        await db
+        await this.db
           .update(orders)
           .set({
             razorpayOrderId: razorpayOrder.id,
@@ -985,7 +988,7 @@ export class PaymentsService implements OnModuleInit {
     // Check if payment already exists (idempotent webhook processing)
     let existingPayment: typeof payments.$inferSelect | undefined;
     try {
-      const paymentResult = await db
+      const paymentResult = await this.db
         .select()
         .from(payments)
         .where(eq(payments.razorpayPaymentId, paymentEntity.id))
@@ -1007,7 +1010,7 @@ export class PaymentsService implements OnModuleInit {
     if (existingPayment) {
       // Update existing payment (idempotent)
       try {
-        await db
+        await this.db
           .update(payments)
           .set({
             status: "captured",
@@ -1029,7 +1032,7 @@ export class PaymentsService implements OnModuleInit {
     } else {
       // Create new payment record
       try {
-        await db.insert(payments).values({
+        await this.db.insert(payments).values({
           orderId,
           razorpayPaymentId: paymentEntity.id,
           razorpayOrderId: paymentEntity.order_id,
@@ -1054,7 +1057,7 @@ export class PaymentsService implements OnModuleInit {
     // Update order status to confirmed if payment is captured
     let order: typeof orders.$inferSelect | undefined;
     try {
-      const orderResult = await db
+      const orderResult = await this.db
         .select()
         .from(orders)
         .where(eq(orders.id, orderId))
@@ -1076,7 +1079,7 @@ export class PaymentsService implements OnModuleInit {
 
     if (order && order.status === "pending") {
       try {
-        await db
+        await this.db
           .update(orders)
           .set({
             status: "confirmed",
@@ -1185,7 +1188,7 @@ export class PaymentsService implements OnModuleInit {
     // Find order by Razorpay order ID
     let order: typeof orders.$inferSelect | undefined;
     try {
-      const orderResult = await db
+      const orderResult = await this.db
         .select()
         .from(orders)
         .where(eq(orders.razorpayOrderId, paymentIntentId))
@@ -1233,7 +1236,7 @@ export class PaymentsService implements OnModuleInit {
     // Check if payment exists
     let existingPayment: typeof payments.$inferSelect | undefined;
     try {
-      const paymentResult = await db
+      const paymentResult = await this.db
         .select()
         .from(payments)
         .where(eq(payments.razorpayPaymentId, paymentEntity.id))
@@ -1255,7 +1258,7 @@ export class PaymentsService implements OnModuleInit {
     if (existingPayment) {
       // Update payment status
       try {
-        await db
+        await this.db
           .update(payments)
           .set({
             status: "failed",
@@ -1277,7 +1280,7 @@ export class PaymentsService implements OnModuleInit {
     } else {
       // Create payment record with failed status
       try {
-        await db.insert(payments).values({
+        await this.db.insert(payments).values({
           orderId: order.id,
           razorpayPaymentId: paymentEntity.id,
           razorpayOrderId: paymentEntity.order_id,
@@ -1314,7 +1317,7 @@ export class PaymentsService implements OnModuleInit {
     // Find order by Razorpay order ID
     let order: typeof orders.$inferSelect | undefined;
     try {
-      const orderResult = await db
+      const orderResult = await this.db
         .select()
         .from(orders)
         .where(eq(orders.razorpayOrderId, paymentEntity.order_id))
@@ -1340,7 +1343,7 @@ export class PaymentsService implements OnModuleInit {
     // Create or update payment record with processing status
     let existingPayment: typeof payments.$inferSelect | undefined;
     try {
-      const paymentResult = await db
+      const paymentResult = await this.db
         .select()
         .from(payments)
         .where(eq(payments.razorpayPaymentId, paymentEntity.id))
@@ -1361,7 +1364,7 @@ export class PaymentsService implements OnModuleInit {
 
     if (existingPayment) {
       try {
-        await db
+        await this.db
           .update(payments)
           .set({
             status: "processing",
@@ -1382,7 +1385,7 @@ export class PaymentsService implements OnModuleInit {
       }
     } else {
       try {
-        await db.insert(payments).values({
+        await this.db.insert(payments).values({
           orderId: order.id,
           razorpayPaymentId: paymentEntity.id,
           razorpayOrderId: paymentEntity.order_id,
@@ -1419,7 +1422,7 @@ export class PaymentsService implements OnModuleInit {
     // Find order by Razorpay order ID
     let order: typeof orders.$inferSelect | undefined;
     try {
-      const orderResult = await db
+      const orderResult = await this.db
         .select()
         .from(orders)
         .where(eq(orders.razorpayOrderId, orderEntity.id))
@@ -1444,7 +1447,7 @@ export class PaymentsService implements OnModuleInit {
 
     // Update order status to confirmed
     if (order.status === "pending") {
-      await db
+      await this.db
         .update(orders)
         .set({
           status: "confirmed",

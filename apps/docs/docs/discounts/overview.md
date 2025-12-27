@@ -44,6 +44,9 @@ Buy X Get Y discounts:
 
 - **BUY_X_GET_Y**: Buy X items, get Y items free/discounted
 - Example: Buy 2 Get 1 Free
+- **Bundle Support**: BOGO discounts apply to bundles by flattening them into individual variants
+  - Example: Bundle of 3 products + "Buy 3 Get 1 Free" = eligible for discount
+  - The discount counts flattened variants, not bundles
 
 ## Discount Flow
 
@@ -72,6 +75,17 @@ Discounts can have multiple eligibility conditions:
 - **Customer Group**: Only for specific customer groups
 - **Usage Limits**: Per-customer or total usage limits
 - **Date Range**: Start and end dates
+
+### Automatic Discount Eligibility
+
+**Redis Fallback Behavior**: Automatic discounts use Redis eligibility sets for fast filtering. However, if Redis cache is unavailable or cold:
+
+- Discounts are **still considered** for eligibility
+- System falls back to direct product/category/collection/tag checks
+- Automatic discounts continue to work even during Redis outages
+- No silent failures when Redis is unavailable
+
+This ensures automatic discounts always work, even if the Redis cache isn't warmed up or is temporarily unavailable.
 
 ## Priority System
 

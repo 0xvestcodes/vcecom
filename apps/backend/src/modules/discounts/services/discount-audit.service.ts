@@ -1,6 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import {
-  db,
   discountAuditEventTypeEnum,
   discountAuditLogs,
   discountAuditSeverityEnum,
@@ -8,6 +7,8 @@ import {
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
 import { createErrorContext } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import {
   AuditEventType,
   DiscountAuditLogEntry,
@@ -26,6 +27,7 @@ export class DiscountAuditService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -33,7 +35,7 @@ export class DiscountAuditService {
    */
   async logEvent(entry: DiscountAuditLogEntry): Promise<void> {
     try {
-      await db.insert(discountAuditLogs).values({
+      await this.db.insert(discountAuditLogs).values({
         timestamp: new Date(),
         event:
           entry.event as (typeof discountAuditEventTypeEnum.enumValues)[number],

@@ -5,6 +5,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   NotFoundException,
   Param,
   Patch,
@@ -25,10 +26,13 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
+import { customers, eq } from "@vcecom/db";
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -52,6 +56,7 @@ export class ReviewsController {
   constructor(
     private readonly reviewsService: ReviewsService,
     private readonly aggregationService: ReviewAggregationService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   @Public()
@@ -311,8 +316,7 @@ export class ReviewsController {
    * Get customer ID from user ID
    */
   private async getCustomerId(userId: string): Promise<string> {
-    const { customers, db, eq } = await import("@vcecom/db");
-    const [customer] = await db
+    const [customer] = await this.db
       .select({ id: customers.id })
       .from(customers)
       .where(eq(customers.userId, userId))

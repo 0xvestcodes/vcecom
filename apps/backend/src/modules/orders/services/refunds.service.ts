@@ -1,10 +1,11 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
   OnModuleInit,
 } from "@nestjs/common";
-import { and, db, desc, eq, orders, payments, refunds } from "@vcecom/db";
+import { and, desc, eq, orders, payments, refunds } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import Razorpay from "razorpay";
 import { AppConfigService } from "../../../common/config/app.config.service";
@@ -12,6 +13,8 @@ import {
   MAX_REFUND_AMOUNT_MULTIPLIER,
   MIN_REFUND_AMOUNT_INR,
 } from "../../../common/constants/orders.constants";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { NotificationsService } from "../../notifications/notifications.service";
 import { NotificationType } from "../../notifications/types/notification.types";
 import { RazorpayConfigService } from "../../payments/razorpay-config.service";
@@ -28,6 +31,7 @@ export class RefundsService implements OnModuleInit {
     private readonly appConfigService: AppConfigService,
     private readonly timelineService: OrderTimelineService,
     private readonly notificationsService: NotificationsService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -52,7 +56,7 @@ export class RefundsService implements OnModuleInit {
    */
   async findByOrderId(orderId: string) {
     // Verify order exists
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -62,7 +66,7 @@ export class RefundsService implements OnModuleInit {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    const refundsList = await db
+    const refundsList = await this.db
       .select()
       .from(refunds)
       .where(eq(refunds.orderId, orderId))
@@ -94,7 +98,7 @@ export class RefundsService implements OnModuleInit {
     }
 
     // Get order
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -105,7 +109,7 @@ export class RefundsService implements OnModuleInit {
     }
 
     // Calculate total already refunded
-    const existingRefunds = await db
+    const existingRefunds = await this.db
       .select()
       .from(refunds)
       .where(eq(refunds.orderId, orderId));
@@ -153,7 +157,7 @@ export class RefundsService implements OnModuleInit {
     );
 
     // Create refund record
-    const [createdRefund] = await db
+    const [createdRefund] = await this.db
       .insert(refunds)
       .values({
         orderId,
@@ -236,7 +240,7 @@ export class RefundsService implements OnModuleInit {
    * @returns Updated refund
    */
   async processRefund(refundId: string) {
-    const [refund] = await db
+    const [refund] = await this.db
       .select()
       .from(refunds)
       .where(eq(refunds.id, refundId))
@@ -252,7 +256,7 @@ export class RefundsService implements OnModuleInit {
       );
     }
 
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, refund.orderId))
@@ -260,7 +264,7 @@ export class RefundsService implements OnModuleInit {
 
     if (!order || !order.razorpayOrderId || !this.razorpay) {
       // Mark as failed if no payment provider
-      await db
+      await this.db
         .update(refunds)
         .set({
           status: "failed",
@@ -273,7 +277,7 @@ export class RefundsService implements OnModuleInit {
 
     try {
       // Get payment ID from payments table
-      const [payment] = await db
+      const [payment] = await this.db
         .select()
         .from(payments)
         .where(
@@ -298,7 +302,7 @@ export class RefundsService implements OnModuleInit {
       );
 
       // Update refund with provider refund ID
-      const [updatedRefund] = await db
+      const [updatedRefund] = await this.db
         .update(refunds)
         .set({
           status: "completed",
@@ -333,7 +337,7 @@ export class RefundsService implements OnModuleInit {
       return updatedRefund;
     } catch (error) {
       // Mark refund as failed
-      await db
+      await this.db
         .update(refunds)
         .set({
           status: "failed",

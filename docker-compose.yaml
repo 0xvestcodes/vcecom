@@ -1,0 +1,219 @@
+services:
+  # Traefik Reverse Proxy with SSL
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=contact@vestcodes.co
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080" # Traefik dashboard (should be secured in production)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks:
+      - vcecom-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.vcecom.vestcodes.co`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=admin:$$apr1$$8K8v8K8v$$8K8v8K8v8K8v8K8v" # Change this password!
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: vcecom-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "SNDl5BRY24N5yLCnwT6o1w=="
+      POSTGRES_DB: maindb
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - vcecom-network
+    # Don't expose ports in production - only accessible via Docker network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: vcecom-redis
+    restart: unless-stopped
+    command: redis-server --requirepass SNDl5BRY24N5yLCnwT6o1w== --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "SNDl5BRY24N5yLCnwT6o1w==", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - vcecom-network
+    # Don't expose ports in production - only accessible via Docker network
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: vcecom-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: SNDl5BRY24N5yLCnwT6o1w==
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    networks:
+      - vcecom-network
+    labels:
+      # MinIO Console (Web UI)
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio-console.rule=Host(`minio-hw-vcecom.vestcodes.co`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      # MinIO API
+      - "traefik.http.routers.minio-api.rule=Host(`api.minio-hw-vcecom.vestcodes.co`)"
+      - "traefik.http.routers.minio-api.entrypoints=websecure"
+      - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-api.service=minio-api"
+      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+
+  # Backend API Service
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: vcecom-backend
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://postgres:SNDl5BRY24N5yLCnwT6o1w%3D%3D@postgres:5432/maindb
+      # Redis Configuration
+      REDIS_URL: redis://:SNDl5BRY24N5yLCnwT6o1w%3D%3D@redis:6379
+      # Server Configuration
+      PORT: 3001
+      NODE_ENV: production
+      # Storage Provider Configuration
+      STORAGE_PROVIDER: minio
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: SNDl5BRY24N5yLCnwT6o1w==
+      MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: https://api.minio-hw-vcecom.vestcodes.co/vcecom
+      STORAGE_BUCKET: vcecom
+      # CORS Configuration
+      BACKEND_URL: https://hw.vcecom.vestcodes.co
+      STOREFRONT_URL: https://storefront.vcecom.vestcodes.co
+      ADMIN_URL: https://admin.vcecom.vestcodes.co
+      ALLOWED_ORIGINS: https://hw.vcecom.vestcodes.co,https://storefront.vcecom.vestcodes.co,https://admin.vcecom.vestcodes.co
+      # Logging Configuration
+      LOG_LEVEL: info
+      LOG_PRETTY: "false"
+      # Tracing Configuration (optional - can be disabled)
+      OTEL_TRACE_ENABLED: "true"
+      OTEL_TRACE_SAMPLING: 0.1
+      OTEL_EXPORTER_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      OTEL_SERVICE_NAME: vcecom-backend
+      DEPLOYMENT_REGION: fra1
+      # Rate Limits
+      ADMIN_LOGIN_RATE_LIMIT: 100
+      ADMIN_LOGIN_RATE_WINDOW: 300
+      # Payment Gateway (Razorpay) - Update with production credentials
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_Rqng1P7pOzqaBf}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-FSOy2Wme7wv3gEJV6szvJzVL}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-eEAukCJGv8rLBrQb+pT}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/_health/database', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - vcecom-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`hw.vcecom.vestcodes.co`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend.service=backend"
+      - "traefik.http.services.backend.loadbalancer.server.port=3001"
+      # Health check endpoint
+      - "traefik.http.routers.backend.middlewares=backend-headers"
+      - "traefik.http.middlewares.backend-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+
+  # Zipkin Tracing (Optional - for observability)
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: vcecom-zipkin
+    restart: unless-stopped
+    environment:
+      - STORAGE_TYPE=mem
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9411/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - vcecom-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zipkin.rule=Host(`telemetry-hw-vcecom.vestcodes.co`)"
+      - "traefik.http.routers.zipkin.entrypoints=websecure"
+      - "traefik.http.routers.zipkin.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.zipkin.service=zipkin"
+      - "traefik.http.services.zipkin.loadbalancer.server.port=9411"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  minio_data:
+    driver: local
+  traefik_letsencrypt:
+    driver: local
+
+networks:
+  vcecom-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+

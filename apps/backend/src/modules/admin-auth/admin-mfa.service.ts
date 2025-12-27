@@ -1,10 +1,11 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
-import { admin2fa, db, eq, users } from "@vcecom/db";
+import { admin2fa, eq, users } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { authenticator } from "otplib";
 import * as qrcode from "qrcode";
@@ -13,12 +14,15 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../common/logging/logging.helper";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 
 @Injectable()
 export class AdminMfaService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -27,7 +31,7 @@ export class AdminMfaService {
   async generateSecret(
     adminId: string,
   ): Promise<{ secret: string; otpAuthUrl: string }> {
-    const [admin] = await db
+    const [admin] = await this.db
       .select()
       .from(users)
       .where(eq(users.id, adminId))
@@ -46,7 +50,7 @@ export class AdminMfaService {
 
     // Store secret temporarily (not enabled yet)
     try {
-      await db
+      await this.db
         .insert(admin2fa)
         .values({
           adminId,
@@ -122,7 +126,7 @@ export class AdminMfaService {
     );
 
     try {
-      await db
+      await this.db
         .insert(admin2fa)
         .values({ adminId, secret, backupCodes, enabled: true })
         .onConflictDoUpdate({
@@ -153,7 +157,7 @@ export class AdminMfaService {
    * Disable 2FA for an admin
    */
   async disable2FA(adminId: string, code: string): Promise<boolean> {
-    const [existing2fa] = await db
+    const [existing2fa] = await this.db
       .select()
       .from(admin2fa)
       .where(eq(admin2fa.adminId, adminId))
@@ -182,7 +186,7 @@ export class AdminMfaService {
     }
 
     try {
-      await db
+      await this.db
         .update(admin2fa)
         .set({ enabled: false, secret: "", backupCodes: [] }) // Clear secret and backup codes
         .where(eq(admin2fa.adminId, adminId));
@@ -207,7 +211,7 @@ export class AdminMfaService {
    * Verify a TOTP code or backup code for an admin
    */
   async verify2FA(adminId: string, code: string): Promise<boolean> {
-    const [admin2faConfig] = await db
+    const [admin2faConfig] = await this.db
       .select()
       .from(admin2fa)
       .where(eq(admin2fa.adminId, adminId))
@@ -225,7 +229,7 @@ export class AdminMfaService {
       const updatedBackupCodes = admin2faConfig.backupCodes?.filter(
         (_, i) => i !== backupCodeIndex,
       );
-      await db
+      await this.db
         .update(admin2fa)
         .set({ backupCodes: updatedBackupCodes })
         .where(eq(admin2fa.adminId, adminId));
@@ -273,7 +277,7 @@ export class AdminMfaService {
    */
   async is2FAEnabled(adminId: string): Promise<boolean> {
     try {
-      const [mfaRecord] = await db
+      const [mfaRecord] = await this.db
         .select({ enabled: admin2fa.enabled })
         .from(admin2fa)
         .where(eq(admin2fa.adminId, adminId))

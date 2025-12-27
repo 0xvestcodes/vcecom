@@ -4,6 +4,8 @@
  * Includes automatic token refresh on 401 errors
  */
 
+import { getPublicApiUrl, getServerApiUrl } from "./env";
+
 export interface ApiError {
   message: string;
   status: number;
@@ -37,15 +39,23 @@ let isRefreshing = false;
 
 /**
  * Get the API base URL from environment or default to localhost
+ * Uses validated environment variables in production
  */
 function getApiBaseUrl(): string {
   // Always use backend URL directly - no proxies needed
   // Backend handles CORS and cookies directly
   if (typeof window !== "undefined") {
     // Client-side: use NEXT_PUBLIC_API_URL for direct backend calls
+    // In production, this will be validated and throw if missing
+    if (process.env.NODE_ENV === "production") {
+      return getPublicApiUrl();
+    }
     return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
   }
   // Server-side: use env variable or default
+  if (process.env.NODE_ENV === "production") {
+    return getServerApiUrl();
+  }
   return (
     process.env.API_URL ||
     process.env.NEXT_PUBLIC_API_URL ||

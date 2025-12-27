@@ -11,7 +11,6 @@ import {
   addresses,
   and,
   cartItems,
-  db,
   desc,
   eq,
   ilike,
@@ -25,7 +24,6 @@ import {
   productVariants,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
-
 // Internal modules - Common
 import {
   COD_PAYMENT_METHOD,
@@ -38,12 +36,13 @@ import {
 } from "../../common/logging/logging.helper";
 import { Trace } from "../../common/tracing/trace.decorator";
 import { calculateGstBreakdown } from "../../common/utils/gst.utils";
-
+import type { Database } from "../../modules/database/db";
 // Internal modules - Feature modules
 import { CartsService } from "../carts/carts.service";
 import { BundleCartItemMetadata } from "../carts/dto/bundle-cart-item.dto";
 import { AddressesService } from "../customers/addresses.service";
 import { CustomersService } from "../customers/customers.service";
+import { DB_TOKEN } from "../database/database.module";
 import { DiscountsService } from "../discounts/discounts.service";
 import { runDiscountEngine } from "../discounts/engine/discount-engine";
 import {
@@ -57,6 +56,12 @@ import { DiscountSnapshotValidator } from "../discounts/services/discount-snapsh
 import { DriftDetectorService } from "../discounts/services/drift-detector.service";
 import { HotReloadWatcher } from "../discounts/services/hot-reload-watcher.service";
 import { RulesetBundleService } from "../discounts/services/ruleset-bundle.service";
+// Relative imports - Services
+import { OrderEventsService } from "../events/order-events.service";
+import {
+  OrderCreatedEventPayload,
+  OrderPaymentCompletedEventPayload,
+} from "../events/order-events.types";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/types/notification.types";
 import { PaymentFeeBreakdownDto } from "../payments/dto/payment-charge.dto";
@@ -84,7 +89,6 @@ import {
 } from "../redis-store/dto/payment-intent.dto";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
-
 // Relative imports - DTOs
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { OrderResponseDto } from "./dto/order-response.dto";
@@ -100,7 +104,6 @@ import {
   validateAuthenticatedCheckoutRequirements,
   validateGuestCheckoutRequirements,
 } from "./services/order-creation.helper";
-// Relative imports - Services
 import { OrderGstService } from "./services/order-gst.service";
 import { OrderPricingService } from "./services/order-pricing.service";
 import { OrderStatusService } from "./services/order-status.service";
@@ -141,6 +144,8 @@ export class OrdersService {
     private readonly statusService: OrderStatusService,
     private readonly gstService: OrderGstService,
     private readonly timelineService: OrderTimelineService,
+    private readonly orderEventsService: OrderEventsService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   // ============================================================================
@@ -257,7 +262,7 @@ export class OrdersService {
         billingAddressId = billingAddrId;
 
         // Fetch shipping address for state calculation
-        const [fetchedShippingAddress] = await db
+        const [fetchedShippingAddress] = await this.db
           .select()
           .from(addresses)
           .where(eq(addresses.id, shippingAddressId))
@@ -377,7 +382,7 @@ export class OrdersService {
 
       // Get cart items with metadata
       const cartItemIds = cart.items.map((item) => item.id);
-      const allCartItems = await db
+      const allCartItems = await this.db
         .select({
           id: cartItems.id,
           productVariantId: cartItems.productVariantId,
@@ -421,7 +426,7 @@ export class OrdersService {
       const variantItemIds = variantCartItems.map((i) => i.id);
       const cartItemsWithVariantsResult =
         variantItemIds.length > 0
-          ? await db
+          ? await this.db
               .select({
                 cartItemId: cartItems.id,
                 productVariantId: cartItems.productVariantId,
@@ -477,7 +482,7 @@ export class OrdersService {
         subtotal += itemSubtotal;
 
         // Get GST rate from first variant's product
-        const [firstVariant] = await db
+        const [firstVariant] = await this.db
           .select({
             productId: productVariants.productId,
           })
@@ -486,7 +491,7 @@ export class OrdersService {
           .limit(1);
 
         if (firstVariant) {
-          const [product] = await db
+          const [product] = await this.db
             .select({
               gstRate: products.gstRate,
             })
@@ -532,7 +537,7 @@ export class OrdersService {
 
         const bundleVariantIds: string[] = [];
         for (const vq of variantQuantities) {
-          const [variant] = await db
+          const [variant] = await this.db
             .select({
               productId: productVariants.productId,
             })
@@ -542,7 +547,7 @@ export class OrdersService {
 
           if (variant) {
             bundleVariantIds.push(vq.variantId);
-            const [product] = await db
+            const [product] = await this.db
               .select({
                 categoryId: products.categoryId,
               })
@@ -570,7 +575,7 @@ export class OrdersService {
         ...cartItemsWithVariants.map((item) => item.productVariantId),
         ...flattenedBundleVariants.map((v) => v.variantId),
       ];
-      const variantProductMap = await db
+      const variantProductMap = await this.db
         .select({
           variantId: productVariants.id,
           productId: productVariants.productId,
@@ -583,7 +588,7 @@ export class OrdersService {
       );
 
       // Get product details
-      const productDetails = await db
+      const productDetails = await this.db
         .select({
           productId: products.id,
           categoryId: products.categoryId,
@@ -763,7 +768,7 @@ export class OrdersService {
         // Product details already loaded above
 
         // Fetch collections for products
-        const productCollectionData = await db
+        const productCollectionData = await this.db
           .select({
             productId: productCollections.productId,
             collectionId: productCollections.collectionId,
@@ -780,7 +785,7 @@ export class OrdersService {
         }
 
         // Fetch tags for products
-        const productTagData = await db
+        const productTagData = await this.db
           .select({
             productId: productTags.productId,
             tagId: productTags.tagId,
@@ -864,6 +869,7 @@ export class OrdersService {
 
           // Run discount engine with profiling
           const engineStartTime = Date.now();
+          const shippingCost = createOrderDto.shippingCost || 0;
           const engineInput: DiscountEngineInput = {
             cart: {
               items: cartItemsForEngine,
@@ -871,6 +877,7 @@ export class OrdersService {
             customer: customerData,
             discounts: eligibleDiscounts,
             now: new Date(),
+            shippingCost, // Pass shipping cost for TOTAL discount calculation
           };
 
           const engineResult = runDiscountEngine(engineInput);
@@ -1540,7 +1547,7 @@ export class OrdersService {
 
     // Get cart items with metadata
     const cartItemIds = cart.items.map((item) => item.id);
-    const allCartItems = await db
+    const allCartItems = await this.db
       .select({
         id: cartItems.id,
         productVariantId: cartItems.productVariantId,
@@ -1584,7 +1591,7 @@ export class OrdersService {
     const variantItemIds = variantCartItems.map((i) => i.id);
     const cartItemsWithVariantsResult =
       variantItemIds.length > 0
-        ? await db
+        ? await this.db
             .select({
               cartItemId: cartItems.id,
               productVariantId: cartItems.productVariantId,
@@ -1606,7 +1613,7 @@ export class OrdersService {
       : [];
 
     // Get shipping address for GST calculation
-    const [shippingAddress] = await db
+    const [shippingAddress] = await this.db
       .select()
       .from(addresses)
       .where(eq(addresses.id, metadata.shippingAddressId))
@@ -1722,7 +1729,7 @@ export class OrdersService {
     const orderNumber = await this.generateOrderNumber();
 
     // Create order in database
-    const [order] = await db
+    const [order] = await this.db
       .insert(orders)
       .values({
         customerId,
@@ -1845,7 +1852,7 @@ export class OrdersService {
         // Use snapshot breakdown
         for (const variantBreakdown of bundleBreakdown.variantBreakdown) {
           // Get variant details for GST
-          const [variant] = await db
+          const [variant] = await this.db
             .select({
               productId: productVariants.productId,
             })
@@ -1854,7 +1861,7 @@ export class OrdersService {
             .limit(1);
 
           if (variant) {
-            const [product] = await db
+            const [product] = await this.db
               .select({
                 gstRate: products.gstRate,
               })
@@ -1909,7 +1916,7 @@ export class OrdersService {
           );
 
         for (const vq of variantQuantities) {
-          const [variant] = await db
+          const [variant] = await this.db
             .select({
               productId: productVariants.productId,
             })
@@ -1918,7 +1925,7 @@ export class OrdersService {
             .limit(1);
 
           if (variant) {
-            const [product] = await db
+            const [product] = await this.db
               .select({
                 gstRate: products.gstRate,
               })
@@ -1968,10 +1975,10 @@ export class OrdersService {
       }
     }
 
-    await db.insert(orderItems).values(orderItemsToInsert);
+    await this.db.insert(orderItems).values(orderItemsToInsert);
 
     // Create COD payment record (status: pending, will be marked as captured when delivered)
-    await db.insert(payments).values({
+    await this.db.insert(payments).values({
       orderId,
       method: COD_PAYMENT_METHOD,
       status: "pending",
@@ -2086,7 +2093,7 @@ export class OrdersService {
     }
 
     // Get order items for response
-    const orderItemsList = await db
+    const orderItemsList = await this.db
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, orderId));
@@ -2166,7 +2173,7 @@ export class OrdersService {
         "Order already exists for payment intent",
       );
       // Fetch and return existing order
-      const [order] = await db
+      const [order] = await this.db
         .select()
         .from(orders)
         .where(eq(orders.id, existingOrderId))
@@ -2179,14 +2186,14 @@ export class OrdersService {
       }
 
       // Get order items for GST calculation
-      const orderItemsList = await db
+      const orderItemsList = await this.db
         .select()
         .from(orderItems)
         .where(eq(orderItems.orderId, order.id));
 
       // Calculate GST breakdown (reconstruct from order data)
       const sellerState = this.getSellerState();
-      const [shippingAddress] = await db
+      const [shippingAddress] = await this.db
         .select()
         .from(addresses)
         .where(eq(addresses.id, order.shippingAddressId))
@@ -2261,7 +2268,7 @@ export class OrdersService {
 
     // Get cart items with metadata
     const cartItemIds = cart.items.map((item) => item.id);
-    const allCartItems = await db
+    const allCartItems = await this.db
       .select({
         id: cartItems.id,
         productVariantId: cartItems.productVariantId,
@@ -2305,7 +2312,7 @@ export class OrdersService {
     const variantItemIds = variantCartItems.map((i) => i.id);
     const cartItemsWithVariantsResult =
       variantItemIds.length > 0
-        ? await db
+        ? await this.db
             .select({
               cartItemId: cartItems.id,
               productVariantId: cartItems.productVariantId,
@@ -2327,7 +2334,7 @@ export class OrdersService {
       : [];
 
     // Get shipping address for GST calculation
-    const [shippingAddress] = await db
+    const [shippingAddress] = await this.db
       .select()
       .from(addresses)
       .where(eq(addresses.id, metadata.shippingAddressId))
@@ -2482,7 +2489,7 @@ export class OrdersService {
     let orderId: string;
     try {
       // Create order in database with discount snapshot
-      const [order] = await db
+      const [order] = await this.db
         .insert(orders)
         .values({
           customerId,
@@ -2614,7 +2621,7 @@ export class OrdersService {
           "Concurrent order creation detected, using existing order",
         );
         // Delete the duplicate order we just created
-        await db.delete(orders).where(eq(orders.id, orderId));
+        await this.db.delete(orders).where(eq(orders.id, orderId));
         // Return existing order
         return this.finalizeOrderFromPayment(
           checkoutSessionId,
@@ -2762,7 +2769,7 @@ export class OrdersService {
         // Use snapshot breakdown
         for (const variantBreakdown of bundleBreakdown.variantBreakdown) {
           // Get variant details for GST
-          const [variant] = await db
+          const [variant] = await this.db
             .select({
               productId: productVariants.productId,
             })
@@ -2771,7 +2778,7 @@ export class OrdersService {
             .limit(1);
 
           if (variant) {
-            const [product] = await db
+            const [product] = await this.db
               .select({
                 gstRate: products.gstRate,
               })
@@ -2826,7 +2833,7 @@ export class OrdersService {
           );
 
         for (const vq of variantQuantities) {
-          const [variant] = await db
+          const [variant] = await this.db
             .select({
               productId: productVariants.productId,
             })
@@ -2835,7 +2842,7 @@ export class OrdersService {
             .limit(1);
 
           if (variant) {
-            const [product] = await db
+            const [product] = await this.db
               .select({
                 gstRate: products.gstRate,
               })
@@ -2885,13 +2892,15 @@ export class OrdersService {
       }
     }
 
-    const insertedOrderItems = await db
+    const insertedOrderItems = await this.db
       .insert(orderItems)
       .values(orderItemsToInsert)
       .returning();
 
     // Commit inventory (convert reserved → consumed)
     // This happens AFTER payment confirmation
+    // CRITICAL: Inventory MUST be decremented when order is placed
+    // If this fails, inventory will be out of sync and needs manual reconciliation
     try {
       // Release all cart reservations (individual reservation keys)
       await this.inventoryStore.releaseCartReservations(cart.id);
@@ -2920,15 +2929,31 @@ export class OrdersService {
           );
         }
       }
+
+      this.logger.info(
+        createLogContext(this.contextService, "commitInventory", {
+          orderId,
+          variantItemsCount: cartItemsWithVariants.length,
+          bundleItemsCount: bundleCartItems.length,
+        }),
+        "Inventory successfully decremented for order",
+      );
     } catch (error) {
+      // CRITICAL ERROR: Inventory decrement failed
+      // Order is already created, but inventory wasn't decremented
+      // This needs to be reconciled manually or via a background job
       this.logger.error(
         createErrorContext(this.contextService, "commitInventory", error, {
           orderId,
+          variantItemsCount: cartItemsWithVariants.length,
+          bundleItemsCount: bundleCartItems.length,
+          critical: true,
         }),
-        "Failed to commit inventory for order",
+        "CRITICAL: Failed to commit inventory for order - manual reconciliation required",
       );
       // Continue - inventory commit failure should be handled separately
       // Order is already created, inventory can be reconciled later
+      // TODO: Consider adding a background job to reconcile failed inventory commits
     }
 
     // Clear cart - use cartId from session
@@ -3012,6 +3037,46 @@ export class OrdersService {
       "Order finalized",
     );
 
+    // Emit order created event
+    try {
+      await this.orderEventsService.emitOrderCreated({
+        orderId,
+        orderNumber,
+        customerId,
+        timestamp: new Date(),
+        total,
+        itemsCount: insertedOrderItems.length,
+        metadata: {
+          paymentIntentId,
+          checkoutSessionId,
+          provider,
+        },
+      } as OrderCreatedEventPayload);
+
+      // Emit payment completed event
+      await this.orderEventsService.emitPaymentCompleted({
+        orderId,
+        orderNumber,
+        customerId,
+        timestamp: new Date(),
+        paymentIntentId,
+        amount: total,
+        paymentMethod: metadata.paymentMethod || "online",
+        metadata: {
+          provider,
+        },
+      } as OrderPaymentCompletedEventPayload);
+    } catch (error) {
+      // Log but don't throw - event emission failure shouldn't break order creation
+      this.logger.warn(
+        createErrorContext(this.contextService, "emitOrderEvents", error, {
+          orderId,
+          orderNumber,
+        }),
+        "Failed to emit order events",
+      );
+    }
+
     return orderResponse;
   }
 
@@ -3029,7 +3094,7 @@ export class OrdersService {
 
       let order: typeof orders.$inferSelect | undefined;
       try {
-        const orderResult = await db
+        const orderResult = await this.db
           .select()
           .from(orders)
           .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)))
@@ -3065,7 +3130,7 @@ export class OrdersService {
         updatedAt: Date;
       }>;
       try {
-        items = await db
+        items = await this.db
           .select({
             id: orderItems.id,
             orderId: orderItems.orderId,
@@ -3095,7 +3160,7 @@ export class OrdersService {
       // Get shipping address for GST calculation
       let shippingAddress: { state: string } | undefined;
       try {
-        const addressResult = await db
+        const addressResult = await this.db
           .select({ state: addresses.state })
           .from(addresses)
           .where(eq(addresses.id, order.shippingAddressId))
@@ -3275,7 +3340,7 @@ export class OrdersService {
     try {
       let order: typeof orders.$inferSelect | undefined;
       try {
-        const orderResult = await db
+        const orderResult = await this.db
           .select()
           .from(orders)
           .where(eq(orders.id, orderId))
@@ -3311,7 +3376,7 @@ export class OrdersService {
         updatedAt: Date;
       }>;
       try {
-        items = await db
+        items = await this.db
           .select({
             id: orderItems.id,
             orderId: orderItems.orderId,
@@ -3341,7 +3406,7 @@ export class OrdersService {
       // Get shipping address for GST calculation
       let shippingAddress: { state: string } | undefined;
       try {
-        const addressResult = await db
+        const addressResult = await this.db
           .select({ state: addresses.state })
           .from(addresses)
           .where(eq(addresses.id, order.shippingAddressId))
@@ -3567,7 +3632,7 @@ export class OrdersService {
 
       let customerOrders: Array<typeof orders.$inferSelect>;
       try {
-        customerOrders = await db
+        customerOrders = await this.db
           .select()
           .from(orders)
           .where(whereConditions)
@@ -3601,7 +3666,7 @@ export class OrdersService {
               updatedAt: Date;
             }>;
             try {
-              items = await db
+              items = await this.db
                 .select({
                   id: orderItems.id,
                   orderId: orderItems.orderId,
@@ -3924,7 +3989,7 @@ export class OrdersService {
     const prefix = `ORD-${year}-`;
 
     // Get the latest order number for this year
-    const latestOrders = await db
+    const latestOrders = await this.db
       .select({ orderNumber: orders.orderNumber })
       .from(orders)
       .where(ilike(orders.orderNumber, `${prefix}%`))

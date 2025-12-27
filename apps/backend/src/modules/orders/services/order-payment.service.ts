@@ -1,11 +1,14 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { db, eq, orders, payments } from "@vcecom/db";
+import { eq, orders, payments } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { isCodPayment } from "../../../common/constants/orders.constants";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { TimelineEventType } from "../dto/order-timeline.dto";
 import { OrderTimelineService } from "./order-timeline.service";
 
@@ -14,6 +17,7 @@ export class OrderPaymentService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly timelineService: OrderTimelineService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -31,7 +35,7 @@ export class OrderPaymentService {
     adminEmail?: string,
   ) {
     // Get order
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -42,7 +46,7 @@ export class OrderPaymentService {
     }
 
     // Check if order has a payment record
-    const [payment] = await db
+    const [payment] = await this.db
       .select()
       .from(payments)
       .where(eq(payments.orderId, orderId))
@@ -67,7 +71,7 @@ export class OrderPaymentService {
     }
 
     // Update payment status to captured
-    await db
+    await this.db
       .update(payments)
       .set({
         status: "captured",
@@ -77,7 +81,7 @@ export class OrderPaymentService {
 
     // Update order status to confirmed if it's still pending (consistent with online payment flow)
     if (order.status === "pending") {
-      await db
+      await this.db
         .update(orders)
         .set({
           status: "confirmed",
@@ -99,7 +103,7 @@ export class OrderPaymentService {
     });
 
     // Fetch updated order
-    const [updatedOrder] = await db
+    const [updatedOrder] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))

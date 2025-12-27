@@ -76,9 +76,11 @@ export async function POST(_request: NextRequest) {
           }
         });
 
+        // In production, cookies must be secure (HTTPS required)
+        const isProduction = process.env.NODE_ENV === "production";
         nextResponse.cookies.set(name, value, {
           httpOnly: cookieOptions.httpOnly ?? true,
-          secure: cookieOptions.secure ?? false,
+          secure: cookieOptions.secure ?? isProduction, // true in prod, false in dev
           sameSite: cookieOptions.sameSite || "lax",
           path: cookieOptions.path || "/",
           maxAge: cookieOptions.maxAge,

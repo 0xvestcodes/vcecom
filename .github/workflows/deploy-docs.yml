@@ -7,7 +7,9 @@ on:
       - dev
     paths:
       - 'apps/docs/**'
+      - 'apps/backend/**'
       - '.github/workflows/deploy-docs.yml'
+      - '.github/workflows/generate-openapi.yml'
   workflow_dispatch:
 
 permissions:
@@ -20,11 +22,21 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  generate-openapi:
+    uses: ./.github/workflows/generate-openapi.yml
+
   build:
+    needs: generate-openapi
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Download OpenAPI JSON artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: openapi-json
+          path: apps/docs/static/api-docs/
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -37,6 +49,14 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Verify OpenAPI JSON exists
+        run: |
+          if [ ! -f apps/docs/static/api-docs/openapi.json ]; then
+            echo "Error: OpenAPI JSON not found. Make sure generate-openapi workflow ran successfully."
+            exit 1
+          fi
+          echo "OpenAPI JSON found: $(wc -l < apps/docs/static/api-docs/openapi.json) lines"
 
       - name: Build documentation
         run: pnpm --filter=@vestcodes/vcecom-docs build

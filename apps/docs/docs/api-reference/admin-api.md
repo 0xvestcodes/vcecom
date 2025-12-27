@@ -660,3 +660,40 @@ curl -X GET "https://api.vcecom.com/api/v1/admin/orders?page=1&limit=20" \
 ```
 
 This API reference covers the core admin functionality. For detailed request/response schemas and additional endpoints, refer to the OpenAPI specification or contact the development team.
+
+## Interactive API Documentation
+
+For complete API documentation with interactive testing, see:
+
+- **[Admin API Interactive Docs](/api-reference/admin)** - Full OpenAPI specification with Redoc
+- **OpenAPI JSON**: Available at `/api/docs-json` endpoint
+
+The interactive documentation includes:
+- Complete endpoint documentation
+- Request/response schemas
+- Try-it-out functionality
+- Authentication examples
+- All admin endpoints organized by tags
+
+## Pagination
+
+All list endpoints support pagination:
+
+**Query Parameters:**
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 20, max: 100)
+
+**Response Format:**
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 150,
+    "totalPages": 8
+  }
+}
+```
+
+See [Admin Pagination Documentation](/docs/admin/pagination) for details.

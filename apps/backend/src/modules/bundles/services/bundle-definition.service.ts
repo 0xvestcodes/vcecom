@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -8,11 +9,12 @@ import {
   bundleSetItems,
   bundleSets,
   bundles,
-  db,
   desc,
   eq,
   sql,
 } from "@vcecom/db";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { BundleCacheStore } from "../../redis-store/stores/bundle-cache-store";
 import { BundleResponseDto } from "../dto/bundle-response.dto";
 import { CreateBundleDto } from "../dto/create-bundle.dto";
@@ -20,13 +22,16 @@ import { UpdateBundleDto } from "../dto/update-bundle.dto";
 
 @Injectable()
 export class BundleDefinitionService {
-  constructor(private readonly bundleCacheStore: BundleCacheStore) {}
+  constructor(
+    private readonly bundleCacheStore: BundleCacheStore,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
   /**
    * Create a new bundle
    * Note: Bundle must have at least 1 set (enforced when sets are added)
    */
   async create(dto: CreateBundleDto): Promise<BundleResponseDto> {
-    const [newBundle] = await db
+    const [newBundle] = await this.db
       .insert(bundles)
       .values({
         title: dto.title,
@@ -55,7 +60,7 @@ export class BundleDefinitionService {
     const offset = (page - 1) * limit;
     const maxLimit = Math.min(limit, 100); // Max 100 per page
 
-    const allBundles = await db
+    const allBundles = await this.db
       .select()
       .from(bundles)
       .orderBy(desc(bundles.createdAt))
@@ -63,7 +68,7 @@ export class BundleDefinitionService {
       .offset(offset);
 
     // Get total count using COUNT(*) for performance
-    const countResult = await db
+    const countResult = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(bundles);
     const total = Number(countResult[0]?.count || 0);
@@ -102,7 +107,7 @@ export class BundleDefinitionService {
     const offset = (page - 1) * limit;
     const maxLimit = Math.min(limit, 100); // Max 100 per page
 
-    const activeBundles = await db
+    const activeBundles = await this.db
       .select()
       .from(bundles)
       .where(eq(bundles.isActive, true))
@@ -111,7 +116,7 @@ export class BundleDefinitionService {
       .offset(offset);
 
     // Get total count of active bundles
-    const countResult = await db
+    const countResult = await this.db
       .select({ count: sql<number>`count(*)` })
       .from(bundles)
       .where(eq(bundles.isActive, true));
@@ -174,7 +179,7 @@ export class BundleDefinitionService {
     }
 
     // Check if bundle exists and is active
-    const [bundle] = await db
+    const [bundle] = await this.db
       .select()
       .from(bundles)
       .where(eq(bundles.id, id))
@@ -206,7 +211,7 @@ export class BundleDefinitionService {
    * Update a bundle
    */
   async update(id: string, dto: UpdateBundleDto): Promise<BundleResponseDto> {
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(bundles)
       .where(eq(bundles.id, id))
@@ -216,7 +221,7 @@ export class BundleDefinitionService {
       throw new NotFoundException(`Bundle with ID ${id} not found`);
     }
 
-    const [updated] = await db
+    const [updated] = await this.db
       .update(bundles)
       .set({
         title: dto.title ?? existing.title,
@@ -250,7 +255,7 @@ export class BundleDefinitionService {
    * Delete a bundle (cascades to sets and items)
    */
   async remove(id: string): Promise<{ message: string }> {
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(bundles)
       .where(eq(bundles.id, id))
@@ -260,7 +265,7 @@ export class BundleDefinitionService {
       throw new NotFoundException(`Bundle with ID ${id} not found`);
     }
 
-    await db.delete(bundles).where(eq(bundles.id, id));
+    await this.db.delete(bundles).where(eq(bundles.id, id));
 
     // Invalidate cache
     await this.bundleCacheStore.invalidateBundle(id);
@@ -272,7 +277,7 @@ export class BundleDefinitionService {
    * Validate bundle has at least 1 set
    */
   async validateBundleHasSets(bundleId: string): Promise<void> {
-    const sets = await db
+    const sets = await this.db
       .select()
       .from(bundleSets)
       .where(eq(bundleSets.bundleId, bundleId));
@@ -286,7 +291,7 @@ export class BundleDefinitionService {
    * Validate bundle has at most 15 sets
    */
   async validateBundleSetCount(bundleId: string): Promise<void> {
-    const sets = await db
+    const sets = await this.db
       .select()
       .from(bundleSets)
       .where(eq(bundleSets.bundleId, bundleId));
@@ -302,7 +307,7 @@ export class BundleDefinitionService {
    * Get bundle count for a bundle
    */
   async getSetCount(bundleId: string): Promise<number> {
-    const sets = await db
+    const sets = await this.db
       .select()
       .from(bundleSets)
       .where(eq(bundleSets.bundleId, bundleId));
@@ -314,7 +319,7 @@ export class BundleDefinitionService {
    * Hydrate bundle with sets and items
    */
   private async hydrateBundle(bundleId: string): Promise<BundleResponseDto> {
-    const [bundle] = await db
+    const [bundle] = await this.db
       .select()
       .from(bundles)
       .where(eq(bundles.id, bundleId))
@@ -325,7 +330,7 @@ export class BundleDefinitionService {
     }
 
     // Get sets ordered by sortOrder
-    const sets = await db
+    const sets = await this.db
       .select()
       .from(bundleSets)
       .where(eq(bundleSets.bundleId, bundleId))
@@ -334,7 +339,7 @@ export class BundleDefinitionService {
     // Get items for each set
     const setsWithItems = await Promise.all(
       sets.map(async (set) => {
-        const items = await db
+        const items = await this.db
           .select()
           .from(bundleSetItems)
           .where(eq(bundleSetItems.setId, set.id));

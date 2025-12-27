@@ -83,6 +83,7 @@ const sidebars: SidebarsConfig = {
         "orders/fulfillment",
         "orders/refunds",
         "orders/reconciliation",
+        "orders/inventory-reconciliation",
       ],
     },
     {
@@ -118,8 +119,26 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: "category",
+      label: "Admin Panel",
+      items: ["admin/pagination"],
+    },
+    {
+      type: "category",
       label: "API Reference",
-      items: ["api-reference/admin-api", "api-reference/store-api"],
+      items: [
+        "api-reference/admin-api",
+        "api-reference/store-api",
+        {
+          type: "link",
+          label: "Store API (Interactive)",
+          href: "/api-reference/store",
+        },
+        {
+          type: "link",
+          label: "Admin API (Interactive)",
+          href: "/api-reference/admin",
+        },
+      ],
     },
     {
       type: "category",

@@ -29,9 +29,10 @@ export class DiscountWarmupWorker {
   ) {}
 
   /**
-   * Periodic cache refresh worker (runs every 10 minutes)
+   * Periodic cache refresh worker (runs at 5 and 35 minutes past each hour)
+   * Staggered to avoid concurrent execution with pricing warmup
    */
-  @Cron("*/10 * * * *")
+  @Cron("5,35 * * * *")
   async handleWarmup() {
     this.logger.debug(
       createLogContext(this.contextService, "handleWarmup", {}),

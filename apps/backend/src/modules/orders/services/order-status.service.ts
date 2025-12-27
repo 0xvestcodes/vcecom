@@ -1,11 +1,23 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { and, db, eq, orderItems, orders } from "@vcecom/db";
+import { and, eq, orderItems, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
+import { createErrorContext } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
+import { OrderEventsService } from "../../events/order-events.service";
+import {
+  OrderCancelledEventPayload,
+  OrderConfirmedEventPayload,
+  OrderDeliveredEventPayload,
+  OrderProcessingEventPayload,
+  OrderShippedEventPayload,
+} from "../../events/order-events.types";
 import { OrderResponseDto } from "../dto/order-response.dto";
 import {
   OrderStatus,
@@ -25,6 +37,8 @@ export class OrderStatusService {
     readonly _contextService: ContextService,
     private readonly validationService: OrderValidationService,
     private readonly gstService: OrderGstService,
+    private readonly orderEventsService: OrderEventsService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -76,7 +90,7 @@ export class OrderStatusService {
     const customerId = await this.validationService.getCustomerId(userId);
 
     // Get current order
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)))
@@ -90,7 +104,10 @@ export class OrderStatusService {
     this.validateStatusTransition(order.status, updateStatusDto.status);
 
     // Update order status
-    const [updatedOrder] = await db
+    // Note: Inventory is decremented when order is PLACED (in finalizeOrderFromPayment)
+    // and restored when order is CANCELLED (in OrderCancelService)
+    // Status changes (including DELIVERED) do not affect inventory
+    const [updatedOrder] = await this.db
       .update(orders)
       .set({
         status: updateStatusDto.status,
@@ -100,7 +117,7 @@ export class OrderStatusService {
       .returning();
 
     // Get order items
-    const items = await db
+    const items = await this.db
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, orderId));
@@ -109,6 +126,9 @@ export class OrderStatusService {
       orderId,
       updatedOrder.shippingAddressId,
     );
+
+    // Emit order lifecycle event based on status
+    await this.emitStatusChangeEvent(updatedOrder, updateStatusDto.status);
 
     return {
       ...updatedOrder,
@@ -125,7 +145,7 @@ export class OrderStatusService {
     updateStatusDto: UpdateOrderStatusDto,
   ): Promise<OrderResponseDto> {
     // Get current order (no customer validation for admin)
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -139,7 +159,10 @@ export class OrderStatusService {
     this.validateStatusTransition(order.status, updateStatusDto.status);
 
     // Update order status
-    const [updatedOrder] = await db
+    // Note: Inventory is decremented when order is PLACED (in finalizeOrderFromPayment)
+    // and restored when order is CANCELLED (in OrderCancelService)
+    // Status changes (including DELIVERED) do not affect inventory
+    const [updatedOrder] = await this.db
       .update(orders)
       .set({
         status: updateStatusDto.status,
@@ -149,7 +172,7 @@ export class OrderStatusService {
       .returning();
 
     // Get order items
-    const items = await db
+    const items = await this.db
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, orderId));
@@ -159,10 +182,74 @@ export class OrderStatusService {
       updatedOrder.shippingAddressId,
     );
 
+    // Emit order lifecycle event based on status
+    await this.emitStatusChangeEvent(updatedOrder, updateStatusDto.status);
+
     return {
       ...updatedOrder,
       gstBreakdown,
       items,
     } as OrderResponseDto;
+  }
+
+  /**
+   * Emit order lifecycle event based on status change
+   */
+  private async emitStatusChangeEvent(
+    order: typeof orders.$inferSelect,
+    newStatus: OrderStatus,
+  ): Promise<void> {
+    const basePayload = {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      customerId: order.customerId,
+      timestamp: new Date(),
+      metadata: {},
+    };
+
+    try {
+      switch (newStatus) {
+        case OrderStatus.CONFIRMED:
+          await this.orderEventsService.emitOrderConfirmed(
+            basePayload as OrderConfirmedEventPayload,
+          );
+          break;
+        case OrderStatus.PROCESSING:
+          await this.orderEventsService.emitOrderProcessing(
+            basePayload as OrderProcessingEventPayload,
+          );
+          break;
+        case OrderStatus.SHIPPED:
+          await this.orderEventsService.emitOrderShipped(
+            basePayload as OrderShippedEventPayload,
+          );
+          break;
+        case OrderStatus.DELIVERED:
+          await this.orderEventsService.emitOrderDelivered({
+            ...basePayload,
+            deliveredAt: new Date(),
+          } as OrderDeliveredEventPayload);
+          break;
+        case OrderStatus.CANCELLED:
+          await this.orderEventsService.emitOrderCancelled(
+            basePayload as OrderCancelledEventPayload,
+          );
+          break;
+        default:
+          // No event for other statuses
+          break;
+      }
+    } catch (error) {
+      // Log but don't throw - event emission failure shouldn't break status update
+      this._logger.warn(
+        createErrorContext(
+          this._contextService,
+          "emitStatusChangeEvent",
+          error,
+          { orderId: order.id, newStatus },
+        ),
+        "Failed to emit order status change event",
+      );
+    }
   }
 }

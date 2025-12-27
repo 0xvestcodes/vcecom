@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -7,6 +8,7 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  PayloadTooLargeException,
   Post,
   Query,
   UploadedFile,
@@ -54,7 +56,7 @@ import { BatchUploadFileDto, UploadFileDto } from "./dto/upload-file.dto";
 import { ImageCompressionService } from "./services/image-compression.service";
 import { StorageService } from "./storage.service";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 const ALLOWED_MIME_TYPES = [
   "image/jpeg",
   "image/jpg",
@@ -107,7 +109,11 @@ export class StorageController {
   @ApiOperation({
     summary: "Upload a single file",
     description:
-      "Upload a file to storage with automatic image compression. Admin-only endpoint.",
+      "Upload a file to storage with automatic image compression. Maximum file size: 50MB. Admin-only endpoint.",
+  })
+  @ApiResponse({
+    status: 413,
+    description: "File size exceeds maximum allowed size of 50MB",
   })
   @ApiBody({
     schema: {
@@ -154,12 +160,19 @@ export class StorageController {
     @Body() dto: UploadFileDto,
   ): Promise<FileResponseDto> {
     if (!file) {
-      throw new Error("No file provided");
+      throw new BadRequestException("No file provided");
+    }
+
+    // Validate file size (additional check before processing)
+    if (file.size > MAX_FILE_SIZE) {
+      throw new PayloadTooLargeException(
+        `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+      );
     }
 
     // Validate file type
     if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
-      throw new Error(
+      throw new BadRequestException(
         `File type ${file.mimetype} is not allowed. Allowed types: ${ALLOWED_MIME_TYPES.join(", ")}`,
       );
     }

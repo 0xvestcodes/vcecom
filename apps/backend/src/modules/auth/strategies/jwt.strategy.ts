@@ -1,13 +1,18 @@
-import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
-import { adminSessions, db, eq, users } from "@vcecom/db";
+import { adminSessions, eq, users } from "@vcecom/db";
 import { Request } from "express";
 import { ExtractJwt, Strategy } from "passport-jwt";
+import type { Database } from "../../../modules/database/db";
 import { AdminSessionsService } from "../../admin-auth/admin-sessions.service";
+import { DB_TOKEN } from "../../database/database.module";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-  constructor(private readonly adminSessionsService: AdminSessionsService) {
+  constructor(
+    private readonly adminSessionsService: AdminSessionsService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {
     super({
       jwtFromRequest: ExtractJwt.fromExtractors([
         // Extract from cookie first
@@ -29,7 +34,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     sessionId?: string;
     deviceId?: string;
   }) {
-    const [user] = await db
+    const [user] = await this.db
       .select()
       .from(users)
       .where(eq(users.id, payload.sub))
@@ -41,7 +46,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
     // If it's an admin, validate the session
     if (user.role !== "customer" && payload.sessionId) {
-      const session = await db
+      const session = await this.db
         .select()
         .from(adminSessions)
         .where(eq(adminSessions.id, payload.sessionId))

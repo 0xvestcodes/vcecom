@@ -1,18 +1,21 @@
 import { randomUUID } from "node:crypto";
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { db, eq, users } from "@vcecom/db";
+import { eq, users } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
 import {
   createErrorContext,
   createLogContext,
 } from "../../common/logging/logging.helper";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 import { AdminActivityService } from "./admin-activity.service";
 import { AdminMfaService } from "./admin-mfa.service";
 import { AdminSessionsService } from "./admin-sessions.service";
@@ -45,6 +48,7 @@ export class AdminAuthService {
     private readonly mfaService: AdminMfaService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {
     this.accessTokenExpiresIn =
       process.env.ADMIN_ACCESS_TOKEN_EXPIRES_IN || "15m";
@@ -62,7 +66,7 @@ export class AdminAuthService {
     role: string;
     passwordHash: string;
   }> {
-    const [admin] = await db
+    const [admin] = await this.db
       .select()
       .from(users)
       .where(eq(users.email, email))
@@ -94,7 +98,7 @@ export class AdminAuthService {
     if (isBcryptHash(admin.passwordHash)) {
       try {
         const newHash = await migratePasswordHash(password, admin.passwordHash);
-        await db
+        await this.db
           .update(users)
           .set({ passwordHash: newHash })
           .where(eq(users.id, admin.id));
@@ -220,7 +224,7 @@ export class AdminAuthService {
         await this.sessionsService.validateRefreshToken(refreshToken);
 
       // Get admin info
-      const [admin] = await db
+      const [admin] = await this.db
         .select()
         .from(users)
         .where(eq(users.id, session.adminId))
@@ -323,7 +327,7 @@ export class AdminAuthService {
   ): Promise<AdminLoginResult> {
     // Validate credentials first
     // We need to get admin without password validation here, as password was already validated in initial login
-    const [adminUser] = await db
+    const [adminUser] = await this.db
       .select()
       .from(users)
       .where(eq(users.email, email))
@@ -368,7 +372,7 @@ export class AdminAuthService {
     activeSessionsCount: number;
     has2fa: boolean;
   }> {
-    const [admin] = await db
+    const [admin] = await this.db
       .select()
       .from(users)
       .where(eq(users.id, adminId))

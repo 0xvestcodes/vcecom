@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -10,7 +11,6 @@ import {
   cartItems,
   carts,
   customers,
-  db,
   eq,
   inArray,
   productCollections,
@@ -26,6 +26,8 @@ import {
 } from "../../common/logging/logging.helper";
 import { Trace } from "../../common/tracing/trace.decorator";
 import { calculateGstBreakdown } from "../../common/utils/gst.utils";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 import {
   BundleEligibilityService,
   UserBundleSelection,
@@ -41,7 +43,10 @@ import { KEY_PATTERNS } from "../redis-store/constants/key-patterns";
 import { RedisStoreService } from "../redis-store/redis-store.service";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
-import { BundleCartItemMetadata } from "./dto/bundle-cart-item.dto";
+import {
+  BundleCartItemMetadata,
+  FlattenedBundleItemMetadata,
+} from "./dto/bundle-cart-item.dto";
 
 @Injectable()
 export class CartsService {
@@ -57,6 +62,7 @@ export class CartsService {
     private readonly bundlePricingService: BundlePricingService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
   private readonly CART_EXPIRY_DAYS = 30; // Cart expires after 30 days
 
@@ -71,7 +77,7 @@ export class CartsService {
       // Customer cart
       let cart: typeof carts.$inferSelect | undefined;
       try {
-        const cartResult = await db
+        const cartResult = await this.db
           .select()
           .from(carts)
           .where(eq(carts.customerId, customerId))
@@ -95,7 +101,7 @@ export class CartsService {
         expiresAt.setDate(expiresAt.getDate() + this.CART_EXPIRY_DAYS);
 
         try {
-          const cartResult = await db
+          const cartResult = await this.db
             .insert(carts)
             .values({
               customerId,
@@ -122,7 +128,7 @@ export class CartsService {
       // Guest cart
       let cart: typeof carts.$inferSelect | undefined;
       try {
-        const cartResult = await db
+        const cartResult = await this.db
           .select()
           .from(carts)
           .where(eq(carts.sessionId, sessionId))
@@ -146,7 +152,7 @@ export class CartsService {
         expiresAt.setDate(expiresAt.getDate() + this.CART_EXPIRY_DAYS);
 
         try {
-          const cartResult = await db
+          const cartResult = await this.db
             .insert(carts)
             .values({
               sessionId,
@@ -180,7 +186,7 @@ export class CartsService {
    * Get customer ID from user ID
    */
   private async getCustomerId(userId: string): Promise<string | null> {
-    const [customer] = await db
+    const [customer] = await this.db
       .select()
       .from(customers)
       .where(eq(customers.userId, userId))
@@ -208,7 +214,7 @@ export class CartsService {
     }
 
     // Get default shipping address
-    const [defaultAddress] = await db
+    const [defaultAddress] = await this.db
       .select({ state: addresses.state })
       .from(addresses)
       .where(
@@ -230,7 +236,7 @@ export class CartsService {
     customerId: string | null = null,
   ) {
     // Get all cart items with metadata
-    const items = await db
+    const items = await this.db
       .select({
         id: cartItems.id,
         quantity: cartItems.quantity,
@@ -269,7 +275,7 @@ export class CartsService {
     // Get variant items with product info
     const variantItemsWithProducts =
       variantItems.length > 0
-        ? await db
+        ? await this.db
             .select({
               id: cartItems.id,
               quantity: cartItems.quantity,
@@ -308,7 +314,7 @@ export class CartsService {
     let productGstRates: Array<{ id: string; gstRate: number }> = [];
 
     if (productIds.length > 0) {
-      productGstRates = await db
+      productGstRates = await this.db
         .select({
           id: products.id,
           gstRate: products.gstRate,
@@ -325,7 +331,7 @@ export class CartsService {
     for (const bundleItem of bundleItems) {
       const _metadata = bundleItem.metadata as BundleCartItemMetadata;
       // Get first variant's product for GST
-      const [firstVariant] = await db
+      const [firstVariant] = await this.db
         .select({
           productId: productVariants.productId,
         })
@@ -334,7 +340,7 @@ export class CartsService {
         .limit(1);
 
       if (firstVariant) {
-        const [product] = await db
+        const [product] = await this.db
           .select({
             gstRate: products.gstRate,
           })
@@ -413,7 +419,7 @@ export class CartsService {
     const totalGstAmount = totalCgst + totalSgst + totalIgst;
 
     // Get cart to check for discount code
-    const [cart] = await db
+    const [cart] = await this.db
       .select({ discountCode: carts.discountCode })
       .from(carts)
       .where(eq(carts.id, cartId))
@@ -444,7 +450,7 @@ export class CartsService {
       const bundleVariantIds: string[] = [];
       for (const vq of variantQuantities) {
         // Get variant details
-        const [variant] = await db
+        const [variant] = await this.db
           .select({
             productId: productVariants.productId,
           })
@@ -478,7 +484,7 @@ export class CartsService {
       ...flattenedBundleItems.map((i) => i.productVariantId),
     ];
 
-    const allVariants = await db
+    const allVariants = await this.db
       .select({
         id: productVariants.id,
         productId: productVariants.productId,
@@ -498,7 +504,7 @@ export class CartsService {
     ];
 
     // Fetch product metadata (collections, tags) for discount engine
-    const productDetails = await db
+    const productDetails = await this.db
       .select({
         productId: products.id,
         categoryId: products.categoryId,
@@ -509,7 +515,7 @@ export class CartsService {
     const productMap = new Map(productDetails.map((p) => [p.productId, p]));
 
     // Fetch collections for products
-    const productCollectionData = await db
+    const productCollectionData = await this.db
       .select({
         productId: productCollections.productId,
         collectionId: productCollections.collectionId,
@@ -526,7 +532,7 @@ export class CartsService {
     }
 
     // Fetch tags for products
-    const productTagData = await db
+    const productTagData = await this.db
       .select({
         productId: productTags.productId,
         tagId: productTags.tagId,
@@ -677,7 +683,7 @@ export class CartsService {
 
     // Update cart totals
     try {
-      await db
+      await this.db
         .update(carts)
         .set({
           subtotal,
@@ -718,7 +724,7 @@ export class CartsService {
   ): Promise<string | undefined> {
     let customer: { userId: string } | undefined;
     try {
-      const customerResult = await db
+      const customerResult = await this.db
         .select({ userId: customers.userId })
         .from(customers)
         .where(eq(customers.id, customerId))
@@ -765,7 +771,7 @@ export class CartsService {
     // Get cart from database
     let cart: typeof carts.$inferSelect | undefined;
     try {
-      const cartResult = await db
+      const cartResult = await this.db
         .select()
         .from(carts)
         .where(eq(carts.id, cartId))
@@ -794,7 +800,7 @@ export class CartsService {
     // Get cart items
     let items: Array<typeof cartItems.$inferSelect>;
     try {
-      items = await db
+      items = await this.db
         .select()
         .from(cartItems)
         .where(eq(cartItems.cartId, cart.id));
@@ -834,7 +840,7 @@ export class CartsService {
     );
 
     // Get updated cart
-    const [updatedCart] = await db
+    const [updatedCart] = await this.db
       .select()
       .from(carts)
       .where(eq(carts.id, cart.id))
@@ -1068,7 +1074,7 @@ export class CartsService {
         }
       | undefined;
     try {
-      const variantResult = await db
+      const variantResult = await this.db
         .select({
           id: productVariants.id,
           price: productVariants.price,
@@ -1096,7 +1102,7 @@ export class CartsService {
     }
 
     // Check if item already exists in cart
-    const [existingItem] = await db
+    const [existingItem] = await this.db
       .select()
       .from(cartItems)
       .where(
@@ -1139,7 +1145,7 @@ export class CartsService {
         addItemDto.productVariantId,
       );
 
-      await db
+      await this.db
         .update(cartItems)
         .set({ quantity: newQuantity })
         .where(eq(cartItems.id, existingItem.id));
@@ -1173,7 +1179,7 @@ export class CartsService {
       );
 
       // Create new cart item
-      await db.insert(cartItems).values({
+      await this.db.insert(cartItems).values({
         cartId: cart.id,
         productVariantId: addItemDto.productVariantId,
         quantity: addItemDto.quantity,
@@ -1222,148 +1228,129 @@ export class CartsService {
       );
     }
 
-    // Flatten selections to variant quantities
-    const variantQuantities = this.bundlePricingService.flattenBundleSelections(
-      selections,
-      bundleQuantity,
-    );
-
-    // Reserve inventory for each variant
-    for (const vq of variantQuantities) {
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(vq.variantId)) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        vq.variantId,
+    // Get pricing breakdown for each variant
+    const variantBreakdown =
+      await this.bundlePricingService.getBundleVariantBreakdown(
+        bundleId,
+        selections,
+        bundleQuantity,
+        customerId,
       );
+
+    // Generate unique bundle group ID to link all items from this bundle instance
+    const bundleGroupId = `${bundleId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    // Create a map to track which set each variant belongs to
+    const variantToSetId = new Map<string, string>();
+    for (const [setId, variantIds] of Object.entries(selections)) {
+      for (const variantId of variantIds) {
+        variantToSetId.set(variantId, setId);
+      }
+    }
+
+    // Reserve inventory and create individual cart items for each variant
+    for (const breakdown of variantBreakdown) {
+      const variantId = breakdown.variantId;
+      const quantity = breakdown.quantity;
+      const unitPrice = breakdown.unitPrice;
+
+      // Check available inventory
+      const availableInventory =
+        (await this.inventoryStore.getAvailableInventory(variantId)) ?? 0;
+      const reservedInventory =
+        await this.inventoryStore.getReservedInventory(variantId);
       const available = availableInventory - reservedInventory;
 
-      if (available < vq.quantity) {
+      if (available < quantity) {
         throw new BadRequestException(
-          `Insufficient inventory for variant ${vq.variantId}. Available: ${available}, Required: ${vq.quantity}`,
+          `Insufficient inventory for variant ${variantId}. Available: ${available}, Required: ${quantity}`,
         );
       }
 
       // Reserve inventory
-      await this.inventoryStore.reserveInventory(
-        cartId,
-        vq.variantId,
-        vq.quantity,
-      );
-      await this.inventoryStore.refreshReservationTTL(cartId, vq.variantId);
-    }
+      await this.inventoryStore.reserveInventory(cartId, variantId, quantity);
+      await this.inventoryStore.refreshReservationTTL(cartId, variantId);
 
-    // Calculate bundle price
-    const unitBundlePrice =
-      await this.bundlePricingService.calculateBundlePrice(
-        bundleId,
-        selections,
-        1, // unit price
-        customerId,
-      );
+      // Check if this variant already exists in cart (from previous bundle or direct add)
+      const [existingItem] = await this.db
+        .select()
+        .from(cartItems)
+        .where(
+          and(
+            eq(cartItems.cartId, cartId),
+            eq(cartItems.productVariantId, variantId),
+          ),
+        )
+        .limit(1);
 
-    // Get first variant ID for productVariantId (required by schema)
-    const firstVariantId = variantQuantities[0]?.variantId;
-    if (!firstVariantId) {
-      throw new BadRequestException("Bundle must have at least one variant");
-    }
+      if (existingItem) {
+        // Merge with existing item - update quantity and price
+        const existingMetadata =
+          existingItem.metadata as FlattenedBundleItemMetadata | null;
+        const isFromBundle = existingMetadata?.fromBundle === true;
 
-    // Create bundle cart item with metadata
-    const metadata: BundleCartItemMetadata = {
-      type: "bundle",
-      bundleId,
-      selections,
-      bundleTitle: bundle.title,
-    };
+        // If existing item is also from a bundle, we need to decide:
+        // Option 1: Merge quantities (additive)
+        // Option 2: Keep separate (current implementation)
+        // For now, we'll merge quantities if from same bundle group, otherwise keep separate
+        if (isFromBundle && existingMetadata.bundleGroupId === bundleGroupId) {
+          // Same bundle instance - merge quantities
+          const newQuantity = existingItem.quantity + quantity;
+          await this.db
+            .update(cartItems)
+            .set({
+              quantity: newQuantity,
+              // Update price to weighted average
+              price:
+                (existingItem.price * existingItem.quantity +
+                  unitPrice * quantity) /
+                newQuantity,
+            })
+            .where(eq(cartItems.id, existingItem.id));
 
-    await db.insert(cartItems).values({
-      cartId,
-      productVariantId: firstVariantId, // Required by schema, but bundle uses metadata
-      quantity: bundleQuantity,
-      price: unitBundlePrice,
-      metadata: metadata as unknown as Record<string, unknown>,
-    });
+          // Update inventory reservation
+          await this.inventoryStore.reserveInventory(
+            cartId,
+            variantId,
+            newQuantity,
+          );
+        } else {
+          // Different bundle or regular item - create new cart item
+          const metadata: FlattenedBundleItemMetadata = {
+            fromBundle: true,
+            bundleId,
+            bundleTitle: bundle.title,
+            bundleGroupId,
+            bundleSetId: variantToSetId.get(variantId),
+          };
 
-    // Recalculate totals
-    await this.recalculateCartTotals(cartId, customerId);
+          await this.db.insert(cartItems).values({
+            cartId,
+            productVariantId: variantId,
+            quantity,
+            price: unitPrice,
+            metadata: metadata as unknown as Record<string, unknown>,
+          });
+        }
+      } else {
+        // New variant - create cart item
+        const metadata: FlattenedBundleItemMetadata = {
+          fromBundle: true,
+          bundleId,
+          bundleTitle: bundle.title,
+          bundleGroupId,
+          bundleSetId: variantToSetId.get(variantId),
+        };
 
-    return this.getCart(userId, sessionId);
-  }
-
-  /**
-   * Update bundle quantity in cart
-   */
-  private async updateBundleInCart(
-    cartId: string,
-    userId: string | null,
-    sessionId: string | null,
-    itemId: string,
-    metadata: BundleCartItemMetadata,
-    oldQuantity: number,
-    newQuantity: number,
-    customerId: string | null,
-  ) {
-    const delta = newQuantity - oldQuantity;
-
-    if (delta === 0) {
-      // No change, just refresh TTLs
-      const variantQuantities =
-        this.bundlePricingService.flattenBundleSelections(
-          metadata.selections,
-          newQuantity,
-        );
-      for (const vq of variantQuantities) {
-        await this.inventoryStore.refreshReservationTTL(cartId, vq.variantId);
+        await this.db.insert(cartItems).values({
+          cartId,
+          productVariantId: variantId,
+          quantity,
+          price: unitPrice,
+          metadata: metadata as unknown as Record<string, unknown>,
+        });
       }
-      return this.getCart(userId, sessionId);
     }
-
-    // Flatten selections to variant quantities for new quantity
-    const variantQuantities = this.bundlePricingService.flattenBundleSelections(
-      metadata.selections,
-      newQuantity,
-    );
-
-    // Adjust inventory reservations
-    for (const vq of variantQuantities) {
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(vq.variantId)) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        vq.variantId,
-      );
-      const available = availableInventory - reservedInventory;
-
-      if (available < vq.quantity) {
-        throw new BadRequestException(
-          `Insufficient inventory for variant ${vq.variantId}. Available: ${available}, Required: ${vq.quantity}`,
-        );
-      }
-
-      // Reserve new quantity (Lua script handles delta automatically)
-      await this.inventoryStore.reserveInventory(
-        cartId,
-        vq.variantId,
-        vq.quantity,
-      );
-      await this.inventoryStore.refreshReservationTTL(cartId, vq.variantId);
-    }
-
-    // Recalculate bundle price for new quantity
-    const unitBundlePrice =
-      await this.bundlePricingService.calculateBundlePrice(
-        metadata.bundleId,
-        metadata.selections,
-        1, // unit price
-        customerId,
-      );
-
-    // Update cart item
-    await db
-      .update(cartItems)
-      .set({
-        quantity: newQuantity,
-        price: unitBundlePrice,
-      })
-      .where(eq(cartItems.id, itemId));
 
     // Recalculate totals
     await this.recalculateCartTotals(cartId, customerId);
@@ -1396,7 +1383,7 @@ export class CartsService {
     }
 
     // Check if item exists and belongs to cart
-    const [item] = await db
+    const [item] = await this.db
       .select({
         id: cartItems.id,
         productVariantId: cartItems.productVariantId,
@@ -1411,22 +1398,8 @@ export class CartsService {
       throw new NotFoundException("Cart item not found");
     }
 
-    // Check if item is a bundle
-    const metadata = item.metadata as BundleCartItemMetadata | null;
-    if (metadata?.type === "bundle") {
-      return this.updateBundleInCart(
-        cart.id,
-        userId,
-        sessionId,
-        itemId,
-        metadata,
-        item.quantity,
-        updateDto.quantity,
-        customerId,
-      );
-    }
-
-    // Variant item handling (existing logic)
+    // Bundles are now flattened, so all items are handled the same way
+    // Variant item handling
     // Calculate quantity delta
     const delta = updateDto.quantity - item.quantity;
 
@@ -1470,7 +1443,7 @@ export class CartsService {
     );
 
     // Update quantity
-    await db
+    await this.db
       .update(cartItems)
       .set({ quantity: updateDto.quantity })
       .where(eq(cartItems.id, itemId));
@@ -1505,7 +1478,7 @@ export class CartsService {
     }
 
     // Check if item exists and belongs to cart
-    const [item] = await db
+    const [item] = await this.db
       .select({
         id: cartItems.id,
         productVariantId: cartItems.productVariantId,
@@ -1520,53 +1493,28 @@ export class CartsService {
       throw new NotFoundException("Cart item not found");
     }
 
-    // Check if item is a bundle
-    const metadata = item.metadata as BundleCartItemMetadata | null;
-    if (metadata?.type === "bundle") {
-      // Release reservations for all bundle variants
-      const variantQuantities =
-        this.bundlePricingService.flattenBundleSelections(
-          metadata.selections,
-          item.quantity,
-        );
-
-      for (const vq of variantQuantities) {
-        const reservation = await this.inventoryStore.getReservation(
-          cart.id,
-          vq.variantId,
-        );
-        if (reservation !== null && reservation > 0) {
-          const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(
-            cart.id,
-            vq.variantId,
-          );
-          await this.inventoryStore.delete(reservationKey);
-          await this.inventoryStore.releaseInventory(vq.variantId, reservation);
-        }
-      }
-    } else {
-      // Variant item - release reservation
-      const reservation = await this.inventoryStore.getReservation(
+    // Bundles are now flattened, so all items are handled the same way
+    // Release reservation for this variant
+    const reservation = await this.inventoryStore.getReservation(
+      cart.id,
+      item.productVariantId,
+    );
+    if (reservation !== null && reservation > 0) {
+      // Delete individual reservation
+      const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(
         cart.id,
         item.productVariantId,
       );
-      if (reservation !== null && reservation > 0) {
-        // Delete individual reservation
-        const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(
-          cart.id,
-          item.productVariantId,
-        );
-        await this.inventoryStore.delete(reservationKey);
-        // Decrement aggregated reserved count
-        await this.inventoryStore.releaseInventory(
-          item.productVariantId,
-          reservation,
-        );
-      }
+      await this.inventoryStore.delete(reservationKey);
+      // Decrement aggregated reserved count
+      await this.inventoryStore.releaseInventory(
+        item.productVariantId,
+        reservation,
+      );
     }
 
     // Delete item
-    await db.delete(cartItems).where(eq(cartItems.id, itemId));
+    await this.db.delete(cartItems).where(eq(cartItems.id, itemId));
 
     // Recalculate totals
     await this.recalculateCartTotals(cart.id, customerId);
@@ -1586,11 +1534,27 @@ export class CartsService {
 
     const cart = await this.getOrCreateCart(customerId, sessionId);
 
+    // Release all inventory reservations before clearing cart
+    try {
+      await this.inventoryStore.releaseCartReservations(cart.id);
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "CartsService.clearCart.releaseReservations",
+          error,
+          { cartId: cart.id },
+        ),
+        "Failed to release cart reservations during clear",
+      );
+      // Continue with cart clear even if reservation release fails
+    }
+
     // Delete all cart items
-    await db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
+    await this.db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
 
     // Reset cart totals
-    await db
+    await this.db
       .update(carts)
       .set({
         subtotal: 0,
@@ -1610,7 +1574,7 @@ export class CartsService {
     // Get cart from database to find its customerId/sessionId
     let cart: typeof carts.$inferSelect | undefined;
     try {
-      const cartResult = await db
+      const cartResult = await this.db
         .select()
         .from(carts)
         .where(eq(carts.id, cartId))
@@ -1658,7 +1622,7 @@ export class CartsService {
     }
 
     // Get guest cart
-    const [guestCart] = await db
+    const [guestCart] = await this.db
       .select()
       .from(carts)
       .where(eq(carts.sessionId, sessionId))
@@ -1672,7 +1636,7 @@ export class CartsService {
     const customerCart = await this.getOrCreateCart(customerId, null);
 
     // Get guest cart items
-    const guestItems = await db
+    const guestItems = await this.db
       .select()
       .from(cartItems)
       .where(eq(cartItems.cartId, guestCart.id));
@@ -1680,7 +1644,7 @@ export class CartsService {
     // Merge items
     for (const guestItem of guestItems) {
       // Check if item already exists in customer cart
-      const [existingItem] = await db
+      const [existingItem] = await this.db
         .select()
         .from(cartItems)
         .where(
@@ -1693,13 +1657,13 @@ export class CartsService {
 
       if (existingItem) {
         // Update quantity (add guest quantity)
-        await db
+        await this.db
           .update(cartItems)
           .set({ quantity: existingItem.quantity + guestItem.quantity })
           .where(eq(cartItems.id, existingItem.id));
       } else {
         // Create new item in customer cart
-        await db.insert(cartItems).values({
+        await this.db.insert(cartItems).values({
           cartId: customerCart.id,
           productVariantId: guestItem.productVariantId,
           quantity: guestItem.quantity,
@@ -1709,7 +1673,7 @@ export class CartsService {
     }
 
     // Delete guest cart
-    await db.delete(carts).where(eq(carts.id, guestCart.id));
+    await this.db.delete(carts).where(eq(carts.id, guestCart.id));
 
     // Recalculate customer cart totals
     await this.recalculateCartTotals(customerCart.id, customerId);
@@ -1737,7 +1701,7 @@ export class CartsService {
       : undefined;
 
     // Get cart subtotal for validation
-    const items = await db
+    const items = await this.db
       .select({
         price: cartItems.price,
         quantity: cartItems.quantity,
@@ -1763,7 +1727,10 @@ export class CartsService {
     }
 
     // Apply discount code
-    await db.update(carts).set({ discountCode }).where(eq(carts.id, cart.id));
+    await this.db
+      .update(carts)
+      .set({ discountCode })
+      .where(eq(carts.id, cart.id));
 
     // Recalculate totals with discount
     await this.recalculateCartTotals(cart.id, customerId);
@@ -1783,7 +1750,7 @@ export class CartsService {
     const cart = await this.getOrCreateCart(customerId, sessionId);
 
     // Remove discount code
-    await db
+    await this.db
       .update(carts)
       .set({ discountCode: null, discountAmount: 0 })
       .where(eq(carts.id, cart.id));

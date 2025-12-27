@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -8,16 +9,20 @@ import {
   bundleSetItems,
   bundleSets,
   bundles,
-  db,
   eq,
   productVariants,
 } from "@vcecom/db";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { BundleCacheStore } from "../../redis-store/stores/bundle-cache-store";
 import { AddBundleSetItemDto } from "../dto/add-bundle-set-item.dto";
 
 @Injectable()
 export class BundleSetItemsService {
-  constructor(private readonly bundleCacheStore: BundleCacheStore) {}
+  constructor(
+    private readonly bundleCacheStore: BundleCacheStore,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
   /**
    * Add a variant to a bundle set
    */
@@ -27,7 +32,7 @@ export class BundleSetItemsService {
     dto: AddBundleSetItemDto,
   ): Promise<{ id: string; message: string }> {
     // Validate bundle exists
-    const [bundle] = await db
+    const [bundle] = await this.db
       .select()
       .from(bundles)
       .where(eq(bundles.id, bundleId))
@@ -38,7 +43,7 @@ export class BundleSetItemsService {
     }
 
     // Validate set exists and belongs to bundle
-    const [set] = await db
+    const [set] = await this.db
       .select()
       .from(bundleSets)
       .where(and(eq(bundleSets.id, setId), eq(bundleSets.bundleId, bundleId)))
@@ -51,7 +56,7 @@ export class BundleSetItemsService {
     }
 
     // Validate variant exists
-    const [variant] = await db
+    const [variant] = await this.db
       .select()
       .from(productVariants)
       .where(eq(productVariants.id, dto.variantId))
@@ -67,25 +72,10 @@ export class BundleSetItemsService {
     // Note: We assume variant is active if product exists
     // In Phase 14-2, we might add more sophisticated checks
 
-    // Check for duplicate variant in same set
-    const [existing] = await db
-      .select()
-      .from(bundleSetItems)
-      .where(
-        and(
-          eq(bundleSetItems.setId, setId),
-          eq(bundleSetItems.variantId, dto.variantId),
-        ),
-      )
-      .limit(1);
+    // Duplicates are now allowed in bundle sets
+    // No duplicate check needed
 
-    if (existing) {
-      throw new BadRequestException(
-        `Variant ${dto.variantId} is already in this bundle set`,
-      );
-    }
-
-    const [newItem] = await db
+    const [newItem] = await this.db
       .insert(bundleSetItems)
       .values({
         setId,
@@ -111,7 +101,7 @@ export class BundleSetItemsService {
     itemId: string,
   ): Promise<{ message: string }> {
     // Validate bundle exists
-    const [bundle] = await db
+    const [bundle] = await this.db
       .select()
       .from(bundles)
       .where(eq(bundles.id, bundleId))
@@ -122,7 +112,7 @@ export class BundleSetItemsService {
     }
 
     // Validate set exists and belongs to bundle
-    const [set] = await db
+    const [set] = await this.db
       .select()
       .from(bundleSets)
       .where(and(eq(bundleSets.id, setId), eq(bundleSets.bundleId, bundleId)))
@@ -135,7 +125,7 @@ export class BundleSetItemsService {
     }
 
     // Validate item exists and belongs to set
-    const [item] = await db
+    const [item] = await this.db
       .select()
       .from(bundleSetItems)
       .where(
@@ -150,7 +140,7 @@ export class BundleSetItemsService {
     }
 
     // Check if removing this item would leave set empty
-    const remainingItems = await db
+    const remainingItems = await this.db
       .select()
       .from(bundleSetItems)
       .where(eq(bundleSetItems.setId, setId));
@@ -161,7 +151,7 @@ export class BundleSetItemsService {
       );
     }
 
-    await db.delete(bundleSetItems).where(eq(bundleSetItems.id, itemId));
+    await this.db.delete(bundleSetItems).where(eq(bundleSetItems.id, itemId));
 
     // Invalidate bundle cache
     await this.bundleCacheStore.invalidateBundle(bundleId);

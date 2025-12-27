@@ -1,9 +1,11 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
-import { addresses, and, customers, db, eq } from "@vcecom/db";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { addresses, and, customers, eq } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { AppConfigService } from "../../../common/config/app.config.service";
 import { ContextService } from "../../../common/logging/context.service";
 import { createErrorContext } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { AddressesService } from "../../customers/addresses.service";
 import { CustomersService } from "../../customers/customers.service";
 
@@ -19,6 +21,7 @@ export class OrderValidationService {
     readonly _customersService: CustomersService,
     readonly _addressesService: AddressesService,
     private readonly appConfigService: AppConfigService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -29,7 +32,7 @@ export class OrderValidationService {
    */
   async getCustomerId(userId: string): Promise<string> {
     try {
-      const [customer] = await db
+      const [customer] = await this.db
         .select()
         .from(customers)
         .where(eq(customers.userId, userId))
@@ -61,7 +64,7 @@ export class OrderValidationService {
    */
   async getCustomerGroupId(customerId: string): Promise<string | null> {
     try {
-      const [customer] = await db
+      const [customer] = await this.db
         .select()
         .from(customers)
         .where(eq(customers.id, customerId))
@@ -94,7 +97,7 @@ export class OrderValidationService {
     shippingAddress: { state: string };
     billingAddress: { state: string };
   }> {
-    const [shippingAddress] = await db
+    const [shippingAddress] = await this.db
       .select()
       .from(addresses)
       .where(
@@ -111,7 +114,7 @@ export class OrderValidationService {
       );
     }
 
-    const [billingAddress] = await db
+    const [billingAddress] = await this.db
       .select()
       .from(addresses)
       .where(

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -8,10 +9,11 @@ import {
   customerGroupPriceLists,
   customerGroups,
   customers,
-  db,
   desc,
   eq,
 } from "@vcecom/db";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import {
   AssignPriceListToGroupDto,
   CreateCustomerGroupDto,
@@ -21,6 +23,10 @@ import {
 
 @Injectable()
 export class CustomerGroupService {
+  constructor(
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
+
   /**
    * Create a new customer group
    */
@@ -28,7 +34,7 @@ export class CustomerGroupService {
     createDto: CreateCustomerGroupDto,
   ): Promise<CustomerGroupResponseDto> {
     // Check if name already exists
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(customerGroups)
       .where(eq(customerGroups.name, createDto.name))
@@ -40,7 +46,7 @@ export class CustomerGroupService {
       );
     }
 
-    const [newGroup] = await db
+    const [newGroup] = await this.db
       .insert(customerGroups)
       .values({
         name: createDto.name,
@@ -57,7 +63,7 @@ export class CustomerGroupService {
    * Get all customer groups
    */
   async findAll(): Promise<CustomerGroupResponseDto[]> {
-    const groups = await db.select().from(customerGroups);
+    const groups = await this.db.select().from(customerGroups);
 
     return Promise.all(groups.map((group) => this.enrichCustomerGroup(group)));
   }
@@ -66,7 +72,7 @@ export class CustomerGroupService {
    * Get active customer groups
    */
   async findActive(): Promise<CustomerGroupResponseDto[]> {
-    const groups = await db
+    const groups = await this.db
       .select()
       .from(customerGroups)
       .where(eq(customerGroups.isActive, 1));
@@ -78,7 +84,7 @@ export class CustomerGroupService {
    * Get customer group by ID
    */
   async findOne(id: string): Promise<CustomerGroupResponseDto> {
-    const [group] = await db
+    const [group] = await this.db
       .select()
       .from(customerGroups)
       .where(eq(customerGroups.id, id))
@@ -98,7 +104,7 @@ export class CustomerGroupService {
     id: string,
     updateDto: UpdateCustomerGroupDto,
   ): Promise<CustomerGroupResponseDto> {
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(customerGroups)
       .where(eq(customerGroups.id, id))
@@ -110,7 +116,7 @@ export class CustomerGroupService {
 
     // Check name uniqueness if name is being updated
     if (updateDto.name && updateDto.name !== existing.name) {
-      const [nameConflict] = await db
+      const [nameConflict] = await this.db
         .select()
         .from(customerGroups)
         .where(eq(customerGroups.name, updateDto.name))
@@ -130,7 +136,7 @@ export class CustomerGroupService {
     if (updateDto.isActive !== undefined)
       updateData.isActive = updateDto.isActive ? 1 : 0;
 
-    await db
+    await this.db
       .update(customerGroups)
       .set(updateData)
       .where(eq(customerGroups.id, id));
@@ -142,7 +148,7 @@ export class CustomerGroupService {
    * Delete customer group
    */
   async remove(id: string): Promise<{ message: string }> {
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(customerGroups)
       .where(eq(customerGroups.id, id))
@@ -153,7 +159,7 @@ export class CustomerGroupService {
     }
 
     // Check if any customers are assigned to this group
-    const customersInGroup = await db
+    const customersInGroup = await this.db
       .select()
       .from(customers)
       .where(eq(customers.customerGroupId, id))
@@ -165,7 +171,7 @@ export class CustomerGroupService {
       );
     }
 
-    await db.delete(customerGroups).where(eq(customerGroups.id, id));
+    await this.db.delete(customerGroups).where(eq(customerGroups.id, id));
 
     return { message: "Customer group deleted successfully" };
   }
@@ -181,7 +187,7 @@ export class CustomerGroupService {
     await this.findOne(groupId);
 
     // Check if price list is already assigned
-    const [existing] = await db
+    const [existing] = await this.db
       .select()
       .from(customerGroupPriceLists)
       .where(
@@ -194,13 +200,13 @@ export class CustomerGroupService {
 
     if (existing) {
       // Update priority if already assigned
-      await db
+      await this.db
         .update(customerGroupPriceLists)
         .set({ priority: assignDto.priority || 1 })
         .where(eq(customerGroupPriceLists.id, existing.id));
     } else {
       // Create new assignment
-      await db.insert(customerGroupPriceLists).values({
+      await this.db.insert(customerGroupPriceLists).values({
         customerGroupId: groupId,
         priceListId: assignDto.priceListId,
         priority: assignDto.priority || 1,
@@ -220,7 +226,7 @@ export class CustomerGroupService {
     // Validate group exists
     await this.findOne(groupId);
 
-    const [assignment] = await db
+    const [assignment] = await this.db
       .select()
       .from(customerGroupPriceLists)
       .where(
@@ -237,7 +243,7 @@ export class CustomerGroupService {
       );
     }
 
-    await db
+    await this.db
       .delete(customerGroupPriceLists)
       .where(eq(customerGroupPriceLists.id, assignment.id));
 
@@ -253,7 +259,7 @@ export class CustomerGroupService {
       priority: number;
     }>
   > {
-    const assignments = await db
+    const assignments = await this.db
       .select()
       .from(customerGroupPriceLists)
       .where(eq(customerGroupPriceLists.customerGroupId, groupId))

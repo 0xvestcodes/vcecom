@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { Injectable, UnauthorizedException } from "@nestjs/common";
-import { adminSessions, db, eq, gte } from "@vcecom/db";
+import { Inject, Injectable, UnauthorizedException } from "@nestjs/common";
+import { adminSessions, eq, gte } from "@vcecom/db";
 import * as argon2 from "argon2";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
@@ -8,6 +8,8 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../common/logging/logging.helper";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 
 export interface CreateSessionParams {
   adminId: string;
@@ -33,6 +35,7 @@ export class AdminSessionsService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {
     this.refreshTokenExpiryDays =
       parseInt(process.env.ADMIN_REFRESH_TOKEN_EXPIRY_DAYS || "90", 10) || 90;
@@ -58,7 +61,7 @@ export class AdminSessionsService {
     expiresAt.setDate(expiresAt.getDate() + this.refreshTokenExpiryDays);
 
     try {
-      const [session] = await db
+      const [session] = await this.db
         .insert(adminSessions)
         .values({
           adminId,
@@ -104,7 +107,7 @@ export class AdminSessionsService {
     refreshTokenHash: string,
   ): Promise<{ id: string; adminId: string; deviceId: string } | null> {
     try {
-      const [session] = await db
+      const [session] = await this.db
         .select({
           id: adminSessions.id,
           adminId: adminSessions.adminId,
@@ -119,7 +122,7 @@ export class AdminSessionsService {
       }
 
       // Check if session is expired
-      const [fullSession] = await db
+      const [fullSession] = await this.db
         .select({
           expiresAt: adminSessions.expiresAt,
         })
@@ -157,7 +160,7 @@ export class AdminSessionsService {
     const newRefreshTokenHash = await argon2.hash(newRefreshToken);
 
     try {
-      await db
+      await this.db
         .update(adminSessions)
         .set({
           refreshTokenHash: newRefreshTokenHash,
@@ -189,7 +192,7 @@ export class AdminSessionsService {
    */
   async updateLastUsedAt(sessionId: string): Promise<void> {
     try {
-      await db
+      await this.db
         .update(adminSessions)
         .set({ lastUsedAt: new Date() })
         .where(eq(adminSessions.id, sessionId));
@@ -208,7 +211,9 @@ export class AdminSessionsService {
    */
   async deleteSession(sessionId: string): Promise<void> {
     try {
-      await db.delete(adminSessions).where(eq(adminSessions.id, sessionId));
+      await this.db
+        .delete(adminSessions)
+        .where(eq(adminSessions.id, sessionId));
 
       this.logger.info(
         createLogContext(this.contextService, "deleteSession", { sessionId }),
@@ -230,7 +235,7 @@ export class AdminSessionsService {
    */
   async deleteAllSessions(adminId: string): Promise<number> {
     try {
-      const result = await db
+      const result = await this.db
         .delete(adminSessions)
         .where(eq(adminSessions.adminId, adminId))
         .returning();
@@ -260,7 +265,7 @@ export class AdminSessionsService {
    */
   async getActiveSessions(adminId: string): Promise<SessionInfo[]> {
     try {
-      const sessions = await db
+      const sessions = await this.db
         .select({
           id: adminSessions.id,
           deviceId: adminSessions.deviceId,
@@ -319,7 +324,7 @@ export class AdminSessionsService {
     // Get all non-expired sessions and check each refresh token hash
     // This approach is necessary for rotation detection
     const now = new Date();
-    const allSessions = await db
+    const allSessions = await this.db
       .select({
         id: adminSessions.id,
         adminId: adminSessions.adminId,

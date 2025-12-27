@@ -1,10 +1,11 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { addresses, db, eq } from "@vcecom/db";
+import { addresses, eq } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { isCodPayment } from "../../common/constants/orders.constants";
 import { ContextService } from "../../common/logging/context.service";
@@ -19,8 +20,10 @@ import {
   isValidPincodeFormat,
   ServiceabilityResult,
 } from "../../common/utils/pincode.utils";
+import type { Database } from "../../modules/database/db";
 import { CartsService } from "../carts/carts.service";
 import { AddressesService } from "../customers/addresses.service";
+import { DB_TOKEN } from "../database/database.module";
 import { CreateOrderDto } from "../orders/dto/create-order.dto";
 import { OrdersService } from "../orders/orders.service";
 import { CheckoutState } from "../redis-store/constants/checkout-states";
@@ -72,6 +75,7 @@ export class CheckoutService {
     private readonly ordersService: OrdersService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -448,7 +452,7 @@ export class CheckoutService {
           metadata.shippingAddressId !== "temp"
         ) {
           try {
-            const addressResult = await db
+            const addressResult = await this.db
               .select({ pincode: addresses.pincode, state: addresses.state })
               .from(addresses)
               .where(eq(addresses.id, metadata.shippingAddressId))
@@ -553,7 +557,7 @@ export class CheckoutService {
     if (metadata.shippingAddressId && metadata.shippingAddressId !== "temp") {
       // Get address from database
       try {
-        const addressResult = await db
+        const addressResult = await this.db
           .select({ pincode: addresses.pincode })
           .from(addresses)
           .where(eq(addresses.id, metadata.shippingAddressId))
@@ -615,6 +619,7 @@ export class CheckoutService {
     if (metadata.shippingAddressId && metadata.shippingAddressId !== "temp") {
       state = await safeAddressStateLookup(
         metadata.shippingAddressId,
+        this.db, // Pass injected db instance
         this.logger,
         this.contextService,
         {

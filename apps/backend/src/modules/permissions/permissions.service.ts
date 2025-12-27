@@ -1,12 +1,15 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { adminRoles, db, eq } from "@vcecom/db";
+import { adminRoles, eq } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
+import type { Database } from "../../modules/database/db";
+import { DB_TOKEN } from "../database/database.module";
 import {
   CreateRoleDto,
   RoleResponseDto,
@@ -18,6 +21,7 @@ export class PermissionsService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -25,7 +29,10 @@ export class PermissionsService {
    */
   async getRoles(): Promise<RoleResponseDto[]> {
     try {
-      const roles = await db.select().from(adminRoles).orderBy(adminRoles.name);
+      const roles = await this.db
+        .select()
+        .from(adminRoles)
+        .orderBy(adminRoles.name);
 
       return roles.map((role) => this.mapToResponseDto(role));
     } catch (error) {
@@ -42,7 +49,7 @@ export class PermissionsService {
    */
   async getRole(id: string): Promise<RoleResponseDto> {
     try {
-      const [role] = await db
+      const [role] = await this.db
         .select()
         .from(adminRoles)
         .where(eq(adminRoles.id, id))
@@ -71,7 +78,7 @@ export class PermissionsService {
   async createRole(dto: CreateRoleDto): Promise<RoleResponseDto> {
     try {
       // Check if role name already exists
-      const [existing] = await db
+      const [existing] = await this.db
         .select()
         .from(adminRoles)
         .where(eq(adminRoles.name, dto.name))
@@ -86,7 +93,7 @@ export class PermissionsService {
       // Validate permissions structure
       this.validatePermissions(dto.permissions);
 
-      const [created] = await db
+      const [created] = await this.db
         .insert(adminRoles)
         .values({
           name: dto.name,
@@ -116,7 +123,7 @@ export class PermissionsService {
   async updateRole(id: string, dto: UpdateRoleDto): Promise<RoleResponseDto> {
     try {
       // Check if role exists
-      const [existing] = await db
+      const [existing] = await this.db
         .select()
         .from(adminRoles)
         .where(eq(adminRoles.id, id))
@@ -128,7 +135,7 @@ export class PermissionsService {
 
       // Check if new name conflicts with another role
       if (dto.name && dto.name !== existing.name) {
-        const [conflicting] = await db
+        const [conflicting] = await this.db
           .select()
           .from(adminRoles)
           .where(eq(adminRoles.name, dto.name))
@@ -146,7 +153,7 @@ export class PermissionsService {
         this.validatePermissions(dto.permissions);
       }
 
-      const [updated] = await db
+      const [updated] = await this.db
         .update(adminRoles)
         .set({
           name: dto.name ?? existing.name,
@@ -183,7 +190,7 @@ export class PermissionsService {
   async deleteRole(id: string): Promise<void> {
     try {
       // Check if role exists
-      const [existing] = await db
+      const [existing] = await this.db
         .select()
         .from(adminRoles)
         .where(eq(adminRoles.id, id))
@@ -195,7 +202,7 @@ export class PermissionsService {
 
       // Check if any users are using this role
       const { users } = await import("@vcecom/db");
-      const usersWithRole = await db
+      const usersWithRole = await this.db
         .select()
         .from(users)
         .where(eq(users.roleId, id))
@@ -207,7 +214,7 @@ export class PermissionsService {
         );
       }
 
-      await db.delete(adminRoles).where(eq(adminRoles.id, id));
+      await this.db.delete(adminRoles).where(eq(adminRoles.id, id));
     } catch (error) {
       if (
         error instanceof BadRequestException ||
@@ -241,7 +248,7 @@ export class PermissionsService {
   ): Promise<boolean> {
     try {
       const { users } = await import("@vcecom/db");
-      const [user] = await db
+      const [user] = await this.db
         .select({
           role: users.role,
           roleId: users.roleId,
@@ -265,7 +272,7 @@ export class PermissionsService {
       }
 
       // Get role permissions
-      const [role] = await db
+      const [role] = await this.db
         .select()
         .from(adminRoles)
         .where(eq(adminRoles.id, user.roleId))

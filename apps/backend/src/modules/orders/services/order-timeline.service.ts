@@ -1,7 +1,6 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import {
   and,
-  db,
   desc,
   eq,
   orderNotes,
@@ -11,6 +10,8 @@ import {
   shipments,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import {
   OrderTimelineDto,
   TimelineEventDto,
@@ -28,6 +29,7 @@ export class OrderTimelineService {
   constructor(
     readonly _logger: PinoLogger,
     private readonly validationService: OrderValidationService,
+    @Inject(DB_TOKEN) private readonly db: Database,
   ) {}
 
   /**
@@ -45,7 +47,7 @@ export class OrderTimelineService {
     const customerId = await this.validationService.getCustomerId(userId);
 
     // Get order
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)))
@@ -56,7 +58,7 @@ export class OrderTimelineService {
     }
 
     // Get shipments for this order
-    const orderShipments = await db
+    const orderShipments = await this.db
       .select()
       .from(shipments)
       .where(eq(shipments.orderId, orderId))
@@ -97,7 +99,7 @@ export class OrderTimelineService {
     const customerId = await this.validationService.getCustomerId(userId);
 
     // Get order
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)))
@@ -122,7 +124,7 @@ export class OrderTimelineService {
     });
 
     // Get payments for this order
-    const orderPayments = await db
+    const orderPayments = await this.db
       .select()
       .from(payments)
       .where(eq(payments.orderId, orderId))
@@ -171,7 +173,7 @@ export class OrderTimelineService {
     }
 
     // Get shipments for this order
-    const orderShipments = await db
+    const orderShipments = await this.db
       .select()
       .from(shipments)
       .where(eq(shipments.orderId, orderId))
@@ -272,7 +274,7 @@ export class OrderTimelineService {
     }
 
     // Get order notes
-    const orderNotesList = await db
+    const orderNotesList = await this.db
       .select()
       .from(orderNotes)
       .where(eq(orderNotes.orderId, orderId))
@@ -299,7 +301,7 @@ export class OrderTimelineService {
     }
 
     // Get refunds for this order
-    const orderRefunds = await db
+    const orderRefunds = await this.db
       .select()
       .from(refunds)
       .where(eq(refunds.orderId, orderId))
@@ -389,7 +391,7 @@ export class OrderTimelineService {
    */
   async getTrackingForAdmin(orderId: string): Promise<OrderTrackingDto> {
     // Get order (no customer validation for admin)
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -400,7 +402,7 @@ export class OrderTimelineService {
     }
 
     // Get shipments for this order
-    const orderShipments = await db
+    const orderShipments = await this.db
       .select()
       .from(shipments)
       .where(eq(shipments.orderId, orderId))
@@ -431,7 +433,7 @@ export class OrderTimelineService {
    */
   async getTimelineForAdmin(orderId: string): Promise<OrderTimelineDto> {
     // Get order (no customer validation for admin)
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -462,7 +464,7 @@ export class OrderTimelineService {
     });
 
     // Get payments for this order
-    const orderPayments = await db
+    const orderPayments = await this.db
       .select()
       .from(payments)
       .where(eq(payments.orderId, orderId))
@@ -511,7 +513,7 @@ export class OrderTimelineService {
     }
 
     // Get shipments for this order
-    const orderShipments = await db
+    const orderShipments = await this.db
       .select()
       .from(shipments)
       .where(eq(shipments.orderId, orderId))
@@ -612,7 +614,7 @@ export class OrderTimelineService {
     }
 
     // Get order notes
-    const orderNotesList = await db
+    const orderNotesList = await this.db
       .select()
       .from(orderNotes)
       .where(eq(orderNotes.orderId, orderId))
@@ -639,7 +641,7 @@ export class OrderTimelineService {
     }
 
     // Get refunds for this order
-    const orderRefunds = await db
+    const orderRefunds = await this.db
       .select()
       .from(refunds)
       .where(eq(refunds.orderId, orderId))
@@ -736,7 +738,7 @@ export class OrderTimelineService {
     event: Omit<TimelineEventDto, "timestamp"> & { timestamp?: Date },
   ): Promise<void> {
     // Verify order exists
-    const [order] = await db
+    const [order] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))

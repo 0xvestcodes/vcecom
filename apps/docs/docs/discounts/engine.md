@@ -29,6 +29,97 @@ flowchart TD
 
 ## Step-by-Step Process
 
+### Step 0: Eligibility Filtering (Pre-Engine)
+
+Before the discount engine runs, discounts are filtered by eligibility using Redis sets for performance. However, if Redis cache is unavailable, the system falls back to direct product/category/collection/tag checks.
+
+#### Redis-Based Eligibility Filtering
+
+```typescript
+// Fast path: Use Redis eligibility sets
+async filterByEligibility(
+  discounts: Discount[],
+  cartVariantIds: string[],
+): Promise<Discount[]> {
+  const eligibleDiscounts = [];
+  let hasCacheMiss = false;
+
+  for (const discount of discounts) {
+    // Try to get eligibility set from Redis
+    const eligibilitySet = await redis.get(
+      `discount:eligibility:${discount.id}`,
+    );
+
+    if (eligibilitySet) {
+      // Check if any cart variant is in eligibility set
+      const isEligible = cartVariantIds.some((variantId) =>
+        eligibilitySet.includes(variantId),
+      );
+      if (isEligible) {
+        eligibleDiscounts.push(discount);
+      }
+    } else {
+      // Cache miss - include discount for engine filtering
+      // Engine will filter based on product/category/collection/tag matching
+      hasCacheMiss = true;
+      eligibleDiscounts.push(discount);
+    }
+  }
+
+  return eligibleDiscounts;
+}
+```
+
+#### Redis Fallback Behavior
+
+**Important**: If Redis eligibility sets are not cached (cold cache, Redis unavailable), discounts are **still included** for engine processing. The discount engine will filter them based on direct product/category/collection/tag matching.
+
+**Benefits:**
+- Automatic discounts work even if Redis cache is cold
+- No silent failures when Redis is unavailable
+- Graceful degradation to direct checks
+- System remains functional during Redis outages
+
+#### Direct Eligibility Check (Fallback)
+
+When Redis data is unavailable, the system performs direct checks:
+
+```typescript
+// Fallback: Direct product/category/collection/tag check
+function isProductEligibleForStandardDiscount(
+  discount: Discount,
+  variant: CartItem,
+): boolean {
+  // Check product IDs
+  if (discount.productIds?.includes(variant.productId)) {
+    return true;
+  }
+
+  // Check category IDs
+  if (discount.categoryIds?.includes(variant.categoryId)) {
+    return true;
+  }
+
+  // Check collection IDs
+  if (
+    discount.collectionIds?.some((cid) =>
+      variant.collectionIds.includes(cid),
+    )
+  ) {
+    return true;
+  }
+
+  // Check tag IDs
+  if (
+    discount.tagIds?.some((tid) => variant.tagIds.includes(tid))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+```
+
 ### Step 1: Eligibility Validation
 
 Check each discount against cart:

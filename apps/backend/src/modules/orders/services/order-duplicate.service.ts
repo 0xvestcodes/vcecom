@@ -1,11 +1,11 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
 import {
   and,
-  db,
   desc,
   eq,
   ilike,
@@ -16,6 +16,8 @@ import {
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
 import { createLogContext } from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { BundleCartItemMetadata } from "../../carts/dto/bundle-cart-item.dto";
 import { BundlePricingService } from "../../pricing/services/bundle-pricing.service";
 import { InventoryStore } from "../../redis-store/stores/inventory-store";
@@ -40,6 +42,7 @@ export class OrderDuplicateService {
     private readonly timelineService: OrderTimelineService,
     private readonly gstService: OrderGstService,
     private readonly bundlePricingService: BundlePricingService,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -51,7 +54,7 @@ export class OrderDuplicateService {
     const prefix = `ORD-${year}-`;
 
     // Get the latest order number for this year
-    const latestOrders = await db
+    const latestOrders = await this.db
       .select({ orderNumber: orders.orderNumber })
       .from(orders)
       .where(ilike(orders.orderNumber, `${prefix}%`))
@@ -88,7 +91,7 @@ export class OrderDuplicateService {
     const customerId = await this.validationService.getCustomerId(userId);
 
     // Get original order and validate ownership
-    const [originalOrder] = await db
+    const [originalOrder] = await this.db
       .select()
       .from(orders)
       .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)))
@@ -117,7 +120,7 @@ export class OrderDuplicateService {
     duplicateDto: DuplicateOrderDto,
   ): Promise<OrderResponseDto> {
     // Get original order (no customer validation for admin)
-    const [originalOrder] = await db
+    const [originalOrder] = await this.db
       .select()
       .from(orders)
       .where(eq(orders.id, orderId))
@@ -150,7 +153,7 @@ export class OrderDuplicateService {
     isAdmin: boolean,
   ): Promise<OrderResponseDto> {
     // Get original order items
-    const originalItems = await db
+    const originalItems = await this.db
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, originalOrder.id));
@@ -197,7 +200,7 @@ export class OrderDuplicateService {
           const actuallyAvailable = (available || 0) - reserved;
 
           if (actuallyAvailable < item.quantity) {
-            const [variant] = await db
+            const [variant] = await this.db
               .select()
               .from(productVariants)
               .where(eq(productVariants.id, item.productVariantId))
@@ -219,7 +222,7 @@ export class OrderDuplicateService {
         const actuallyAvailable = (available || 0) - reserved;
 
         if (actuallyAvailable < item.quantity) {
-          const [variant] = await db
+          const [variant] = await this.db
             .select()
             .from(productVariants)
             .where(eq(productVariants.id, item.productVariantId))
@@ -270,7 +273,7 @@ export class OrderDuplicateService {
     const total = finalSubtotal + gstAmount + shippingCost + paymentFee / 100;
 
     // Create new order
-    const [newOrder] = await db
+    const [newOrder] = await this.db
       .insert(orders)
       .values({
         customerId,
@@ -307,7 +310,7 @@ export class OrderDuplicateService {
       metadata: item.metadata, // Preserve bundle metadata if present
     }));
 
-    await db.insert(orderItems).values(orderItemsToInsert);
+    await this.db.insert(orderItems).values(orderItemsToInsert);
 
     // Create timeline event on original order
     await this.timelineService.addEvent(originalOrder.id, {
@@ -323,7 +326,7 @@ export class OrderDuplicateService {
     });
 
     // Get order items for response
-    const items = await db
+    const items = await this.db
       .select()
       .from(orderItems)
       .where(eq(orderItems.orderId, newOrder.id));

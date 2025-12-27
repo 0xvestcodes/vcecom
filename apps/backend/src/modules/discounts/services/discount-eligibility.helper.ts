@@ -1,4 +1,5 @@
-import { and, db, discountUsages, eq } from "@vcecom/db";
+import { and, discountUsages, eq } from "@vcecom/db";
+import type { Database } from "../../../modules/database/db";
 import { DiscountResponseDto } from "../dto/discount-response.dto";
 
 /**
@@ -37,6 +38,7 @@ export function meetsMinimumOrderAmount(
 export async function hasReachedPerUserLimit(
   discount: DiscountResponseDto,
   userId: string,
+  db: Database, // Accept db as parameter instead of importing directly
 ): Promise<boolean> {
   if (!discount.perUserLimit || !userId) {
     return false;
@@ -69,6 +71,7 @@ export async function passesEligibilityConstraints(
   discount: DiscountResponseDto,
   cartSubtotal: number,
   userId: string | undefined,
+  db: Database, // Accept db as parameter instead of importing directly
 ): Promise<boolean> {
   // Check global usage limit (total times discount can be used)
   if (hasReachedUsageLimit(discount)) {
@@ -82,7 +85,7 @@ export async function passesEligibilityConstraints(
 
   // Check per-user limit (how many times this user can use the discount)
   // Only checked if userId is provided (authenticated users)
-  if (userId && (await hasReachedPerUserLimit(discount, userId))) {
+  if (userId && (await hasReachedPerUserLimit(discount, userId, db))) {
     return false;
   }
 

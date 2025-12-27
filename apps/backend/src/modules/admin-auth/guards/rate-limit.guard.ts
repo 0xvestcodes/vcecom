@@ -16,10 +16,9 @@ import { RedisStoreService } from "../../redis-store/redis-store.service";
 @Injectable()
 export class AdminLoginRateLimitGuard implements OnModuleInit {
   private readonly rateLimitKeyPrefix = "admin:login:ip:";
-  private readonly limit = parseInt(
-    process.env.ADMIN_LOGIN_RATE_LIMIT || "10",
-    10,
-  ); // 10 attempts
+  private readonly limit = process.env.ADMIN_LOGIN_RATE_LIMIT
+    ? parseInt(process.env.ADMIN_LOGIN_RATE_LIMIT, 10)
+    : Number.MAX_SAFE_INTEGER; // Effectively unlimited (temporarily)
   private readonly ttl = parseInt(
     process.env.ADMIN_LOGIN_RATE_WINDOW || "600",
     10,

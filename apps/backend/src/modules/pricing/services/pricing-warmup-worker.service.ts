@@ -22,9 +22,10 @@ export class PricingWarmupWorker {
 
   /**
    * Warmup pricing caches
-   * Runs every 10 minutes
+   * Runs at 0 and 30 minutes past each hour
+   * Staggered to avoid concurrent execution with discount warmup
    */
-  @Cron("*/10 * * * *")
+  @Cron("0,30 * * * *")
   async warmup(): Promise<void> {
     try {
       this.logger.debug(

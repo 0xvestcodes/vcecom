@@ -1,9 +1,12 @@
 import {
   BadRequestException,
+  Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { and, db, desc, eq, priceListItems, priceLists } from "@vcecom/db";
+import { and, desc, eq, priceListItems, priceLists } from "@vcecom/db";
+import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import {
   CreatePriceListDto,
   CreatePriceListItemDto,
@@ -13,13 +16,16 @@ import { PriceListChangeTracker } from "./price-list-change-tracker.service";
 
 @Injectable()
 export class PriceListService {
-  constructor(private readonly changeTracker: PriceListChangeTracker) {}
+  constructor(
+    private readonly changeTracker: PriceListChangeTracker,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+  ) {}
 
   /**
    * Create a new price list
    */
   async create(createDto: CreatePriceListDto): Promise<PriceListResponseDto> {
-    const [newPriceList] = await db
+    const [newPriceList] = await this.db
       .insert(priceLists)
       .values({
         name: createDto.name,
@@ -45,7 +51,7 @@ export class PriceListService {
    * Get all price lists
    */
   async findAll(): Promise<PriceListResponseDto[]> {
-    const lists = await db
+    const lists = await this.db
       .select()
       .from(priceLists)
       .orderBy(desc(priceLists.priority));
@@ -57,7 +63,7 @@ export class PriceListService {
    * Get active price lists (for current date)
    */
   async findActive(now: Date = new Date()): Promise<PriceListResponseDto[]> {
-    const lists = await db
+    const lists = await this.db
       .select()
       .from(priceLists)
       .where(
@@ -86,7 +92,7 @@ export class PriceListService {
    * Get price list by ID
    */
   async findOne(id: string): Promise<PriceListResponseDto> {
-    const [list] = await db
+    const [list] = await this.db
       .select()
       .from(priceLists)
       .where(eq(priceLists.id, id))
@@ -122,7 +128,10 @@ export class PriceListService {
     if (updateDto.endDate !== undefined)
       updateData.endDate = updateDto.endDate || null;
 
-    await db.update(priceLists).set(updateData).where(eq(priceLists.id, id));
+    await this.db
+      .update(priceLists)
+      .set(updateData)
+      .where(eq(priceLists.id, id));
 
     const updated = await this.findOne(id);
 
@@ -138,7 +147,7 @@ export class PriceListService {
   async remove(id: string): Promise<{ message: string }> {
     const existing = await this.findOne(id);
 
-    await db.delete(priceLists).where(eq(priceLists.id, id));
+    await this.db.delete(priceLists).where(eq(priceLists.id, id));
 
     // Track price list deletion
     await this.changeTracker.trackPriceListDeleted(existing);
@@ -180,7 +189,7 @@ export class PriceListService {
       }
     }
 
-    await db.insert(priceListItems).values({
+    await this.db.insert(priceListItems).values({
       priceListId,
       productVariantId: createItemDto.productVariantId || null,
       productId: createItemDto.productId || null,
@@ -202,7 +211,7 @@ export class PriceListService {
     // Validate price list exists
     await this.findOne(priceListId);
 
-    const [item] = await db
+    const [item] = await this.db
       .select()
       .from(priceListItems)
       .where(
@@ -219,7 +228,7 @@ export class PriceListService {
       );
     }
 
-    await db.delete(priceListItems).where(eq(priceListItems.id, itemId));
+    await this.db.delete(priceListItems).where(eq(priceListItems.id, itemId));
 
     return this.findOne(priceListId);
   }
@@ -230,7 +239,7 @@ export class PriceListService {
   private async enrichPriceList(
     list: typeof priceLists.$inferSelect,
   ): Promise<PriceListResponseDto> {
-    const items = await db
+    const items = await this.db
       .select()
       .from(priceListItems)
       .where(eq(priceListItems.priceListId, list.id));

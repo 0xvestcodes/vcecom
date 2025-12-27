@@ -1,8 +1,7 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import {
   and,
   customers,
-  db,
   eq,
   gte,
   lte,
@@ -13,6 +12,8 @@ import {
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import type { Database } from "../../modules/database/db";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
 import { StorageService } from "../storage/storage.service";
 import {
@@ -36,6 +37,7 @@ export class ExportsService {
     private readonly pdfGenerator: PdfGenerator,
     private readonly zipGenerator: ZipGenerator,
     private readonly inventoryStore: InventoryStore,
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
   /**
@@ -263,7 +265,7 @@ export class ExportsService {
       customerId: string;
     }>;
     try {
-      ordersList = await db
+      ordersList = await this.db
         .select({
           id: orders.id,
           orderNumber: orders.orderNumber,
@@ -303,7 +305,7 @@ export class ExportsService {
             }
           | undefined;
         try {
-          const customerResult = await db
+          const customerResult = await this.db
             .select({
               email: customers.email,
               name: customers.name,
@@ -364,7 +366,7 @@ export class ExportsService {
       createdAt: Date;
     }>;
     try {
-      productsList = await db
+      productsList = await this.db
         .select({
           id: products.id,
           title: products.title,
@@ -397,7 +399,7 @@ export class ExportsService {
           inventory: number;
         }>;
         try {
-          variants = await db
+          variants = await this.db
             .select({
               id: productVariants.id,
               sku: productVariants.sku,
@@ -437,7 +439,7 @@ export class ExportsService {
   private async fetchCustomersData(): Promise<Record<string, unknown>[]> {
     let customersList: Array<typeof customers.$inferSelect>;
     try {
-      customersList = await db.select().from(customers);
+      customersList = await this.db.select().from(customers);
     } catch (error) {
       this.logger.error(
         createErrorContext(
@@ -462,7 +464,7 @@ export class ExportsService {
   }
 
   private async fetchInventoryData(): Promise<Record<string, unknown>[]> {
-    const variants = await db
+    const variants = await this.db
       .select({
         id: productVariants.id,
         sku: productVariants.sku,
@@ -473,7 +475,7 @@ export class ExportsService {
 
     return Promise.all(
       variants.map(async (variant) => {
-        const [product] = await db
+        const [product] = await this.db
           .select({ title: products.title })
           .from(products)
           .where(eq(products.id, variant.productId))

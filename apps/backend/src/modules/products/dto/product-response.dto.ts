@@ -93,7 +93,10 @@ export class ProductResponseDto {
   @ApiProperty({
     description: "Product images array (URL encoded)",
     type: [String],
-    example: ["https://example.com/image1.jpg", "https://example.com/image2.jpg"],
+    example: [
+      "https://example.com/image1.jpg",
+      "https://example.com/image2.jpg",
+    ],
     nullable: true,
   })
   images?: string[] | null;
