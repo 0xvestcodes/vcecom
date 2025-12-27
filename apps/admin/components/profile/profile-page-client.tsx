@@ -1,6 +1,6 @@
 "use client";
 
-import { Calendar, Mail, Shield, User } from "lucide-react";
+import { Mail, Shield, User } from "lucide-react";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -12,20 +12,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAdminSession } from "@/providers/session-provider";
-
-function formatDate(dateString: string | undefined): string {
-  if (!dateString) return "N/A";
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  } catch {
-    return dateString;
-  }
-}
 
 function getInitials(email: string): string {
   return email.split("@")[0].slice(0, 2).toUpperCase();
@@ -118,20 +104,6 @@ export function ProfilePageClient() {
                   </div>
                   <div className="text-xs font-mono font-medium">
                     {session.id}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {session.createdAt && (
-              <div className="flex items-start gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground mt-0.5" />
-                <div className="flex-1">
-                  <div className="text-xs text-muted-foreground mb-1">
-                    Account Created
-                  </div>
-                  <div className="text-xs font-medium">
-                    {formatDate(session.createdAt)}
                   </div>
                 </div>
               </div>

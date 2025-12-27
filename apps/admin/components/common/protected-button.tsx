@@ -48,6 +48,7 @@ export function ProtectedButton({
           children as React.ReactElement<{
             disabled?: boolean;
             "aria-disabled"?: boolean;
+            className?: string;
           }>,
           {
             disabled:

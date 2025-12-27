@@ -3,6 +3,7 @@
 import { Bell, Database, Globe, Palette, Shield } from "lucide-react";
 import Link from "next/link";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
+import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,

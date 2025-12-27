@@ -48,7 +48,7 @@ export function RolesList() {
       <CardContent className="p-4">
         <QueryState
           isLoading={isLoading}
-          error={error}
+          error={error as never}
           data={roles}
           loadingComponent={
             <div className="text-xs text-muted-foreground">

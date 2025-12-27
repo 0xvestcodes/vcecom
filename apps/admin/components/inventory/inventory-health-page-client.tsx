@@ -118,7 +118,10 @@ export function InventoryHealthPageClient() {
         loadingComponent={
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }, (_, i) => (
-              <Card key={`skeleton-${i}`} className="rounded-xl border-border/50 bg-card/50">
+              <Card
+                key={`skeleton-${i}`}
+                className="rounded-xl border-border/50 bg-card/50"
+              >
                 <CardHeader className="p-4">
                   <div className="h-4 w-24 bg-muted/30 rounded animate-pulse" />
                 </CardHeader>
