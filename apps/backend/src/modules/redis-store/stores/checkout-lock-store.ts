@@ -3,6 +3,7 @@ import Redis from "ioredis";
 import { PinoLogger } from "nestjs-pino";
 import { CHECKOUT_LOCK_TTL } from "../../../common/constants/inventory.constants";
 import { ContextService } from "../../../common/logging/context.service";
+import { SCRIPT_LOAD_TIMEOUT_MS } from "../../../common/constants/timeout.constants";
 import {
   createErrorContext,
   createLogContext,
@@ -29,7 +30,7 @@ export class CheckoutLockStore implements OnModuleInit {
       this.setCheckoutLockScriptSha = (await Promise.race([
         this.client.script("LOAD", script),
         new Promise<string>((_, reject) =>
-          setTimeout(() => reject(new Error("Script load timeout")), 2000),
+          setTimeout(() => reject(new Error("Script load timeout")), SCRIPT_LOAD_TIMEOUT_MS),
         ),
       ])) as string;
 

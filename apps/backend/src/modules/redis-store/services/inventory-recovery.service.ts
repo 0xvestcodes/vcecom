@@ -6,6 +6,7 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
+import { CLEANUP_INTERVAL_MS } from "../../../common/constants/timeout.constants";
 import { TracingService } from "../../../common/tracing/tracing.service";
 import { RedisStoreService } from "../redis-store.service";
 import { InventoryStore } from "../stores/inventory-store";
@@ -80,7 +81,7 @@ export class InventoryRecoveryService implements OnModuleInit {
    * Ensures Redis cache stays in sync with database inventory
    * Idempotent and safe under concurrency
    */
-  @Interval(30000) // 30 seconds in milliseconds
+  @Interval(CLEANUP_INTERVAL_MS) // 30 seconds in milliseconds
   async handleInventorySync() {
     return this.tracingService
       .startSpan({

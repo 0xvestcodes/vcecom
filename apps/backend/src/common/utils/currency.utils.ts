@@ -4,13 +4,15 @@
  * Strategy: Store in paise, convert to rupees for display
  */
 
+import { PAISE_PER_RUPEE } from "../constants/currency.constants";
+
 /**
  * Convert rupees to paise
  * @param rupees - Amount in rupees
  * @returns Amount in paise (rounded to nearest integer)
  */
 export function rupeesToPaise(rupees: number): number {
-  return Math.round(rupees * 100);
+  return Math.round(rupees * PAISE_PER_RUPEE);
 }
 
 /**
@@ -19,7 +21,7 @@ export function rupeesToPaise(rupees: number): number {
  * @returns Amount in rupees (rounded to 2 decimal places)
  */
 export function paiseToRupees(paise: number): number {
-  return Math.round(paise) / 100;
+  return Math.round(paise) / PAISE_PER_RUPEE;
 }
 
 /**

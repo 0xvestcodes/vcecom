@@ -8,6 +8,7 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
+import { CLEANUP_INTERVAL_MS } from "../../../common/constants/timeout.constants";
 import { DB_TOKEN } from "../../../modules/database/database.constants";
 import type { Database } from "../../../modules/database/db";
 import { KEY_PATTERNS } from "../constants/key-patterns";
@@ -209,7 +210,7 @@ export class ReservationCleanupService implements OnModuleInit {
    * Checks checkout lock and heartbeat before releasing
    * Runs every 30 seconds (checks phase2 markers)
    */
-  @Interval(30000) // Every 30 seconds
+  @Interval(CLEANUP_INTERVAL_MS) // Every 30 seconds
   async cleanupInactiveCartsPhase2(): Promise<void> {
     try {
       // Scan for phase 2 markers

@@ -11,7 +11,9 @@ import { eq, orders, payments } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import Razorpay from "razorpay";
 import { AppConfigService } from "../../common/config/app.config.service";
+import { PAISE_PER_RUPEE } from "../../common/constants/currency.constants";
 import { ContextService } from "../../common/logging/context.service";
+import { SHORT_RETRY_DELAY_MS } from "../../common/constants/timeout.constants";
 import {
   createErrorContext,
   createLogContext,
@@ -912,7 +914,7 @@ export class PaymentsService implements OnModuleInit {
         return;
       }
       // Lock held but no order - wait a bit and retry
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, SHORT_RETRY_DELAY_MS));
       const retryOrderId = await this.checkoutStore.getOrderByPaymentIntent(
         "razorpay",
         paymentIntentId,
@@ -1043,7 +1045,7 @@ export class PaymentsService implements OnModuleInit {
           orderId,
           razorpayPaymentId: paymentEntity.id,
           razorpayOrderId: paymentEntity.order_id,
-          amount: paymentEntity.amount / 100, // Convert from paise to rupees
+          amount: paymentEntity.amount / PAISE_PER_RUPEE, // Convert from paise to rupees
           status: "captured",
           method: this.mapRazorpayMethodToEnum(paymentEntity.method),
         });
@@ -1291,7 +1293,7 @@ export class PaymentsService implements OnModuleInit {
           orderId: order.id,
           razorpayPaymentId: paymentEntity.id,
           razorpayOrderId: paymentEntity.order_id,
-          amount: paymentEntity.amount / 100,
+          amount: paymentEntity.amount / PAISE_PER_RUPEE,
           status: "failed",
           method: this.mapRazorpayMethodToEnum(paymentEntity.method),
         });
@@ -1396,7 +1398,7 @@ export class PaymentsService implements OnModuleInit {
           orderId: order.id,
           razorpayPaymentId: paymentEntity.id,
           razorpayOrderId: paymentEntity.order_id,
-          amount: paymentEntity.amount / 100,
+          amount: paymentEntity.amount / PAISE_PER_RUPEE,
           status: "processing",
           method: this.mapRazorpayMethodToEnum(paymentEntity.method),
         });

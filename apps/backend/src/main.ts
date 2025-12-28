@@ -53,6 +53,10 @@ import {
   SERVER_KEEP_ALIVE_TIMEOUT_MS,
   SERVER_TIMEOUT_MS,
 } from "./common/constants";
+import {
+  BOOTSTRAP_TIMEOUT_MS,
+  PROGRESS_LOG_INTERVAL_MS,
+} from "./common/constants/timeout.constants";
 import { IS_PUBLIC_KEY } from "./common/decorators/public.decorator";
 import { GlobalExceptionFilter } from "./common/filters/global-exception.filter";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
@@ -191,7 +195,7 @@ async function bootstrap() {
               {
                 ...createBootstrapContext("nestFactoryTimeout"),
                 elapsedMs: elapsed,
-                timeoutMs: 30000,
+                timeoutMs: BOOTSTRAP_TIMEOUT_MS,
                 possibleCauses: [
                   "Database connection (check DATABASE_URL and PostgreSQL)",
                   "Redis connection (check REDIS_URL and Redis server)",
@@ -204,11 +208,11 @@ async function bootstrap() {
             );
             reject(
               new Error(
-                "NestFactory.create timeout after 30s - module initialization is blocking. Check which module's onModuleInit() is hanging.",
+                `NestFactory.create timeout after ${BOOTSTRAP_TIMEOUT_MS}ms - module initialization is blocking. Check which module's onModuleInit() is hanging.`,
               ),
             );
           },
-          30000, // 30 second timeout (temporarily increased for diagnostics)
+          BOOTSTRAP_TIMEOUT_MS, // Bootstrap timeout (temporarily increased for diagnostics)
         );
       });
 
@@ -234,7 +238,7 @@ async function bootstrap() {
           },
           "NestFactory.create still running",
         );
-      }, 2000); // Log every 2 seconds
+      }, PROGRESS_LOG_INTERVAL_MS); // Log progress at configured interval
 
       // Ensure interval is cleared on process exit
       const clearProgressLogger = () => {

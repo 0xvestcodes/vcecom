@@ -24,6 +24,11 @@ import {
 } from "@vcecom/db";
 import Redis from "ioredis";
 import { PinoLogger } from "nestjs-pino";
+import {
+  DECIMAL_ROUNDING_MULTIPLIER,
+  PERCENTAGE_MULTIPLIER,
+} from "../../common/constants/currency.constants";
+import { SECONDS_TO_MILLISECONDS } from "../../common/constants/timeout.constants";
 import { ContextService } from "../../common/logging/context.service";
 import {
   createErrorContext,
@@ -819,7 +824,7 @@ export class AdminInventoryService implements OnModuleInit {
           const qty = parseInt((await this.redisClient.get(key)) || "0", 10);
           const ttl = await this.redisClient.ttl(key);
           const cartId = key.split(":")[2]; // Extract cartId from key pattern
-          const expiresAt = new Date(Date.now() + ttl * 1000);
+          const expiresAt = new Date(Date.now() + ttl * SECONDS_TO_MILLISECONDS);
 
           return {
             cartId,
@@ -1143,7 +1148,7 @@ export class AdminInventoryService implements OnModuleInit {
       // Calculate reserved ratio
       const reservedRatio =
         totalAvailable > 0
-          ? (totalReserved / totalAvailable) * 100
+          ? (totalReserved / totalAvailable) * PERCENTAGE_MULTIPLIER
           : totalReserved > 0
             ? 100
             : 0;
@@ -1155,7 +1160,7 @@ export class AdminInventoryService implements OnModuleInit {
       return {
         available: totalAvailable,
         reserved: totalReserved,
-        reserved_ratio: Math.round(reservedRatio * 100) / 100, // Round to 2 decimal places
+        reserved_ratio: Math.round(reservedRatio * DECIMAL_ROUNDING_MULTIPLIER) / DECIMAL_ROUNDING_MULTIPLIER, // Round to 2 decimal places
         expired_reservations_count: expiredReservationsCount,
         failed_reservations: failedReservationsCount,
       };
@@ -1213,7 +1218,7 @@ export class AdminInventoryService implements OnModuleInit {
       // This gives us the ratio of items that were reacquired out of all items that were stale at some point
       const staleRecoveryRate =
         stale + reacquired > 0
-          ? (reacquired / (stale + reacquired)) * 100
+          ? (reacquired / (stale + reacquired)) * PERCENTAGE_MULTIPLIER
           : undefined;
 
       return {
@@ -1224,7 +1229,7 @@ export class AdminInventoryService implements OnModuleInit {
         total,
         stale_recovery_rate:
           staleRecoveryRate !== undefined
-            ? Math.round(staleRecoveryRate * 100) / 100
+            ? Math.round(staleRecoveryRate * DECIMAL_ROUNDING_MULTIPLIER) / DECIMAL_ROUNDING_MULTIPLIER
             : undefined,
       };
     } catch (error) {
