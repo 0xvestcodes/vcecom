@@ -1,13 +1,13 @@
 import { Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { addresses, and, customers, eq } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
-import { AppConfigService } from "../../../common/config/app.config.service";
-import { ContextService } from "../../../common/logging/context.service";
-import { createErrorContext } from "../../../common/logging/logging.helper";
-import { DB_TOKEN } from "../../../modules/database/database.module";
-import type { Database } from "../../../modules/database/db";
-import { AddressesService } from "../../customers/addresses.service";
-import { CustomersService } from "../../customers/customers.service";
+import { AppConfigService } from "../../../../common/config/app.config.service";
+import { ContextService } from "../../../../common/logging/context.service";
+import { createErrorContext } from "../../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../../modules/database/database.module";
+import type { Database } from "../../../../modules/database/db";
+import { AddressesService } from "../../../customers/addresses.service";
+import { CustomersService } from "../../../customers/customers.service";
 
 /**
  * Service responsible for validating order-related data

@@ -6,25 +6,25 @@ import {
 } from "@nestjs/common";
 import { and, eq, orderItems, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
-import { ContextService } from "../../../common/logging/context.service";
-import { createErrorContext } from "../../../common/logging/logging.helper";
-import { DB_TOKEN } from "../../../modules/database/database.module";
-import type { Database } from "../../../modules/database/db";
-import { OrderEventsService } from "../../events/order-events.service";
+import { ContextService } from "../../../../common/logging/context.service";
+import { createErrorContext } from "../../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../../../modules/database/database.module";
+import type { Database } from "../../../../modules/database/db";
+import { OrderEventsService } from "../../../events/order-events.service";
 import {
   OrderCancelledEventPayload,
   OrderConfirmedEventPayload,
   OrderDeliveredEventPayload,
   OrderProcessingEventPayload,
   OrderShippedEventPayload,
-} from "../../events/order-events.types";
-import { OrderResponseDto } from "../dto/order-response.dto";
+} from "../../../events/order-events.types";
+import { OrderResponseDto } from "../../dto/order-response.dto";
 import {
   OrderStatus,
   UpdateOrderStatusDto,
-} from "../dto/update-order-status.dto";
-import { OrderGstService } from "./order-gst.service";
-import { OrderValidationService } from "./order-validation.service";
+} from "../../dto/update-order-status.dto";
+import { OrderGstService } from "../gst/order-gst.service";
+import { OrderValidationService } from "../validation/order-validation.service";
 
 /**
  * Service responsible for order status management

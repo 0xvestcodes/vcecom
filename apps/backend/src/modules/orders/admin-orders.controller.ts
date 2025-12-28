@@ -53,10 +53,11 @@ import { OrderArchiveService } from "./services/order-archive.service";
 import { OrderCancelService } from "./services/order-cancel.service";
 import { OrderDuplicateService } from "./services/order-duplicate.service";
 import { OrderNotesService } from "./services/order-notes.service";
-import { OrderPaymentService } from "./services/order-payment.service";
-import { OrderStatusService } from "./services/order-status.service";
-import { OrderTimelineService } from "./services/order-timeline.service";
+import { OrderPaymentService } from "./services/payment/order-payment.service";
 import { RefundsService } from "./services/refunds.service";
+import { OrderStatusService } from "./services/status/order-status.service";
+import { OrderTimelineService } from "./services/status/order-timeline.service";
+import { OrderTrackingService } from "./services/status/order-tracking.service";
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -79,6 +80,7 @@ export class AdminOrdersController {
     private readonly orderPaymentService: OrderPaymentService,
     private readonly orderAddressService: OrderAddressService,
     private readonly timelineService: OrderTimelineService,
+    private readonly trackingService: OrderTrackingService,
     private readonly statusService: OrderStatusService,
     private readonly cancelService: OrderCancelService,
     private readonly archiveService: OrderArchiveService,
@@ -400,7 +402,7 @@ export class AdminOrdersController {
   })
   async getTracking(@Param("id") id: string): Promise<OrderTrackingDto> {
     // Admin can access any order, so we pass null as userId
-    return this.timelineService.getTrackingForAdmin(id);
+    return this.trackingService.getTrackingForAdmin(id);
   }
 
   @Patch(":id")

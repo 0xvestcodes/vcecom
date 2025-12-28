@@ -2,6 +2,21 @@
 
 VCEcom is built using a modular, scalable architecture that separates concerns while maintaining high performance and developer productivity. This document provides a comprehensive overview of the system architecture, design patterns, and technical decisions.
 
+## Monorepo Architecture
+
+VCEcom is organized as a **Turborepo monorepo** using **pnpm workspaces**, enabling efficient code sharing, parallel development, and optimized builds. For detailed information about the monorepo structure, workspace organization, and development workflow, see the [Monorepo Architecture](./monorepo.md) documentation.
+
+**Key Benefits**:
+- **Code Reuse**: Shared database schemas and types via `@vcecom/db` package
+- **Type Safety**: Consistent TypeScript configurations across all apps
+- **Fast Builds**: Turborepo caching and parallel task execution
+- **Independent Deployment**: Each app can be deployed separately
+- **Developer Experience**: Single command to start all services
+
+**Workspace Structure**:
+- **Apps**: `admin` (Next.js), `backend` (NestJS), `storefront` (Next.js), `docs` (Docusaurus)
+- **Packages**: `@vcecom/db` (shared database), `@vcecom/typescript-config` (shared configs)
+
 ## High-Level Architecture
 
 ```mermaid

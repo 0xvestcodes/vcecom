@@ -11,17 +11,17 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
-import { DB_TOKEN } from "../../../modules/database/database.module";
-import type { Database } from "../../../modules/database/db";
 import { BundleCartItemMetadata } from "../../carts/dto/bundle-cart-item.dto";
+import { DB_TOKEN } from "../../database/database.module";
+import type { Database } from "../../database/db";
 import { BundlePricingService } from "../../pricing/services/bundle-pricing.service";
 import { InventoryStore } from "../../redis-store/stores/inventory-store";
 import { CancelOrderDto } from "../dto/cancel-order.dto";
 import { OrderResponseDto } from "../dto/order-response.dto";
 import { TimelineEventType } from "../dto/order-timeline.dto";
-import { OrderGstService } from "./order-gst.service";
-import { OrderTimelineService } from "./order-timeline.service";
-import { OrderValidationService } from "./order-validation.service";
+import { OrderGstService } from "./gst/order-gst.service";
+import { OrderTimelineService } from "./status/order-timeline.service";
+import { OrderValidationService } from "./validation/order-validation.service";
 
 /**
  * Service responsible for order cancellation

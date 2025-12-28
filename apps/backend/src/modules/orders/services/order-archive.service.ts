@@ -8,13 +8,13 @@ import { and, eq, orderItems, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
 import { createLogContext } from "../../../common/logging/logging.helper";
-import { DB_TOKEN } from "../../../modules/database/database.module";
-import type { Database } from "../../../modules/database/db";
+import { DB_TOKEN } from "../../database/database.module";
+import type { Database } from "../../database/db";
 import { OrderResponseDto } from "../dto/order-response.dto";
 import { TimelineEventType } from "../dto/order-timeline.dto";
-import { OrderGstService } from "./order-gst.service";
-import { OrderTimelineService } from "./order-timeline.service";
-import { OrderValidationService } from "./order-validation.service";
+import { OrderGstService } from "./gst/order-gst.service";
+import { OrderTimelineService } from "./status/order-timeline.service";
+import { OrderValidationService } from "./validation/order-validation.service";
 
 /**
  * Service responsible for order archiving

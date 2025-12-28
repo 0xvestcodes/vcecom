@@ -19,10 +19,7 @@ import {
 import { DB_TOKEN } from "../../../modules/database/database.module";
 import type { Database } from "../../../modules/database/db";
 import { InventoryStore } from "../../redis-store/stores/inventory-store";
-import {
-  CART_EXPIRY_HOURS,
-  COMMITTED_ARCHIVE_DAYS,
-} from "../carts.constants";
+import { CART_EXPIRY_HOURS, COMMITTED_ARCHIVE_DAYS } from "../carts.constants";
 
 /**
  * Cart Cleanup Service
@@ -30,7 +27,6 @@ import {
  */
 @Injectable()
 export class CartCleanupService implements OnModuleInit {
-
   constructor(
     private readonly inventoryStore: InventoryStore,
     private readonly logger: PinoLogger,
