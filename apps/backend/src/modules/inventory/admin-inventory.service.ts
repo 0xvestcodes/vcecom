@@ -824,7 +824,9 @@ export class AdminInventoryService implements OnModuleInit {
           const qty = parseInt((await this.redisClient.get(key)) || "0", 10);
           const ttl = await this.redisClient.ttl(key);
           const cartId = key.split(":")[2]; // Extract cartId from key pattern
-          const expiresAt = new Date(Date.now() + ttl * SECONDS_TO_MILLISECONDS);
+          const expiresAt = new Date(
+            Date.now() + ttl * SECONDS_TO_MILLISECONDS,
+          );
 
           return {
             cartId,
@@ -1160,7 +1162,9 @@ export class AdminInventoryService implements OnModuleInit {
       return {
         available: totalAvailable,
         reserved: totalReserved,
-        reserved_ratio: Math.round(reservedRatio * DECIMAL_ROUNDING_MULTIPLIER) / DECIMAL_ROUNDING_MULTIPLIER, // Round to 2 decimal places
+        reserved_ratio:
+          Math.round(reservedRatio * DECIMAL_ROUNDING_MULTIPLIER) /
+          DECIMAL_ROUNDING_MULTIPLIER, // Round to 2 decimal places
         expired_reservations_count: expiredReservationsCount,
         failed_reservations: failedReservationsCount,
       };
@@ -1229,7 +1233,8 @@ export class AdminInventoryService implements OnModuleInit {
         total,
         stale_recovery_rate:
           staleRecoveryRate !== undefined
-            ? Math.round(staleRecoveryRate * DECIMAL_ROUNDING_MULTIPLIER) / DECIMAL_ROUNDING_MULTIPLIER
+            ? Math.round(staleRecoveryRate * DECIMAL_ROUNDING_MULTIPLIER) /
+              DECIMAL_ROUNDING_MULTIPLIER
             : undefined,
       };
     } catch (error) {

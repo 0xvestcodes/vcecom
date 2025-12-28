@@ -26,7 +26,6 @@ import {
 } from "../../common/constants/currency.constants";
 import { ReservationMode } from "../../common/constants/inventory.constants";
 import { ContextService } from "../../common/logging/context.service";
-import { CART_EXPIRY_DAYS } from "./carts.constants";
 import {
   createErrorContext,
   createLogContext,
@@ -53,6 +52,7 @@ import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { FingerprintStore } from "../redis-store/stores/fingerprint-store";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
 import { StaleMarkerStore } from "../redis-store/stores/stale-marker-store";
+import { CART_EXPIRY_DAYS } from "./carts.constants";
 import {
   BundleCartItemMetadata,
   FlattenedBundleItemMetadata,
@@ -1036,7 +1036,8 @@ export class CartsService {
           Number(updatedCart.subtotal) - itemDiscounts;
         const percentageSaved =
           subtotalAfterItemDiscounts > 0
-            ? (discountAmount / subtotalAfterItemDiscounts) * PERCENTAGE_MULTIPLIER
+            ? (discountAmount / subtotalAfterItemDiscounts) *
+              PERCENTAGE_MULTIPLIER
             : 0;
 
         // Map discount type to simpler format
@@ -1054,7 +1055,9 @@ export class CartsService {
           type: mappedType,
           description: discount.description || discount.name || discount.code,
           amountSaved: discountAmount,
-          percentageSaved: Math.round(percentageSaved * DECIMAL_ROUNDING_MULTIPLIER) / DECIMAL_ROUNDING_MULTIPLIER,
+          percentageSaved:
+            Math.round(percentageSaved * DECIMAL_ROUNDING_MULTIPLIER) /
+            DECIMAL_ROUNDING_MULTIPLIER,
           appliedTo: discount.appliesTo === "SUBTOTAL" ? "cart" : "items",
           // TODO: Calculate eligible items based on discount scope
         };

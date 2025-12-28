@@ -40,7 +40,9 @@ export class PaymentChargesService {
       flatAmount: charge.flatAmount / PAISE_PER_RUPEE,
       mixCap: charge.mixCap ? charge.mixCap / PAISE_PER_RUPEE : null,
       mixMin: charge.mixMin ? charge.mixMin / PAISE_PER_RUPEE : null,
-      codMaxAmount: charge.codMaxAmount ? charge.codMaxAmount / PAISE_PER_RUPEE : null,
+      codMaxAmount: charge.codMaxAmount
+        ? charge.codMaxAmount / PAISE_PER_RUPEE
+        : null,
     }));
   }
 
@@ -61,7 +63,9 @@ export class PaymentChargesService {
       flatAmount: charge.flatAmount / PAISE_PER_RUPEE,
       mixCap: charge.mixCap ? charge.mixCap / PAISE_PER_RUPEE : null,
       mixMin: charge.mixMin ? charge.mixMin / PAISE_PER_RUPEE : null,
-      codMaxAmount: charge.codMaxAmount ? charge.codMaxAmount / PAISE_PER_RUPEE : null,
+      codMaxAmount: charge.codMaxAmount
+        ? charge.codMaxAmount / PAISE_PER_RUPEE
+        : null,
     };
   }
 
@@ -72,9 +76,13 @@ export class PaymentChargesService {
     // Convert rupees to paise for storage (database stores in paise)
     const flatAmountInPaise = Math.round(dto.flatAmount * PAISE_PER_RUPEE);
     const mixCapInPaise =
-      dto.mixCap !== undefined ? Math.round(dto.mixCap * PAISE_PER_RUPEE) : null;
+      dto.mixCap !== undefined
+        ? Math.round(dto.mixCap * PAISE_PER_RUPEE)
+        : null;
     const mixMinInPaise =
-      dto.mixMin !== undefined ? Math.round(dto.mixMin * PAISE_PER_RUPEE) : null;
+      dto.mixMin !== undefined
+        ? Math.round(dto.mixMin * PAISE_PER_RUPEE)
+        : null;
     const codMaxAmountInPaise =
       dto.codMaxAmount !== undefined
         ? Math.round(dto.codMaxAmount * PAISE_PER_RUPEE)
@@ -110,7 +118,9 @@ export class PaymentChargesService {
       flatAmount: charge.flatAmount / PAISE_PER_RUPEE,
       mixCap: charge.mixCap ? charge.mixCap / PAISE_PER_RUPEE : null,
       mixMin: charge.mixMin ? charge.mixMin / PAISE_PER_RUPEE : null,
-      codMaxAmount: charge.codMaxAmount ? charge.codMaxAmount / PAISE_PER_RUPEE : null,
+      codMaxAmount: charge.codMaxAmount
+        ? charge.codMaxAmount / PAISE_PER_RUPEE
+        : null,
     };
   }
 
@@ -158,16 +168,20 @@ export class PaymentChargesService {
       }),
       ...(dto.percentage !== undefined && { percentage: dto.percentage }),
       ...(dto.mixCap !== undefined && {
-        mixCap: dto.mixCap !== null ? Math.round(dto.mixCap * PAISE_PER_RUPEE) : null,
+        mixCap:
+          dto.mixCap !== null ? Math.round(dto.mixCap * PAISE_PER_RUPEE) : null,
       }),
       ...(dto.mixMin !== undefined && {
-        mixMin: dto.mixMin !== null ? Math.round(dto.mixMin * PAISE_PER_RUPEE) : null,
+        mixMin:
+          dto.mixMin !== null ? Math.round(dto.mixMin * PAISE_PER_RUPEE) : null,
       }),
       ...(dto.isTaxable !== undefined && { isTaxable: dto.isTaxable }),
       ...(dto.currency && { currency: dto.currency }),
       ...(dto.codMaxAmount !== undefined && {
         codMaxAmount:
-          dto.codMaxAmount !== null ? Math.round(dto.codMaxAmount * PAISE_PER_RUPEE) : null,
+          dto.codMaxAmount !== null
+            ? Math.round(dto.codMaxAmount * PAISE_PER_RUPEE)
+            : null,
       }),
       ...(dto.codDisallowHighValue !== undefined && {
         codDisallowHighValue: dto.codDisallowHighValue,
@@ -199,7 +213,9 @@ export class PaymentChargesService {
       flatAmount: updated.flatAmount / PAISE_PER_RUPEE,
       mixCap: updated.mixCap ? updated.mixCap / PAISE_PER_RUPEE : null,
       mixMin: updated.mixMin ? updated.mixMin / PAISE_PER_RUPEE : null,
-      codMaxAmount: updated.codMaxAmount ? updated.codMaxAmount / PAISE_PER_RUPEE : null,
+      codMaxAmount: updated.codMaxAmount
+        ? updated.codMaxAmount / PAISE_PER_RUPEE
+        : null,
     };
   }
 

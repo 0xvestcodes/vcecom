@@ -16,6 +16,7 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { customers, eq } from "@vcecom/db";
+import { PAISE_PER_RUPEE } from "../../common/constants/currency.constants";
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import {
@@ -24,7 +25,6 @@ import {
   NotFoundErrorDto,
   TooManyRequestsErrorDto,
 } from "../../common/dto/error-response.dto";
-import { PAISE_PER_RUPEE } from "../../common/constants/currency.constants";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { extractSessionId } from "../../common/utils/session.utils";
 import type { Database } from "../../modules/database/db";
@@ -508,8 +508,12 @@ export class CheckoutController {
           ? breakdown.flatAmount / PAISE_PER_RUPEE
           : undefined,
         calculatedFee: breakdown.calculatedFee / PAISE_PER_RUPEE,
-        mixMin: breakdown.mixMin ? breakdown.mixMin / PAISE_PER_RUPEE : undefined,
-        mixCap: breakdown.mixCap ? breakdown.mixCap / PAISE_PER_RUPEE : undefined,
+        mixMin: breakdown.mixMin
+          ? breakdown.mixMin / PAISE_PER_RUPEE
+          : undefined,
+        mixCap: breakdown.mixCap
+          ? breakdown.mixCap / PAISE_PER_RUPEE
+          : undefined,
       },
     };
   }

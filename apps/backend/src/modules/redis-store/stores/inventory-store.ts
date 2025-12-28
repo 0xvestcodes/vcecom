@@ -15,12 +15,12 @@ import {
   RESERVATION_TTL_TIERS,
   type ReservationMode,
 } from "../../../common/constants/inventory.constants";
+import { SCRIPT_LOAD_TIMEOUT_MS } from "../../../common/constants/timeout.constants";
 import { ContextService } from "../../../common/logging/context.service";
 import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
-import { SCRIPT_LOAD_TIMEOUT_MS } from "../../../common/constants/timeout.constants";
 import { DB_TOKEN } from "../../../modules/database/database.constants";
 import type { Database } from "../../../modules/database/db";
 import { KEY_PATTERNS, TTL } from "../constants/key-patterns";
@@ -114,7 +114,10 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
           const sha = (await Promise.race([
             this.client.script("LOAD", script),
             new Promise<string>((_, reject) =>
-              setTimeout(() => reject(new Error("Script load timeout")), SCRIPT_LOAD_TIMEOUT_MS),
+              setTimeout(
+                () => reject(new Error("Script load timeout")),
+                SCRIPT_LOAD_TIMEOUT_MS,
+              ),
             ),
           ])) as string;
 
