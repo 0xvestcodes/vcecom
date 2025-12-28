@@ -23,7 +23,7 @@ export const RATE_LIMIT_PRESETS = {
    * Storefront GET endpoints - high throughput for browsing
    */
   STOREFRONT_GET: {
-    limit: isDevelopment ? 50000 : 5000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 5000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -32,7 +32,7 @@ export const RATE_LIMIT_PRESETS = {
    * Product detail pages - high cache hit rate
    */
   PRODUCT_DETAIL: {
-    limit: 100000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 100000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -41,7 +41,7 @@ export const RATE_LIMIT_PRESETS = {
    * Reviews listing - moderate traffic
    */
   REVIEWS_LISTING: {
-    limit: 60000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 60000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -50,7 +50,7 @@ export const RATE_LIMIT_PRESETS = {
    * Bundle listing - high throughput
    */
   BUNDLE_LISTING: {
-    limit: 100000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 100000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -59,7 +59,7 @@ export const RATE_LIMIT_PRESETS = {
    * Categories, tags, search - moderate traffic
    */
   CATEGORIES_SEARCH: {
-    limit: 800000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 800000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
@@ -68,7 +68,7 @@ export const RATE_LIMIT_PRESETS = {
    * Checkout session creation - tighter limits to prevent abuse
    */
   CHECKOUT_SESSION: {
-    limit: isDevelopment ? 20000 : 5000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 5000,
     window: 300, // 5 minutes
     keyType: "sessionId" as RateLimitKeyType,
   },
@@ -77,7 +77,7 @@ export const RATE_LIMIT_PRESETS = {
    * Payment intent creation - strictest checkout limit
    */
   PAYMENT_INTENT: {
-    limit: isDevelopment ? 10000 : 3000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 3000,
     window: 300, // 5 minutes
     keyType: "sessionId" as RateLimitKeyType,
   },
@@ -86,8 +86,17 @@ export const RATE_LIMIT_PRESETS = {
    * Cart updates - moderate limits
    */
   CART_UPDATES: {
-    limit: isDevelopment ? 10000 : 3000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 3000,
     window: 300, // 5 minutes
+    keyType: "sessionId" as RateLimitKeyType,
+  },
+
+  /**
+   * Cart heartbeat - frequent keep-alive signals
+   */
+  CART_HEARTBEAT: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 120, // 2 per second in prod
+    window: 60, // 1 minute
     keyType: "sessionId" as RateLimitKeyType,
   },
 
@@ -140,16 +149,16 @@ export const RATE_LIMIT_PRESETS = {
    * Generic store GET - catch-all fallback for public GET endpoints
    */
   GENERIC_STORE_GET: {
-    limit: 150000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 150000,
     window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
 
   /**
-   * Export endpoints - strict limits (5 per minute)
+   * Export endpoints - strict limits in production, relaxed in development
    */
   EXPORT: {
-    limit: isDevelopment ? 20000 : 5000,
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 5000,
     window: 60, // 1 minute
     keyType: "userId" as RateLimitKeyType,
   },

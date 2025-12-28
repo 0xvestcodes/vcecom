@@ -380,6 +380,7 @@ export class AdminAuthController {
         | "support"
         | "reviewer"
         | "marketing",
+      roleId: info.roleId ?? undefined,
       activeSessionsCount: info.activeSessionsCount,
       twoFactorEnabled: info.has2fa,
     };

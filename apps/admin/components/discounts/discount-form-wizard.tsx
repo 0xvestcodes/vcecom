@@ -69,7 +69,15 @@ export function DiscountFormWizard({
     getTagIds: initialData?.getTagIds || [],
     tieredRules: initialData?.tieredRules || [],
     excludedDiscountIds: initialData?.excludedDiscountIds || [],
+    // For BOGO discounts: buyQuantity maps to minQuantity, getQuantity stored separately
+    minQuantity: initialData?.minQuantity ?? undefined,
   });
+
+  // Separate state for BOGO buy/get quantities (for UI only, buyQuantity maps to minQuantity)
+  const [bogoBuyQuantity, setBogoBuyQuantity] = useState<number>(
+    initialData?.minQuantity || 1,
+  );
+  const [bogoGetQuantity, setBogoGetQuantity] = useState<number>(1);
 
   const updateField = <K extends keyof CreateDiscountInput>(
     field: K,
@@ -82,7 +90,14 @@ export function DiscountFormWizard({
     if (!formData.code || !formData.name || !formData.startDate) {
       return;
     }
-    onSubmit(formData as CreateDiscountInput);
+
+    // For BOGO discounts, ensure minQuantity is set from buyQuantity
+    const submitData = { ...formData };
+    if (formData.type === "BUY_X_GET_Y" && bogoBuyQuantity) {
+      submitData.minQuantity = bogoBuyQuantity;
+    }
+
+    onSubmit(submitData as CreateDiscountInput);
   };
 
   const canProceed = () => {
@@ -210,8 +225,8 @@ export function DiscountFormWizard({
               getCategoryIds={formData.getCategoryIds || []}
               getCollectionIds={formData.getCollectionIds || []}
               getTagIds={formData.getTagIds || []}
-              buyQuantity={1}
-              getQuantity={1}
+              buyQuantity={bogoBuyQuantity}
+              getQuantity={bogoGetQuantity}
               onBuyProductIdsChange={(ids) => updateField("buyProductIds", ids)}
               onBuyCategoryIdsChange={(ids) =>
                 updateField("buyCategoryIds", ids)
@@ -228,8 +243,14 @@ export function DiscountFormWizard({
                 updateField("getCollectionIds", ids)
               }
               onGetTagIdsChange={(ids) => updateField("getTagIds", ids)}
-              onBuyQuantityChange={() => {}}
-              onGetQuantityChange={() => {}}
+              onBuyQuantityChange={(value) => {
+                setBogoBuyQuantity(value);
+                updateField("minQuantity", value);
+              }}
+              onGetQuantityChange={(value) => {
+                setBogoGetQuantity(value);
+                // Note: Backend currently uses 1:1 ratio, getQuantity is stored for future use
+              }}
             />
           )}
 

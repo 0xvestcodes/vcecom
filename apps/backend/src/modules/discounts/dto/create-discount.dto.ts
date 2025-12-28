@@ -39,6 +39,11 @@ export enum DiscountScope {
   PRODUCT = "PRODUCT",
 }
 
+export enum DiscountAppliesTo {
+  SUBTOTAL = "SUBTOTAL",
+  TOTAL = "TOTAL",
+}
+
 export class CreateDiscountDto {
   @ApiProperty({
     description: "Discount code (unique identifier)",
@@ -166,6 +171,20 @@ export class CreateDiscountDto {
     message: `Scope must be one of: ${Object.values(DiscountScope).join(", ")}`,
   })
   scope?: DiscountScope = DiscountScope.PRODUCT;
+
+  @ApiProperty({
+    description:
+      "Applies to (SUBTOTAL = before shipping, TOTAL = after shipping). Only for cart-level discounts.",
+    enum: DiscountAppliesTo,
+    example: DiscountAppliesTo.SUBTOTAL,
+    default: DiscountAppliesTo.SUBTOTAL,
+    required: false,
+  })
+  @IsOptional()
+  @IsEnum(DiscountAppliesTo, {
+    message: `Applies to must be one of: ${Object.values(DiscountAppliesTo).join(", ")}`,
+  })
+  appliesTo?: DiscountAppliesTo = DiscountAppliesTo.SUBTOTAL;
 
   @ApiProperty({
     description: "Priority level (lower = higher priority, like Shopify)",

@@ -3,6 +3,7 @@ import {
   index,
   integer,
   jsonb,
+  pgEnum,
   pgTable,
   real,
   timestamp,
@@ -10,6 +11,13 @@ import {
 } from "drizzle-orm/pg-core";
 import { carts } from "./carts";
 import { productVariants } from "./product-variants";
+
+export const cartItemStateEnum = pgEnum("cart_item_state", [
+  "fresh",
+  "stale",
+  "reacquired",
+  "committed",
+]);
 
 export const cartItems = pgTable(
   "cart_items",
@@ -24,6 +32,10 @@ export const cartItems = pgTable(
     quantity: integer("quantity").notNull().default(1),
     price: real("price").notNull(),
     metadata: jsonb("metadata"),
+    state: cartItemStateEnum("state").notNull().default("fresh"),
+    staleMarkedAt: timestamp("stale_marked_at"),
+    reacquiredAt: timestamp("reacquired_at"),
+    archivedAt: timestamp("archived_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -36,6 +48,8 @@ export const cartItems = pgTable(
       table.cartId,
       table.productVariantId,
     ),
+    stateIdx: index("cart_items_state_idx").on(table.state),
+    archivedAtIdx: index("cart_items_archived_at_idx").on(table.archivedAt),
   }),
 );
 

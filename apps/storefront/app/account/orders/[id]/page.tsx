@@ -107,11 +107,21 @@ export default function OrderDetailPage() {
                         </p>
                       )}
                       <p className="text-sm text-muted-foreground mt-1">
-                        Quantity: {item.quantity} × ₹{item.price.toFixed(2)}
+                        Quantity: {item.quantity} × ₹
+                        {("unitPrice" in item
+                          ? item.unitPrice
+                          : item.price
+                        ).toFixed(2)}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">₹{item.total.toFixed(2)}</p>
+                      <p className="font-semibold">
+                        ₹
+                        {("lineTotal" in item
+                          ? item.lineTotal
+                          : item.total
+                        ).toFixed(2)}
+                      </p>
                     </div>
                   </div>
                 ))}

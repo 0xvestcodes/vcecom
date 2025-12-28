@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Order Shipped</title>
+</head>
+<body>
+  <h1>Your Order Has Been Shipped!</h1>
+  
+  <p>Great news! Your order #{{orderNumber}} has been shipped.</p>
+  
+  <h2>Tracking Information</h2>
+  <p><strong>Tracking Number:</strong> {{trackingNumber}}</p>
+  {{#if awbNumber}}
+  <p><strong>AWB Number:</strong> {{awbNumber}}</p>
+  {{/if}}
+  {{#if courierName}}
+  <p><strong>Courier:</strong> {{courierName}}</p>
+  {{/if}}
+  
+  <p>You can track your order using the tracking number above.</p>
+  
+  <p>Thank you for shopping with us!</p>
+</body>
+</html>
+

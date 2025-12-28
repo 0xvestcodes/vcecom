@@ -130,6 +130,15 @@ export class AdminMeResponseDto {
   role: "admin" | "customer" | "support" | "reviewer" | "marketing";
 
   @ApiProperty({
+    description: "Admin role ID (for granular permissions)",
+    example: "123e4567-e89b-12d3-a456-426614174000",
+    required: false,
+    nullable: true,
+  })
+  @IsUUID()
+  roleId?: string | null;
+
+  @ApiProperty({
     description: "Number of active sessions for this admin",
     example: 2,
   })

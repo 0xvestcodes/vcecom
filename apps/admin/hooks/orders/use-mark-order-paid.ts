@@ -16,8 +16,7 @@ export function useMarkOrderPaid() {
 
   return useApiMutation<Order, MarkOrderPaidParams>({
     mutationFn: async ({ orderId }) => {
-      const url = `/api/orders/${orderId}/mark-paid`;
-      return api.post<Order>(url);
+      return api.post<Order>(endpoints.orders.markPaid(orderId));
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [endpoints.orders.list] });

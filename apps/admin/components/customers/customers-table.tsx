@@ -20,7 +20,7 @@ interface CustomersTableProps {
  */
 export function CustomersTable({ customers }: CustomersTableProps) {
   return (
-    <div className="rounded-md border">
+    <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
       <Table>
         <TableHeader>
           <TableRow>
@@ -50,12 +50,12 @@ interface CustomerTableRowProps {
  */
 function CustomerTableRow({ customer }: CustomerTableRowProps) {
   return (
-    <TableRow>
-      <TableCell className="font-medium">{customer.name}</TableCell>
-      <TableCell>{customer.email}</TableCell>
-      <TableCell>{customer.phone}</TableCell>
-      <TableCell>{customer.gstin || "-"}</TableCell>
-      <TableCell>
+    <TableRow className="group hover:bg-muted/30 transition-colors">
+      <TableCell className="font-medium text-xs">{customer.name}</TableCell>
+      <TableCell className="text-xs">{customer.email}</TableCell>
+      <TableCell className="text-xs">{customer.phone}</TableCell>
+      <TableCell className="text-xs">{customer.gstin || "-"}</TableCell>
+      <TableCell className="text-xs">
         <DateTime date={customer.createdAt} />
       </TableCell>
     </TableRow>

@@ -8,6 +8,7 @@ import {
 import {
   and,
   asc,
+  cartItems,
   desc,
   eq,
   gte,
@@ -24,7 +25,10 @@ import {
 import Redis from "ioredis";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
-import { createErrorContext } from "../../common/logging/logging.helper";
+import {
+  createErrorContext,
+  createLogContext,
+} from "../../common/logging/logging.helper";
 import {
   generatePaginationMetadata,
   normalizePaginationParams,
@@ -47,6 +51,7 @@ import {
   BulkAdjustInventoryResponseDto,
   BulkAdjustmentResultDto,
 } from "./dto/bulk-adjust.dto";
+import { CartStateMetricsDto } from "./dto/cart-state-metrics.dto";
 import { InventoryHealthResponseDto } from "./dto/inventory-health.dto";
 import { InventoryItemResponseDto } from "./dto/inventory-item.dto";
 import {
@@ -54,6 +59,7 @@ import {
   InventoryLogsQueryDto,
   PaginatedInventoryLogsResponseDto,
 } from "./dto/inventory-logs.dto";
+import { InventoryMetricsDto } from "./dto/inventory-metrics.dto";
 import {
   InventoryReservationsResponseDto,
   ReservationsSummaryResponseDto,
@@ -933,33 +939,56 @@ export class AdminInventoryService implements OnModuleInit {
 
       // Get inventory counts
       let totalStock = 0;
-      let committedStock = 0;
+      let reservedStock = 0;
       let lowStockCount = 0;
       let outOfStockCount = 0;
 
       for (const key of keys) {
-        const variantId = key.split(":")[2];
-        const inventory = parseInt(
-          (await this.redisClient.get(key)) || "0",
-          10,
-        );
-        const committed =
-          (await this.inventoryStore.getReservedInventory(variantId)) || 0;
-        const available = Math.max(0, inventory - committed);
-        const threshold = await this.getLowStockThreshold(variantId);
+        try {
+          const variantId = key.split(":")[2];
+          if (!variantId) {
+            // Skip invalid keys
+            continue;
+          }
 
-        totalStock += inventory;
-        committedStock += committed;
+          const inventoryStr = await this.redisClient.get(key);
+          const inventory = inventoryStr ? parseInt(inventoryStr, 10) : 0;
 
-        if (available <= threshold && available > 0) {
-          lowStockCount++;
-        }
-        if (available === 0) {
-          outOfStockCount++;
+          // Handle negative or invalid inventory values
+          const validInventory = Math.max(
+            0,
+            Number.isNaN(inventory) ? 0 : inventory,
+          );
+
+          const reserved =
+            (await this.inventoryStore.getReservedInventory(variantId)) || 0;
+          const validReserved = Math.max(0, reserved);
+
+          const available = Math.max(0, validInventory - validReserved);
+          const threshold = await this.getLowStockThreshold(variantId);
+
+          totalStock += validInventory;
+          reservedStock += validReserved;
+
+          if (available <= threshold && available > 0) {
+            lowStockCount++;
+          }
+          if (available === 0) {
+            outOfStockCount++;
+          }
+        } catch (error) {
+          // Skip individual variant errors, log and continue
+          this.logger.warn(
+            createLogContext(this.contextService, "getInventoryHealth", {
+              key,
+              error: error instanceof Error ? error.message : "Unknown error",
+            }),
+            "Failed to process inventory key in health check",
+          );
         }
       }
 
-      const availableStock = totalStock - committedStock;
+      const availableStock = totalStock - reservedStock;
 
       // Get fastest/slowest moving SKUs from order_items
       const fastestMoving = await this.db
@@ -999,7 +1028,7 @@ export class AdminInventoryService implements OnModuleInit {
       return {
         totalStock,
         availableStock,
-        committedStock,
+        committedStock: reservedStock, // Keep DTO field name for backward compatibility
         lowStockCount,
         outOfStockCount,
         fastestMovingSkus: fastestMoving.map((item) => ({
@@ -1019,6 +1048,189 @@ export class AdminInventoryService implements OnModuleInit {
       this.logger.error(
         createErrorContext(this.contextService, "getInventoryHealth", error),
         "Failed to get inventory health",
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get inventory metrics for dashboard
+   */
+  async getMetrics(): Promise<InventoryMetricsDto> {
+    try {
+      // Scan all inventory variant keys
+      const inventoryPattern = "inventory:variant:*";
+      const keys: string[] = [];
+      let cursor = "0";
+
+      do {
+        const [nextCursor, foundKeys] = await this.redisClient.scan(
+          cursor,
+          "MATCH",
+          inventoryPattern,
+          "COUNT",
+          100,
+        );
+        cursor = nextCursor;
+        keys.push(...foundKeys);
+      } while (cursor !== "0");
+
+      // Get inventory counts
+      let totalAvailable = 0;
+      let totalReserved = 0;
+      let expiredReservationsCount = 0;
+      let failedReservationsCount = 0;
+
+      // Scan for expired reservations (keys with TTL = -2 or expired)
+      const reservationPattern = "inventory:reservation:*";
+      let reservationCursor = "0";
+      const reservationKeys: string[] = [];
+
+      do {
+        const [nextCursor, foundKeys] = await this.redisClient.scan(
+          reservationCursor,
+          "MATCH",
+          reservationPattern,
+          "COUNT",
+          100,
+        );
+        reservationCursor = nextCursor;
+        reservationKeys.push(...foundKeys);
+      } while (reservationCursor !== "0");
+
+      // Check for expired reservations
+      for (const key of reservationKeys) {
+        const ttl = await this.redisClient.ttl(key);
+        if (ttl === -2) {
+          // Key doesn't exist (expired)
+          expiredReservationsCount++;
+        }
+      }
+
+      // Process each variant
+      for (const key of keys) {
+        try {
+          const variantId = key.split(":")[2];
+          if (!variantId) {
+            continue;
+          }
+
+          const inventoryStr = await this.redisClient.get(key);
+          const inventory = inventoryStr ? parseInt(inventoryStr, 10) : 0;
+          const validInventory = Math.max(
+            0,
+            Number.isNaN(inventory) ? 0 : inventory,
+          );
+
+          const reserved =
+            (await this.inventoryStore.getReservedInventory(variantId)) || 0;
+          const validReserved = Math.max(0, reserved);
+
+          totalAvailable += validInventory;
+          totalReserved += validReserved;
+        } catch (error) {
+          // Skip individual variant errors
+          this.logger.warn(
+            createLogContext(this.contextService, "getMetrics", {
+              key,
+              error: error instanceof Error ? error.message : "Unknown error",
+            }),
+            "Failed to process inventory key in metrics",
+          );
+        }
+      }
+
+      // Calculate reserved ratio
+      const reservedRatio =
+        totalAvailable > 0
+          ? (totalReserved / totalAvailable) * 100
+          : totalReserved > 0
+            ? 100
+            : 0;
+
+      // Note: Failed reservations count would need to be tracked separately
+      // For now, we'll use expired reservations as a proxy
+      failedReservationsCount = expiredReservationsCount;
+
+      return {
+        available: totalAvailable,
+        reserved: totalReserved,
+        reserved_ratio: Math.round(reservedRatio * 100) / 100, // Round to 2 decimal places
+        expired_reservations_count: expiredReservationsCount,
+        failed_reservations: failedReservationsCount,
+      };
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(this.contextService, "getMetrics", error),
+        "Failed to get inventory metrics",
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Get cart state metrics
+   * Returns counts of cart items in each state (fresh, stale, reacquired, committed)
+   */
+  async getCartStateMetrics(): Promise<CartStateMetricsDto> {
+    try {
+      // Count cart items by state
+      const [freshResult] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(cartItems)
+        .where(eq(cartItems.state, "fresh"));
+
+      const [staleResult] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(cartItems)
+        .where(eq(cartItems.state, "stale"));
+
+      const [reacquiredResult] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(cartItems)
+        .where(eq(cartItems.state, "reacquired"));
+
+      const [committedResult] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(cartItems)
+        .where(eq(cartItems.state, "committed"));
+
+      const [totalResult] = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(cartItems);
+
+      const fresh = freshResult?.count || 0;
+      const stale = staleResult?.count || 0;
+      const reacquired = reacquiredResult?.count || 0;
+      const committed = committedResult?.count || 0;
+      const total = totalResult?.count || 0;
+
+      // Calculate stale recovery rate
+      // This is the percentage of stale items that were successfully reacquired
+      // We can approximate this by looking at items that went from stale -> reacquired
+      // For a more accurate metric, we'd need to track transitions, but for now
+      // we'll use: (reacquired / (stale + reacquired)) * 100
+      // This gives us the ratio of items that were reacquired out of all items that were stale at some point
+      const staleRecoveryRate =
+        stale + reacquired > 0
+          ? (reacquired / (stale + reacquired)) * 100
+          : undefined;
+
+      return {
+        fresh,
+        stale,
+        reacquired,
+        committed,
+        total,
+        stale_recovery_rate:
+          staleRecoveryRate !== undefined
+            ? Math.round(staleRecoveryRate * 100) / 100
+            : undefined,
+      };
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(this.contextService, "getCartStateMetrics", error),
+        "Failed to get cart state metrics",
       );
       throw error;
     }

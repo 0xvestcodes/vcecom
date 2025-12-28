@@ -1,11 +1,10 @@
 import {
   BadRequestException,
-  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { addresses, eq } from "@vcecom/db";
+import { addresses, and, cartItems, eq, inArray } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { isCodPayment } from "../../common/constants/orders.constants";
 import { ContextService } from "../../common/logging/context.service";
@@ -28,7 +27,10 @@ import { CreateOrderDto } from "../orders/dto/create-order.dto";
 import { OrdersService } from "../orders/orders.service";
 import { CheckoutState } from "../redis-store/constants/checkout-states";
 import { CheckoutMetadata } from "../redis-store/dto/checkout-metadata.dto";
+import { CheckoutLockStore } from "../redis-store/stores/checkout-lock-store";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
+import { InventoryStore } from "../redis-store/stores/inventory-store";
+import { StaleMarkerStore } from "../redis-store/stores/stale-marker-store";
 import { ShippingMethodsService } from "../shipping/shipping-methods.service";
 import {
   ShippingCalculation,
@@ -69,6 +71,9 @@ export class CheckoutService {
   constructor(
     private readonly cartsService: CartsService,
     private readonly checkoutStore: CheckoutStore,
+    private readonly inventoryStore: InventoryStore,
+    private readonly checkoutLockStore: CheckoutLockStore,
+    private readonly staleMarkerStore: StaleMarkerStore,
     private readonly shippingRulesService: ShippingRulesService,
     private readonly shippingMethodsService: ShippingMethodsService,
     private readonly addressesService: AddressesService,
@@ -98,111 +103,83 @@ export class CheckoutService {
       throw new BadRequestException("Cart ID mismatch");
     }
 
-    // Check if cart is already locked and handle stale/early state locks
-    const isLocked = await this.checkoutStore.isCheckoutLocked(cart.id);
-    if (isLocked) {
-      // Check if there's an active checkout session for this cart
-      // Use getSessionByCartId which is more reliable than hasActiveCheckoutSession
-      let existingSession = await this.checkoutStore.getSessionByCartId(
+    // ATOMIC REACQUISITION for all items
+    // This validates availability, clears old reservations, creates new reservations with checkout TTL, and sets checkout lock
+    // Convert enriched cart items to format expected by reacquireAllCartItems
+    const itemsForReacquisition = cart.items.map((item) => ({
+      type: item.type,
+      variantId: item.variantId,
+      quantity: item.quantity,
+      bundleVariantBreakdown:
+        item.type === "bundle" && "bundleVariantBreakdown" in item
+          ? item.bundleVariantBreakdown?.map((b) => ({
+              variantId: b.variantId,
+              quantity: b.quantity,
+            }))
+          : undefined,
+    }));
+
+    this.logger.info(
+      createLogContext(this.contextService, "startCheckout.preReacquisition", {
+        cartId: cart.id,
+        itemCount: cart.items.length,
+        items: itemsForReacquisition.map((i) => ({
+          type: i.type,
+          variantId: i.variantId,
+          quantity: i.quantity,
+          hasBundleBreakdown: !!i.bundleVariantBreakdown,
+        })),
+      }),
+      `Starting inventory reacquisition for cart ${cart.id} with ${cart.items.length} items`,
+    );
+
+    const reacquisitionResults = await this.reacquireAllCartItems(
+      cart.id,
+      itemsForReacquisition,
+    );
+
+    this.logger.info(
+      createLogContext(this.contextService, "startCheckout.postReacquisition", {
+        cartId: cart.id,
+        allValid: reacquisitionResults.allValid,
+        failureCount: reacquisitionResults.failures.length,
+        failures: reacquisitionResults.failures,
+      }),
+      `Reacquisition completed: allValid=${reacquisitionResults.allValid}, failures=${reacquisitionResults.failures.length}`,
+    );
+
+    if (!reacquisitionResults.allValid) {
+      // Some items failed - adjust cart quantities and return errors
+      await this.adjustCartForFailedReacquisition(
         cart.id,
+        reacquisitionResults.failures,
       );
 
-      // If no session found immediately, wait a bit and retry (handles race condition)
-      if (!existingSession) {
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        existingSession = await this.checkoutStore.getSessionByCartId(cart.id);
-      }
+      // Clear checkout lock (reacquisition script sets it, but we need to clear on failure)
+      await this.checkoutLockStore.clearCheckoutLock(cart.id);
 
-      if (!existingSession) {
-        // Stale lock detected - no active session found, release it and allow checkout to proceed
-        this.logger.warn(
-          `Stale checkout lock detected for cartId=${cart.id}, releasing lock`,
-        );
-        await this.checkoutStore.releaseCheckoutLock(cart.id);
-      } else {
-        // Check the session state - only block if it's in a payment-related state
-        const { CheckoutState } = await import(
-          "../redis-store/constants/checkout-states"
-        );
+      // Get updated cart to return to user
+      const adjustedCart = await this.cartsService.getCart(userId, sessionId);
 
-        const blockingStates = [
-          CheckoutState.PAYMENT_PENDING,
-          CheckoutState.PAYMENT_CONFIRMED,
-          CheckoutState.ORDER_CREATED,
-          CheckoutState.COMPLETED,
-        ];
-
-        this.logger.debug(
-          `Found existing checkout session for cartId=${cart.id}, state=${existingSession.session.state}`,
-        );
-
-        if (blockingStates.includes(existingSession.session.state)) {
-          // Active session in payment state - cart is legitimately locked
-          throw new ConflictException("Cart is already being checked out");
-        } else {
-          // Session exists but in early state (CREATED, LOCKED) - release lock and allow new checkout
-          this.logger.info(
-            `Existing checkout session for cartId=${cart.id} is in early state (${existingSession.session.state}), cleaning up old session and allowing new checkout`,
-          );
-
-          // Release lock first
-          await this.checkoutStore.releaseCheckoutLock(cart.id);
-
-          // Handle session cleanup based on state
-          const { CheckoutState } = await import(
-            "../redis-store/constants/checkout-states"
-          );
-
-          if (existingSession.session.state === CheckoutState.CREATED) {
-            // CREATED state can't transition to FAILED directly
-            // Delete the session directly since it hasn't progressed far
-            await this.checkoutStore.deleteCheckoutSession(
-              existingSession.sessionId,
-            );
-          } else {
-            // LOCKED state can transition to FAILED
-            await this.checkoutStore.failSession(existingSession.sessionId);
-          }
-
-          // Small delay to ensure Redis processes the lock release
-          await new Promise((resolve) => setTimeout(resolve, 50));
-        }
-      }
+      throw new BadRequestException({
+        message: "Some items are no longer available",
+        failures: reacquisitionResults.failures,
+        adjustedCart,
+      });
     }
 
-    // Acquire checkout lock FIRST before creating session
-    // This prevents race conditions where lock is acquired between check and acquire
-    let lockAcquired = await this.checkoutStore.acquireCheckoutLock(cart.id);
+    // Mark all items as REACQUIRED in DB
+    await this.markCartItemsReacquired(cart.id, itemsForReacquisition);
 
-    // Retry lock acquisition with small delay if it fails (handles race conditions)
-    if (!lockAcquired) {
-      this.logger.debug(
-        `Lock acquisition failed for cartId=${cart.id}, retrying after short delay`,
+    // Checkout lock is already set by reacquisition script
+    // Verify lock exists (should always be true after successful reacquisition)
+    const lockExists = await this.checkoutLockStore.hasCheckoutLock(cart.id);
+    if (!lockExists) {
+      this.logger.warn(
+        `Checkout lock not found after reacquisition for cartId=${cart.id}, this should not happen`,
       );
-      await new Promise((resolve) => setTimeout(resolve, 50));
-      lockAcquired = await this.checkoutStore.acquireCheckoutLock(cart.id);
-    }
-
-    if (!lockAcquired) {
-      // Still failed after retry - check if there's a legitimate active session
-      const existingSession = await this.checkoutStore.getSessionByCartId(
-        cart.id,
-      );
-      if (existingSession) {
-        const { CheckoutState } = await import(
-          "../redis-store/constants/checkout-states"
-        );
-        const blockingStates = [
-          CheckoutState.PAYMENT_PENDING,
-          CheckoutState.PAYMENT_CONFIRMED,
-          CheckoutState.ORDER_CREATED,
-          CheckoutState.COMPLETED,
-        ];
-        if (blockingStates.includes(existingSession.session.state)) {
-          throw new ConflictException("Cart is already being checked out");
-        }
-      }
-      throw new ConflictException("Failed to lock cart for checkout");
+      // Set lock manually as fallback
+      await this.checkoutLockStore.setCheckoutLock(cart.id);
     }
 
     // Create checkout session AFTER lock is acquired
@@ -251,6 +228,175 @@ export class CheckoutService {
         total: cart.total,
       },
     };
+  }
+
+  /**
+   * Atomically reacquire inventory for all cart items
+   * Returns success status and any failures with available quantities
+   */
+  private async reacquireAllCartItems(
+    cartId: string,
+    items: Array<{
+      type: "variant" | "bundle";
+      variantId: string; // Changed from productVariantId
+      quantity: number;
+      bundleVariantBreakdown?: Array<{ variantId: string; quantity: number }>;
+    }>,
+  ): Promise<{
+    allValid: boolean;
+    failures: Array<{
+      variantId: string;
+      requested: number;
+      available: number;
+    }>;
+  }> {
+    const failures: Array<{
+      variantId: string;
+      requested: number;
+      available: number;
+    }> = [];
+
+    for (const item of items) {
+      // Handle both variant and bundle items
+      if (item.type === "bundle" && item.bundleVariantBreakdown) {
+        // Bundle item - reacquire each variant in breakdown
+        for (const variantBreakdown of item.bundleVariantBreakdown) {
+          const result = await this.inventoryStore.reacquireInventoryAtomic(
+            cartId,
+            variantBreakdown.variantId,
+            variantBreakdown.quantity,
+          );
+
+          if (!result.valid) {
+            failures.push({
+              variantId: variantBreakdown.variantId,
+              requested: variantBreakdown.quantity,
+              available: result.available || 0,
+            });
+          }
+        }
+      } else {
+        // Variant item - atomic reacquisition
+        const result = await this.inventoryStore.reacquireInventoryAtomic(
+          cartId,
+          item.variantId, // Use variantId instead of productVariantId
+          item.quantity,
+        );
+
+        if (!result.valid) {
+          failures.push({
+            variantId: item.variantId, // Use variantId instead of productVariantId
+            requested: item.quantity,
+            available: result.available || 0,
+          });
+        }
+      }
+    }
+
+    return {
+      allValid: failures.length === 0,
+      failures,
+    };
+  }
+
+  /**
+   * Adjust cart quantities for failed reacquisitions
+   * Updates cart items to match available inventory or removes them if unavailable
+   */
+  private async adjustCartForFailedReacquisition(
+    cartId: string,
+    failures: Array<{
+      variantId: string;
+      requested: number;
+      available: number;
+    }>,
+  ): Promise<void> {
+    for (const failure of failures) {
+      // Find cart item for this variant
+      const [item] = await this.db
+        .select()
+        .from(cartItems)
+        .where(
+          and(
+            eq(cartItems.cartId, cartId),
+            eq(cartItems.productVariantId, failure.variantId),
+          ),
+        )
+        .limit(1);
+
+      if (!item) {
+        continue; // Item not found, skip
+      }
+
+      if (failure.available > 0) {
+        // Update quantity to available amount
+        await this.db
+          .update(cartItems)
+          .set({
+            quantity: failure.available,
+            state: "fresh", // Reset to fresh after adjustment
+            staleMarkedAt: null,
+          })
+          .where(eq(cartItems.id, item.id));
+
+        // Clear stale marker
+        await this.staleMarkerStore.clearStaleMarker(cartId, failure.variantId);
+      } else {
+        // No inventory available - remove item from cart
+        await this.db.delete(cartItems).where(eq(cartItems.id, item.id));
+      }
+    }
+
+    // Recalculate cart totals after adjustments
+    // Note: getCartById already recalculates totals internally, but we need to ensure
+    // the cart is properly refreshed. For now, we'll let the next getCart call handle it.
+  }
+
+  /**
+   * Mark cart items as REACQUIRED in database
+   */
+  private async markCartItemsReacquired(
+    cartId: string,
+    items: Array<{
+      type: "variant" | "bundle";
+      variantId: string; // Changed from productVariantId
+      bundleVariantBreakdown?: Array<{ variantId: string; quantity: number }>;
+    }>,
+  ): Promise<void> {
+    // Collect all variant IDs (from both variant items and bundle breakdowns)
+    const variantIds: string[] = [];
+    for (const item of items) {
+      if (item.type === "bundle" && item.bundleVariantBreakdown) {
+        for (const breakdown of item.bundleVariantBreakdown) {
+          variantIds.push(breakdown.variantId);
+        }
+      } else {
+        variantIds.push(item.variantId); // Use variantId instead of productVariantId
+      }
+    }
+
+    if (variantIds.length === 0) {
+      return;
+    }
+
+    // Update all matching cart items to REACQUIRED state
+    await this.db
+      .update(cartItems)
+      .set({
+        state: "reacquired",
+        reacquiredAt: new Date(),
+      })
+      .where(
+        and(
+          eq(cartItems.cartId, cartId),
+          inArray(cartItems.productVariantId, variantIds),
+        ),
+      );
+
+    // Clear stale markers for all reacquired items
+    for (const variantId of variantIds) {
+      await this.staleMarkerStore.clearStaleMarker(cartId, variantId);
+    }
   }
 
   /**
@@ -839,13 +985,13 @@ export class CheckoutService {
 
     if (paymentIntent.orderId) {
       // COD order was created directly - state transitions already handled in OrdersService
-      // Release the checkout lock
+      // Clear the checkout lock (reservations already committed in order creation)
       try {
-        await this.checkoutStore.releaseCheckoutLock(session.cartId);
+        await this.checkoutLockStore.clearCheckoutLock(session.cartId);
       } catch (error) {
         // Log but don't fail - lock release failure is non-critical
         this.logger.warn(
-          `Failed to release checkout lock for cartId=${session.cartId}: ${error instanceof Error ? error.message : "Unknown error"}`,
+          `Failed to clear checkout lock for cartId=${session.cartId}: ${error instanceof Error ? error.message : "Unknown error"}`,
         );
       }
 
@@ -894,17 +1040,9 @@ export class CheckoutService {
       );
     }
 
-    // Release the checkout lock after payment intent creation
-    // Lock is no longer needed as session is tracked by state machine
-    // The state machine prevents concurrent operations on the same session
-    try {
-      await this.checkoutStore.releaseCheckoutLock(session.cartId);
-    } catch (error) {
-      // Log but don't fail - lock release failure is non-critical
-      this.logger.warn(
-        `Failed to release checkout lock for cartId=${session.cartId}: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
+    // Keep checkout lock active during payment - will be cleared after order finalization
+    // The lock prevents heartbeat/cleanup from interfering during checkout window
+    // It will be cleared in finalizeOrderFromPayment after atomic commit
 
     return {
       orderId: null, // Will be created after payment confirmation

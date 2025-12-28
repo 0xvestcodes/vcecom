@@ -11,11 +11,13 @@ import {
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import type {
@@ -25,6 +27,12 @@ import type {
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
+import {
+  BadRequestErrorDto,
+  ConflictErrorDto,
+  TooManyRequestsErrorDto,
+  UnauthorizedErrorDto,
+} from "../../common/dto/error-response.dto";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { AuthService } from "./auth.service";
 import { AuthResponseDto } from "./dto/auth-response.dto";
@@ -52,6 +60,11 @@ export class AuthController {
   })
   @ApiBadRequestResponse({
     description: "Invalid input or user already exists",
+    type: BadRequestErrorDto,
+  })
+  @ApiConflictResponse({
+    description: "Conflict - User with this email already exists",
+    type: ConflictErrorDto,
   })
   async register(@Body() registerDto: RegisterDto): Promise<AuthResponseDto> {
     return this.authService.register(
@@ -76,9 +89,15 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({
     description: "Invalid credentials",
+    type: UnauthorizedErrorDto,
   })
   @ApiBadRequestResponse({
     description: "Invalid input",
+    type: BadRequestErrorDto,
+  })
+  @ApiTooManyRequestsResponse({
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async login(
     @Body() loginDto: LoginDto,
@@ -123,9 +142,11 @@ export class AuthController {
   })
   @ApiUnauthorizedResponse({
     description: "Invalid or expired refresh token",
+    type: UnauthorizedErrorDto,
   })
   @ApiBadRequestResponse({
     description: "Invalid input",
+    type: BadRequestErrorDto,
   })
   async refresh(
     @Body() refreshTokenDto: RefreshTokenDto,

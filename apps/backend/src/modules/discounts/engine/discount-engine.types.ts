@@ -24,6 +24,7 @@ export interface DiscountEngineInput {
   } | null;
   discounts: DiscountResponseDto[]; // pre-filtered for validity
   now: Date;
+  shippingCost?: number; // Shipping cost for TOTAL discount calculation
 }
 
 /**
@@ -72,8 +73,11 @@ export interface DiscountEngineResult {
   lineItems: DiscountedLineItem[];
   cartDiscounts: AppliedCartDiscount[];
   subtotal: number; // before discounts
+  subtotalDiscounts: AppliedCartDiscount[]; // Discounts applied to subtotal
+  totalDiscounts: AppliedCartDiscount[]; // Discounts applied to total (after shipping)
+  shippingCost: number; // Shipping cost
   discountTotal: number; // total discount applied
-  total: number; // after all discounts
+  total: number; // after all discounts (including shipping)
   appliedDiscountIds: string[];
   breakdown: {
     lineItems: DiscountedLineItem[];

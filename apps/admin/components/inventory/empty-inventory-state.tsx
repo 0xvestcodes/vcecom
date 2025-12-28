@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
  */
 export function EmptyInventoryState() {
   return (
-    <div className="flex flex-col items-center justify-center py-12 text-center">
-      <Boxes className="h-12 w-12 text-muted-foreground mb-4" />
-      <h3 className="text-lg font-semibold mb-2">No inventory items found</h3>
-      <p className="text-sm text-muted-foreground mb-4 max-w-md">
+    <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+      <Boxes className="h-12 w-12 mx-auto mb-3 opacity-50" />
+      <p className="text-sm font-medium mb-1">No inventory items found</p>
+      <p className="text-xs mb-4">
         Try adjusting your filters or search terms to find what you're looking
         for.
       </p>
-      <Button asChild variant="outline">
+      <Button asChild size="sm" className="text-xs">
         <Link href="/inventory/bulk-adjust">Bulk Adjust Inventory</Link>
       </Button>
     </div>

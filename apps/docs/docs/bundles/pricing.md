@@ -160,21 +160,82 @@ cartItem.quantity = bundleQuantity;
 
 ## Discount Application
 
-Bundle pricing works with the discount engine:
+Bundle pricing works seamlessly with the discount engine. Discounts apply to bundles by flattening them into individual variants.
+
+### How Discounts Apply to Bundles
+
+When a bundle is in the cart, the discount engine:
+1. **Flattens Bundle Selections**: Converts bundle selections into individual variant quantities
+2. **Applies Product Discounts**: Applies discounts to each variant based on product/category/collection/tag matching
+3. **Applies BOGO/Tiered Discounts**: Applies quantity-based discounts to flattened variants
+4. **Applies Cart Discounts**: Applies cart-level discounts to the bundle subtotal
+
+### Bundle Flattening for Discounts
+
+```typescript
+// Bundle with selections:
+// Set 1: Variant A (quantity: 1)
+// Set 2: Variant B (quantity: 2)
+// Bundle Quantity: 3
+
+// Flattened for discount engine:
+const flattenedVariants = [
+  { variantId: "variant-a", quantity: 3 },  // 1 × 3 bundles
+  { variantId: "variant-b", quantity: 6 },  // 2 × 3 bundles
+];
+```
+
+### BOGO Discounts with Bundles
+
+**Example**: "Buy 3 Get 1 Free" discount with a bundle of 3 products:
+
+```typescript
+// Bundle contains 3 variants (A, B, C)
+// Customer adds 2 bundles to cart
+// Flattened: 6 units total (2 of each variant)
+
+// BOGO Discount: Buy 3 Get 1 Free
+// Applies to: Any 3 items (can be from bundle)
+// Result: 1 item free (applied proportionally across variants)
+```
+
+**Key Points:**
+- BOGO discounts count flattened variants, not bundles
+- A bundle of 3 products counts as 3 items for BOGO eligibility
+- Discounts apply proportionally across bundle variants
 
 ### Discount Calculation Order
 
 1. **Calculate Bundle Base Price**: Sum of variant prices
-2. **Apply Bundle-Level Discounts**: If configured
-3. **Apply Cart-Level Discounts**: Discount codes
-4. **Calculate Final Price**: After all discounts
+2. **Flatten Bundle**: Convert to individual variant quantities
+3. **Apply Product Discounts**: To each variant based on eligibility
+4. **Apply Tiered/BOGO Discounts**: Based on total quantity (flattened)
+5. **Apply Cart-Level Discounts**: To bundle subtotal
+6. **Calculate Final Price**: After all discounts
 
-### Bundle Discounts
+### Example: Bundle with BOGO Discount
 
-Currently, bundle pricing uses sum-of-parts. Bundle-level discounts can be added as:
+**Scenario:**
+- Bundle: 3 products (A: ₹500, B: ₹300, C: ₹200)
+- Bundle Quantity: 2
+- BOGO Discount: "Buy 3 Get 1 Free"
+
+**Calculation:**
+```
+Base Bundle Price: (₹500 + ₹300 + ₹200) × 2 = ₹2,000
+Flattened Items: 6 items total (2 of each variant)
+BOGO Eligibility: 6 items = 2 sets of "Buy 3 Get 1 Free"
+Free Items: 2 items (worth ₹500 + ₹300 = ₹800)
+Final Price: ₹2,000 - ₹800 = ₹1,200
+```
+
+### Bundle-Level Discounts
+
+Bundle-level discounts can be configured as:
 - **Percentage Discount**: e.g., "Save 10% on bundles"
 - **Fixed Discount**: e.g., "Save ₹100 on bundles"
-- **Tiered Discounts**: Based on bundle value
+- **Tiered Discounts**: Based on bundle value or quantity
+- **BOGO Discounts**: Apply to flattened variant quantities
 
 ## API Endpoints
 

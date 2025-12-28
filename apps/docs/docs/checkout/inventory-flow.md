@@ -30,8 +30,10 @@ stateDiagram-v2
 ### When Reservations Happen
 
 Inventory is reserved when:
-1. **Checkout Started**: Cart is locked, inventory reserved
-2. **Items Added to Cart**: Inventory reserved immediately (optional, configurable)
+1. **Items Added to Cart**: Inventory reserved immediately using atomic Lua script
+2. **Checkout Started**: Cart is locked, inventory reservations confirmed
+
+**Important**: All inventory reservations use atomic Lua scripts to prevent race conditions and ensure consistency. Pre-checks are not performed - the Lua script handles all validation atomically.
 
 ### Reservation Flow
 
@@ -188,10 +190,17 @@ For a bundle with:
 
 ### When Inventory is Committed
 
+**CRITICAL**: Inventory is committed (decremented) when the order is **PLACED** (created), not when it is delivered. This happens in the `finalizeOrderFromPayment` method after payment confirmation.
+
 Inventory is committed when:
 1. **Payment Confirmed**: Payment webhook received
-2. **Order Created**: Order creation successful
-3. **Inventory Deducted**: Stock reduced permanently
+2. **Order Created**: Order creation successful in `finalizeOrderFromPayment`
+3. **Inventory Deducted**: Stock reduced permanently at order creation time
+
+**Important Notes:**
+- Inventory decrement happens **immediately** when order is created
+- Order status changes (including marking as DELIVERED) do **NOT** affect inventory
+- If inventory commit fails, the order is still created but inventory won't be decremented (requires manual reconciliation)
 
 ### Commit Flow
 
@@ -212,34 +221,64 @@ sequenceDiagram
 ### Commit Implementation
 
 ```typescript
+// This happens in finalizeOrderFromPayment after payment confirmation
 async commitInventory(orderId: string, cartItems: CartItem[]): Promise<void> {
-  // Release all cart reservations
-  await this.inventoryStore.releaseCartReservations(cart.id);
+  try {
+    // Release all cart reservations (individual reservation keys)
+    await this.inventoryStore.releaseCartReservations(cart.id);
 
-  // Commit inventory for variant items
-  for (const item of variantItems) {
-    await this.inventoryStore.incrementInventory(
-      item.productVariantId,
-      -item.quantity,  // Negative to decrement
-    );
-  }
-
-  // Commit inventory for bundle items
-  for (const bundleItem of bundleItems) {
-    const variantQuantities = flattenBundleSelections(
-      bundleItem.metadata.selections,
-      bundleItem.quantity,
-    );
-
-    for (const vq of variantQuantities) {
+    // Commit reservations for variant items
+    for (const item of variantItems) {
       await this.inventoryStore.incrementInventory(
-        vq.variantId,
-        -vq.quantity,
+        item.productVariantId,
+        -item.quantity,  // Negative to decrement
       );
     }
+
+    // Commit reservations for bundle items (all variants)
+    for (const bundleItem of bundleItems) {
+      const variantQuantities = flattenBundleSelections(
+        bundleItem.metadata.selections,
+        bundleItem.quantity,
+      );
+
+      for (const vq of variantQuantities) {
+        await this.inventoryStore.incrementInventory(
+          vq.variantId,
+          -vq.quantity,
+        );
+      }
+    }
+
+    // Log successful commit
+    logger.info("Inventory successfully decremented for order", { orderId });
+  } catch (error) {
+    // CRITICAL ERROR: Inventory decrement failed
+    // Order is already created, but inventory wasn't decremented
+    // This needs to be reconciled manually or via a background job
+    logger.error("CRITICAL: Failed to commit inventory for order", {
+      orderId,
+      error,
+      critical: true,
+    });
+    // Continue - inventory commit failure should be handled separately
+    // Order is already created, inventory can be reconciled later
   }
 }
 ```
+
+### Error Handling
+
+**Critical Error Scenario**: If inventory commit fails during order creation:
+- Order is still created (payment was successful)
+- Inventory is **NOT** decremented
+- Error is logged as **CRITICAL** for manual reconciliation
+- System continues to prevent blocking order creation
+
+**Reconciliation Required**: Failed inventory commits must be reconciled:
+- Manual reconciliation via admin panel
+- Background reconciliation job (recommended for production)
+- Check logs for orders with `critical: true` inventory errors
 
 ## Inventory Release
 

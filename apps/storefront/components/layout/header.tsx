@@ -32,6 +32,12 @@ export function Header() {
               Products
             </Link>
             <Link
+              href="/bundles"
+              className="text-sm font-medium hover:text-primary"
+            >
+              Bundles
+            </Link>
+            <Link
               href="/categories"
               className="text-sm font-medium hover:text-primary"
             >

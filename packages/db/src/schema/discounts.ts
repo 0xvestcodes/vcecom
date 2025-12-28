@@ -59,6 +59,16 @@ export const discountValueTypeEnum = pgEnum("discount_value_type", [
 export const discountScopeEnum = pgEnum("discount_scope", ["ORDER", "PRODUCT"]);
 
 /**
+ * Discount applies to enum
+ * - SUBTOTAL: Discount applies to subtotal (before shipping)
+ * - TOTAL: Discount applies to total (after shipping)
+ */
+export const discountAppliesToEnum = pgEnum("discount_applies_to", [
+  "SUBTOTAL",
+  "TOTAL",
+]);
+
+/**
  * Main discounts table
  */
 export const discounts = pgTable(
@@ -85,6 +95,11 @@ export const discounts = pgTable(
 
     // Scope
     scope: discountScopeEnum("scope").notNull().default("PRODUCT"), // ORDER or PRODUCT
+
+    // Applies to (for cart-level discounts)
+    appliesTo: discountAppliesToEnum("applies_to")
+      .notNull()
+      .default("SUBTOTAL"), // SUBTOTAL or TOTAL
 
     // Standard discount fields
     // For STANDARD type: applies to products/categories/collections/tags

@@ -1,5 +1,6 @@
 "use client";
 
+import { ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   Table,
@@ -30,15 +31,16 @@ export function OrdersTable({ orders, isLoading }: OrdersTableProps) {
 
   if (orders.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <p className="text-lg font-medium mb-2">No orders found</p>
-        <p className="text-sm">Try adjusting your filters</p>
+      <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+        <ShoppingCart className="h-12 w-12 mx-auto mb-3 opacity-50" />
+        <p className="text-sm font-medium mb-1">No orders found</p>
+        <p className="text-xs">Try adjusting your filters</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-lg border border-border/50 overflow-hidden transition-all duration-200">
       <Table>
         <TableHeader>
           <TableRow>
@@ -56,7 +58,7 @@ export function OrdersTable({ orders, isLoading }: OrdersTableProps) {
           {orders.map((order) => (
             <TableRow
               key={order.id}
-              className="cursor-pointer hover:bg-muted/50"
+              className="group cursor-pointer transition-colors duration-150"
               onClick={() => router.push(`/orders/${order.id}`)}
             >
               <TableCell className="font-medium">
@@ -76,13 +78,13 @@ export function OrdersTable({ orders, isLoading }: OrdersTableProps) {
               </TableCell>
               <TableCell>
                 <div className="flex flex-col">
-                  <span>
+                  <span className="text-xs">
                     {order.customerName ||
                       order.customerEmail ||
                       "Guest Checkout"}
                   </span>
                   {order.customerEmail && order.customerName && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground">
                       {order.customerEmail}
                     </span>
                   )}
@@ -93,11 +95,11 @@ export function OrdersTable({ orders, isLoading }: OrdersTableProps) {
               </TableCell>
               <TableCell>
                 <div className="flex flex-col">
-                  <span className="text-sm font-medium">
+                  <span className="text-xs font-medium">
                     {order.paymentMethod || "N/A"}
                   </span>
                   {order.paymentMethod === "COD" && (
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-[10px] text-muted-foreground">
                       Cash on Delivery
                     </span>
                   )}
@@ -107,14 +109,14 @@ export function OrdersTable({ orders, isLoading }: OrdersTableProps) {
                 {order.paymentStatus ? (
                   <PaymentStatusBadge status={order.paymentStatus} />
                 ) : (
-                  <span className="text-sm text-muted-foreground">N/A</span>
+                  <span className="text-xs text-muted-foreground">N/A</span>
                 )}
               </TableCell>
               <TableCell>
                 {order.fulfillmentStatus ? (
                   <FulfillmentStatusBadge status={order.fulfillmentStatus} />
                 ) : (
-                  <span className="text-sm text-muted-foreground">N/A</span>
+                  <span className="text-xs text-muted-foreground">N/A</span>
                 )}
               </TableCell>
               <TableCell>

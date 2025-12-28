@@ -20,7 +20,7 @@
     "permalink": "/docs/redis/caching-layers"
   },
   "next": {
-    "title": "Admin API Reference",
-    "permalink": "/docs/api-reference/admin-api"
+    "title": "Admin Pagination",
+    "permalink": "/docs/admin/pagination"
   }
 }

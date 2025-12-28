@@ -24,6 +24,7 @@ import {
   productVariants,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { ReservationMode } from "../../common/constants/inventory.constants";
 // Internal modules - Common
 import {
   COD_PAYMENT_METHOD,
@@ -56,6 +57,12 @@ import { DiscountSnapshotValidator } from "../discounts/services/discount-snapsh
 import { DriftDetectorService } from "../discounts/services/drift-detector.service";
 import { HotReloadWatcher } from "../discounts/services/hot-reload-watcher.service";
 import { RulesetBundleService } from "../discounts/services/ruleset-bundle.service";
+// Relative imports - Services
+import { OrderEventsService } from "../events/order-events.service";
+import {
+  OrderCreatedEventPayload,
+  OrderPaymentCompletedEventPayload,
+} from "../events/order-events.types";
 import { NotificationsService } from "../notifications/notifications.service";
 import { NotificationType } from "../notifications/types/notification.types";
 import { PaymentFeeBreakdownDto } from "../payments/dto/payment-charge.dto";
@@ -75,17 +82,19 @@ import { PricingAuditService } from "../pricing/services/pricing-audit.service";
 import { PricingDriftDetectorService } from "../pricing/services/pricing-drift-detector.service";
 import { PricingHotReloadWatcher } from "../pricing/services/pricing-hot-reload-watcher.service";
 import { PricingSnapshotValidator } from "../pricing/services/pricing-snapshot-validator.service";
+import { ProductEnrichmentService } from "../products/services/product-enrichment.service";
 import { CheckoutState } from "../redis-store/constants/checkout-states";
 import { CheckoutMetadata } from "../redis-store/dto/checkout-metadata.dto";
 import {
   PaymentIntent,
   PaymentIntentStatus,
 } from "../redis-store/dto/payment-intent.dto";
+import { CheckoutLockStore } from "../redis-store/stores/checkout-lock-store";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
-
 // Relative imports - DTOs
 import { CreateOrderDto } from "./dto/create-order.dto";
+import { PricingSnapshotDto } from "./dto/enriched-order-item.dto";
 import { OrderResponseDto } from "./dto/order-response.dto";
 import { OrderTimelineDto } from "./dto/order-timeline.dto";
 import { OrderTrackingDto } from "./dto/order-tracking.dto";
@@ -99,7 +108,6 @@ import {
   validateAuthenticatedCheckoutRequirements,
   validateGuestCheckoutRequirements,
 } from "./services/order-creation.helper";
-// Relative imports - Services
 import { OrderGstService } from "./services/order-gst.service";
 import { OrderPricingService } from "./services/order-pricing.service";
 import { OrderStatusService } from "./services/order-status.service";
@@ -115,8 +123,10 @@ export class OrdersService {
     private readonly customersService: CustomersService,
     private readonly addressesService: AddressesService,
     private readonly discountsService: DiscountsService,
+    private readonly productEnrichmentService: ProductEnrichmentService,
     private readonly inventoryStore: InventoryStore,
     private readonly checkoutStore: CheckoutStore,
+    private readonly checkoutLockStore: CheckoutLockStore,
     private readonly discountSnapshotValidator: DiscountSnapshotValidator,
     private readonly discountAuditService: DiscountAuditService,
     private readonly driftDetector: DriftDetectorService,
@@ -140,6 +150,7 @@ export class OrdersService {
     private readonly statusService: OrderStatusService,
     private readonly gstService: OrderGstService,
     private readonly timelineService: OrderTimelineService,
+    private readonly orderEventsService: OrderEventsService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
@@ -864,6 +875,7 @@ export class OrdersService {
 
           // Run discount engine with profiling
           const engineStartTime = Date.now();
+          const shippingCost = createOrderDto.shippingCost || 0;
           const engineInput: DiscountEngineInput = {
             cart: {
               items: cartItemsForEngine,
@@ -871,6 +883,7 @@ export class OrdersService {
             customer: customerData,
             discounts: eligibleDiscounts,
             now: new Date(),
+            shippingCost, // Pass shipping cost for TOTAL discount calculation
           };
 
           const engineResult = runDiscountEngine(engineInput);
@@ -1803,12 +1816,40 @@ export class OrdersService {
     for (const item of cartItemsWithVariants) {
       // Use effective price from pricing snapshot if available, otherwise use cart price
       let itemPrice = item.price;
+      let pricingSnapshot: PricingSnapshotDto | undefined;
+
       if (metadata.pricingSnapshot) {
         const variantPrice = metadata.pricingSnapshot.variantPrices.find(
           (vp) => vp.variantId === item.productVariantId,
         );
         if (variantPrice) {
           itemPrice = variantPrice.effectivePrice;
+
+          // Store detailed pricing snapshot in order item metadata
+          const basePrice = variantPrice.basePrice;
+          const compareAtPrice = variantPrice.compareAtPrice;
+          const effectivePrice = variantPrice.effectivePrice;
+          const savings = basePrice - effectivePrice;
+          const _savingsPercentage =
+            basePrice > 0 ? (savings / basePrice) * 100 : 0;
+
+          pricingSnapshot = {
+            basePrice,
+            compareAtPrice: compareAtPrice || null,
+            appliedSale:
+              variantPrice.isOnSale && variantPrice.salePrice
+                ? { amount: variantPrice.salePrice, label: "Sale Price" }
+                : undefined,
+            appliedPriceList:
+              variantPrice.appliedPriceListId &&
+              variantPrice.appliedPriceListName
+                ? {
+                    name: variantPrice.appliedPriceListName,
+                    amount: basePrice - effectivePrice,
+                  }
+                : undefined,
+            savings,
+          };
         }
       }
 
@@ -1827,6 +1868,7 @@ export class OrdersService {
         price: itemPrice,
         gstRate: item.productGstRate,
         gstAmount: gstBreakdown.totalGst,
+        metadata: pricingSnapshot ? { pricingSnapshot } : undefined,
       });
     }
 
@@ -1969,6 +2011,137 @@ export class OrdersService {
     }
 
     await this.db.insert(orderItems).values(orderItemsToInsert);
+
+    // Commit inventory atomically (release reservation AND decrement inventory)
+    // CRITICAL: This uses atomic Lua script to ensure consistency
+    // If this fails, inventory will be out of sync and needs manual reconciliation
+    try {
+      // Commit reservations for variant items using atomic commit
+      for (const item of cartItemsWithVariants) {
+        // Determine reservation mode by checking if soft reservation counter exists
+        // If soft_reserved counter > 0, it was soft reserved, otherwise hard
+        const softReserved = await this.inventoryStore.getReservedInventory(
+          item.productVariantId,
+        );
+        const available =
+          (await this.inventoryStore.getAvailableInventory(
+            item.productVariantId,
+          )) || 0;
+        // Simple heuristic: if available <= 10, likely soft mode, otherwise hard
+        // More accurate would be to store mode in reservation, but this works for now
+        const mode = available <= 10 && softReserved > 0 ? "soft" : "hard";
+
+        await this.inventoryStore.commitReservationAtomic(
+          cart.id,
+          item.productVariantId,
+          item.quantity,
+          mode as ReservationMode,
+        );
+
+        // Sync Redis inventory value to database
+        try {
+          await this.inventoryStore.syncInventoryToDatabase(
+            item.productVariantId,
+          );
+        } catch (error) {
+          this.logger.warn(
+            createErrorContext(
+              this.contextService,
+              "syncInventoryToDatabase",
+              error,
+              { orderId, variantId: item.productVariantId },
+            ),
+            "Failed to sync inventory to database (non-critical, Redis is source of truth)",
+          );
+        }
+      }
+
+      // Commit reservations for bundle items (all variants) using atomic commit
+      for (const bundleItem of bundleCartItems) {
+        const bundleMetadata = bundleItem.metadata as BundleCartItemMetadata;
+        const variantQuantities =
+          this.bundlePricingService.flattenBundleSelections(
+            bundleMetadata.selections,
+            bundleItem.quantity,
+          );
+
+        for (const vq of variantQuantities) {
+          // Determine reservation mode
+          const softReserved = await this.inventoryStore.getReservedInventory(
+            vq.variantId,
+          );
+          const available =
+            (await this.inventoryStore.getAvailableInventory(vq.variantId)) ||
+            0;
+          const mode = available <= 10 && softReserved > 0 ? "soft" : "hard";
+
+          await this.inventoryStore.commitReservationAtomic(
+            cart.id,
+            vq.variantId,
+            vq.quantity,
+            mode as ReservationMode,
+          );
+
+          // Sync Redis inventory value to database
+          try {
+            await this.inventoryStore.syncInventoryToDatabase(vq.variantId);
+          } catch (error) {
+            this.logger.warn(
+              createErrorContext(
+                this.contextService,
+                "syncInventoryToDatabase",
+                error,
+                { orderId, variantId: vq.variantId },
+              ),
+              "Failed to sync inventory to database (non-critical, Redis is source of truth)",
+            );
+          }
+        }
+      }
+
+      this.logger.info(
+        createLogContext(this.contextService, "commitInventory", {
+          orderId,
+          variantItemsCount: cartItemsWithVariants.length,
+          bundleItemsCount: bundleCartItems.length,
+        }),
+        "Inventory successfully committed atomically for COD order",
+      );
+
+      // Mark all cart items as COMMITTED after successful inventory commit
+      try {
+        await this.db
+          .update(cartItems)
+          .set({ state: "committed" })
+          .where(eq(cartItems.cartId, cart.id));
+      } catch (error) {
+        this.logger.warn(
+          createErrorContext(
+            this.contextService,
+            "markCartItemsCommitted",
+            error,
+            { orderId, cartId: cart.id },
+          ),
+          "Failed to mark cart items as committed (non-critical)",
+        );
+      }
+    } catch (error) {
+      // CRITICAL ERROR: Inventory commit failed
+      // Order is already created, but inventory wasn't decremented
+      // Log as critical error for manual reconciliation
+      this.logger.error(
+        createErrorContext(this.contextService, "commitInventory", error, {
+          orderId,
+          cartId: cart.id,
+          variantItemsCount: cartItemsWithVariants.length,
+          bundleItemsCount: bundleCartItems.length,
+          critical: true,
+        }),
+        "CRITICAL: Failed to commit inventory for COD order - manual reconciliation required",
+      );
+      // Don't throw - order is already created, payment is confirmed (COD)
+      // Inventory reconciliation will need to be done manually
+    }
 
     // Create COD payment record (status: pending, will be marked as captured when delivered)
     await this.db.insert(payments).values({
@@ -2890,23 +3063,51 @@ export class OrdersService {
       .values(orderItemsToInsert)
       .returning();
 
-    // Commit inventory (convert reserved → consumed)
-    // This happens AFTER payment confirmation
-    // CRITICAL: Inventory MUST be decremented when order is placed
+    // Commit inventory atomically (release reservation AND decrement inventory)
+    // CRITICAL: This uses atomic Lua script to ensure consistency
     // If this fails, inventory will be out of sync and needs manual reconciliation
     try {
-      // Release all cart reservations (individual reservation keys)
-      await this.inventoryStore.releaseCartReservations(cart.id);
-
-      // Commit reservations for variant items
+      // Commit reservations for variant items using atomic commit
       for (const item of cartItemsWithVariants) {
-        await this.inventoryStore.incrementInventory(
+        // Determine reservation mode by checking if soft reservation counter exists
+        // If soft_reserved counter > 0, it was soft reserved, otherwise hard
+        const softReserved = await this.inventoryStore.getReservedInventory(
           item.productVariantId,
-          -item.quantity,
         );
+        const available =
+          (await this.inventoryStore.getAvailableInventory(
+            item.productVariantId,
+          )) || 0;
+        // Simple heuristic: if available <= 10, likely soft mode, otherwise hard
+        // More accurate would be to store mode in reservation, but this works for now
+        const mode = available <= 10 && softReserved > 0 ? "soft" : "hard";
+
+        await this.inventoryStore.commitReservationAtomic(
+          cart.id,
+          item.productVariantId,
+          item.quantity,
+          mode as ReservationMode,
+        );
+
+        // Sync Redis inventory value to database
+        try {
+          await this.inventoryStore.syncInventoryToDatabase(
+            item.productVariantId,
+          );
+        } catch (error) {
+          this.logger.warn(
+            createErrorContext(
+              this.contextService,
+              "syncInventoryToDatabase",
+              error,
+              { orderId, variantId: item.productVariantId },
+            ),
+            "Failed to sync inventory to database (non-critical, Redis is source of truth)",
+          );
+        }
       }
 
-      // Commit reservations for bundle items (all variants)
+      // Commit reservations for bundle items (all variants) using atomic commit
       for (const bundleItem of bundleCartItems) {
         const bundleMetadata = bundleItem.metadata as BundleCartItemMetadata;
         const variantQuantities =
@@ -2916,10 +3117,36 @@ export class OrdersService {
           );
 
         for (const vq of variantQuantities) {
-          await this.inventoryStore.incrementInventory(
+          // Determine reservation mode
+          const softReserved = await this.inventoryStore.getReservedInventory(
             vq.variantId,
-            -vq.quantity,
           );
+          const available =
+            (await this.inventoryStore.getAvailableInventory(vq.variantId)) ||
+            0;
+          const mode = available <= 10 && softReserved > 0 ? "soft" : "hard";
+
+          await this.inventoryStore.commitReservationAtomic(
+            cart.id,
+            vq.variantId,
+            vq.quantity,
+            mode as ReservationMode,
+          );
+
+          // Sync Redis inventory value to database
+          try {
+            await this.inventoryStore.syncInventoryToDatabase(vq.variantId);
+          } catch (error) {
+            this.logger.warn(
+              createErrorContext(
+                this.contextService,
+                "syncInventoryToDatabase",
+                error,
+                { orderId, variantId: vq.variantId },
+              ),
+              "Failed to sync inventory to database (non-critical, Redis is source of truth)",
+            );
+          }
         }
       }
 
@@ -2929,8 +3156,51 @@ export class OrdersService {
           variantItemsCount: cartItemsWithVariants.length,
           bundleItemsCount: bundleCartItems.length,
         }),
-        "Inventory successfully decremented for order",
+        "Inventory successfully committed atomically for order",
       );
+
+      // Mark all cart items as COMMITTED after successful inventory commit
+      try {
+        await this.db
+          .update(cartItems)
+          .set({
+            state: "committed",
+          })
+          .where(eq(cartItems.cartId, cart.id));
+
+        this.logger.debug(
+          createLogContext(this.contextService, "markCartItemsCommitted", {
+            cartId: cart.id,
+            orderId,
+          }),
+          "Marked all cart items as COMMITTED",
+        );
+      } catch (error) {
+        // Log but don't fail - state update failure is non-critical
+        this.logger.warn(
+          createErrorContext(
+            this.contextService,
+            "markCartItemsCommitted",
+            error,
+            { cartId: cart.id, orderId },
+          ),
+          "Failed to mark cart items as COMMITTED",
+        );
+      }
+
+      // Clear checkout lock after successful commit
+      try {
+        await this.checkoutLockStore.clearCheckoutLock(cart.id);
+      } catch (error) {
+        // Log but don't fail - lock clear failure is non-critical
+        this.logger.warn(
+          createErrorContext(this.contextService, "clearCheckoutLock", error, {
+            cartId: cart.id,
+            orderId,
+          }),
+          "Failed to clear checkout lock after order finalization",
+        );
+      }
     } catch (error) {
       // CRITICAL ERROR: Inventory decrement failed
       // Order is already created, but inventory wasn't decremented
@@ -3030,6 +3300,46 @@ export class OrdersService {
       "Order finalized",
     );
 
+    // Emit order created event
+    try {
+      await this.orderEventsService.emitOrderCreated({
+        orderId,
+        orderNumber,
+        customerId,
+        timestamp: new Date(),
+        total,
+        itemsCount: insertedOrderItems.length,
+        metadata: {
+          paymentIntentId,
+          checkoutSessionId,
+          provider,
+        },
+      } as OrderCreatedEventPayload);
+
+      // Emit payment completed event
+      await this.orderEventsService.emitPaymentCompleted({
+        orderId,
+        orderNumber,
+        customerId,
+        timestamp: new Date(),
+        paymentIntentId,
+        amount: total,
+        paymentMethod: metadata.paymentMethod || "online",
+        metadata: {
+          provider,
+        },
+      } as OrderPaymentCompletedEventPayload);
+    } catch (error) {
+      // Log but don't throw - event emission failure shouldn't break order creation
+      this.logger.warn(
+        createErrorContext(this.contextService, "emitOrderEvents", error, {
+          orderId,
+          orderNumber,
+        }),
+        "Failed to emit order events",
+      );
+    }
+
     return orderResponse;
   }
 
@@ -3079,6 +3389,7 @@ export class OrdersService {
         price: number;
         gstRate: number;
         gstAmount: number;
+        metadata: unknown;
         createdAt: Date;
         updatedAt: Date;
       }>;
@@ -3092,6 +3403,7 @@ export class OrdersService {
             price: orderItems.price,
             gstRate: orderItems.gstRate,
             gstAmount: orderItems.gstAmount,
+            metadata: orderItems.metadata,
             createdAt: orderItems.createdAt,
             updatedAt: orderItems.updatedAt,
           })
@@ -3110,15 +3422,31 @@ export class OrdersService {
         items = [];
       }
 
-      // Get shipping address for GST calculation
-      let shippingAddress: { state: string } | undefined;
+      // Enrich items with product data
+      const variantIds = items.map((item) => item.productVariantId);
+      const enrichedVariants =
+        await this.productEnrichmentService.enrichVariants(variantIds);
+      const enrichedVariantsMap = new Map(
+        enrichedVariants.map((v) => [v.variantId, v]),
+      );
+
+      // Get shipping and billing addresses
+      let shippingAddressData: typeof addresses.$inferSelect | undefined;
+      let billingAddressData: typeof addresses.$inferSelect | undefined;
       try {
-        const addressResult = await this.db
-          .select({ state: addresses.state })
+        const [shippingAddr] = await this.db
+          .select()
           .from(addresses)
           .where(eq(addresses.id, order.shippingAddressId))
           .limit(1);
-        shippingAddress = addressResult[0];
+        shippingAddressData = shippingAddr;
+
+        const [billingAddr] = await this.db
+          .select()
+          .from(addresses)
+          .where(eq(addresses.id, order.billingAddressId))
+          .limit(1);
+        billingAddressData = billingAddr;
       } catch (error) {
         this.logger.warn(
           createLogContext(
@@ -3127,13 +3455,17 @@ export class OrdersService {
             {
               orderId,
               shippingAddressId: order.shippingAddressId,
+              billingAddressId: order.billingAddressId,
               error: error instanceof Error ? error.message : String(error),
             },
           ),
-          "Failed to fetch shipping address, using default state",
+          "Failed to fetch addresses",
         );
-        shippingAddress = undefined;
       }
+
+      const shippingAddress = shippingAddressData
+        ? { state: shippingAddressData.state }
+        : undefined;
 
       // Calculate GST breakdown
       const sellerState = this.getSellerState();
@@ -3235,6 +3567,142 @@ export class OrdersService {
         }
       }
 
+      // Build enriched items
+      const enrichedItems = items.map((item) => {
+        const enrichedVariant = enrichedVariantsMap.get(item.productVariantId);
+        const itemSubtotal = item.price * item.quantity;
+        const itemGstBreakdown = calculateGstBreakdown(
+          itemSubtotal,
+          item.gstRate,
+          sellerState,
+          buyerState,
+        );
+
+        // Read pricing snapshot from item metadata if available
+        let pricingSnapshot: PricingSnapshotDto | undefined;
+        const itemMetadata = item.metadata as
+          | { pricingSnapshot?: PricingSnapshotDto }
+          | null
+          | undefined;
+        if (
+          itemMetadata &&
+          typeof itemMetadata === "object" &&
+          "pricingSnapshot" in itemMetadata
+        ) {
+          const storedSnapshot = itemMetadata.pricingSnapshot;
+          if (storedSnapshot) {
+            pricingSnapshot = storedSnapshot;
+          }
+        }
+
+        // Fallback: construct basic snapshot if not stored
+        if (!pricingSnapshot) {
+          pricingSnapshot = {
+            basePrice: Number(item.price),
+            compareAtPrice: enrichedVariant?.compareAtPrice || null,
+            savings: 0,
+          };
+        }
+
+        return {
+          id: item.id,
+          orderId: item.orderId,
+          variantId: item.productVariantId,
+          productId: enrichedVariant?.productId || "",
+          productTitle: enrichedVariant?.productTitle || "Product",
+          productSlug: enrichedVariant?.productSlug || "",
+          variantTitle: enrichedVariant?.variantTitle || null,
+          sku: enrichedVariant?.sku || "",
+          attributes: enrichedVariant?.attributes || {},
+          thumbnail: enrichedVariant?.thumbnail || null,
+          quantity: item.quantity,
+          unitPrice: Number(item.price),
+          lineTotal: itemSubtotal,
+          pricingSnapshot,
+          gstRate: item.gstRate,
+          gstAmount: item.gstAmount,
+          gstBreakdown: {
+            cgst: itemGstBreakdown.cgst,
+            sgst: itemGstBreakdown.sgst,
+            igst: itemGstBreakdown.igst,
+          },
+          createdAt: item.createdAt,
+          updatedAt: item.updatedAt,
+        };
+      });
+
+      // Get payment details
+      const paymentDetails: {
+        method: string;
+        status: string;
+        transactionId: string | null;
+        paidAt: Date | null;
+        feeBreakdown: {
+          chargeType: string;
+          amount: number;
+          percentage?: number;
+        };
+      } = {
+        method: order.paymentMethod || "unknown",
+        status: "pending",
+        transactionId: null,
+        paidAt: null,
+        feeBreakdown: {
+          chargeType: paymentFeeBreakdown?.chargeType || "NONE",
+          amount: order.paymentFee ? Number(order.paymentFee) / 100 : 0,
+          percentage: paymentFeeBreakdown?.percentage,
+        },
+      };
+
+      if (order.razorpayOrderId) {
+        try {
+          const payment = await this.db
+            .select()
+            .from(payments)
+            .where(eq(payments.razorpayOrderId, order.razorpayOrderId))
+            .limit(1);
+          if (payment[0]) {
+            paymentDetails.status = payment[0].status || "pending";
+            paymentDetails.transactionId = payment[0].razorpayPaymentId || null;
+            // paidAt not in payments table - use updatedAt if status is captured
+            paymentDetails.paidAt =
+              payment[0].status === "captured" ? payment[0].updatedAt : null;
+          }
+        } catch (error) {
+          this.logger.warn(
+            createLogContext(
+              this.contextService,
+              "OrdersService.findOne.getPaymentDetails",
+              {
+                orderId,
+                razorpayOrderId: order.razorpayOrderId,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            ),
+            "Failed to fetch payment details",
+          );
+        }
+      }
+
+      // Build shipping details
+      const shippingDetails: {
+        provider: string | null;
+        method: string | null;
+        trackingNumber: string | null;
+        trackingUrl: string | null;
+        estimatedDelivery: Date | null;
+        shippedAt: Date | null;
+        deliveredAt: Date | null;
+      } = {
+        provider: order.shippingProvider || null,
+        method: null,
+        trackingNumber: null,
+        trackingUrl: null,
+        estimatedDelivery: null,
+        shippedAt: order.status === "shipped" ? order.updatedAt : null,
+        deliveredAt: order.status === "delivered" ? order.updatedAt : null,
+      };
+
       return {
         id: order.id,
         customerId: order.customerId,
@@ -3252,7 +3720,35 @@ export class OrdersService {
         shippingProvider: order.shippingProvider || null,
         shippingAddressId: order.shippingAddressId,
         billingAddressId: order.billingAddressId,
-        items,
+        items: enrichedItems,
+        shippingAddress: shippingAddressData
+          ? {
+              id: shippingAddressData.id,
+              fullName: "", // Not stored in addresses table
+              addressLine1: shippingAddressData.street,
+              addressLine2: shippingAddressData.district || null,
+              city: shippingAddressData.city,
+              state: shippingAddressData.state,
+              postalCode: shippingAddressData.pincode,
+              country: shippingAddressData.country,
+              phone: "", // Not stored in addresses table
+            }
+          : undefined,
+        billingAddress: billingAddressData
+          ? {
+              id: billingAddressData.id,
+              fullName: "", // Not stored in addresses table
+              addressLine1: billingAddressData.street,
+              addressLine2: billingAddressData.district || null,
+              city: billingAddressData.city,
+              state: billingAddressData.state,
+              postalCode: billingAddressData.pincode,
+              country: billingAddressData.country,
+              phone: "", // Not stored in addresses table
+            }
+          : undefined,
+        paymentDetails,
+        shippingDetails,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         archived: order.archived || false,

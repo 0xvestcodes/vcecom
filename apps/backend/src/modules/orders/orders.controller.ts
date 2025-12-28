@@ -21,6 +21,13 @@ import {
 } from "@nestjs/swagger";
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
+import {
+  BadRequestErrorDto,
+  ConflictErrorDto,
+  NotFoundErrorDto,
+  TooManyRequestsErrorDto,
+  UnauthorizedErrorDto,
+} from "../../common/dto/error-response.dto";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { CancelOrderDto } from "./dto/cancel-order.dto";
@@ -80,19 +87,28 @@ export class OrdersController {
   @ApiResponse({
     status: 400,
     description: "Bad request (empty cart, insufficient inventory, etc.)",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 401,
     description: "Unauthorized (for authenticated checkout)",
+    type: UnauthorizedErrorDto,
   })
   @ApiResponse({
     status: 404,
     description: "Addresses not found or do not belong to customer",
+    type: NotFoundErrorDto,
   })
   @ApiResponse({
     status: 409,
     description:
       "Conflict (cart already being checked out, invalid state, etc.)",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async create(
     @Request() req: Request & {
@@ -109,9 +125,10 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({
-    summary: "Get all orders for authenticated customer",
+    summary: "Get all orders for authenticated customer with enriched data",
     description:
-      "Returns all orders for the authenticated customer. Optionally filter by status.",
+      "Returns all orders for the authenticated customer with enriched product data, " +
+      "addresses, and payment details. Optionally filter by status.",
   })
   @ApiQuery({
     name: "status",
@@ -139,9 +156,11 @@ export class OrdersController {
   @Get(":id")
   @Public()
   @ApiOperation({
-    summary: "Get order by ID",
+    summary: "Get order by ID with enriched product data",
     description:
-      "Returns a specific order by ID. Supports both authenticated customers and guest orders.",
+      "Returns a specific order by ID with complete product details (titles, images, SKUs), " +
+      "embedded addresses, payment details, shipping information, and pricing snapshots. " +
+      "Supports both authenticated customers and guest orders. No additional API calls needed for display.",
   })
   @ApiParam({
     name: "id",
@@ -192,14 +211,27 @@ export class OrdersController {
   @ApiResponse({
     status: 400,
     description: "Invalid status transition",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 401,
     description: "Unauthorized",
+    type: UnauthorizedErrorDto,
   })
   @ApiResponse({
     status: 404,
     description: "Order not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Conflict - Invalid status transition",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 422,
+    description: "Unprocessable entity - Invalid status transition",
+    type: BadRequestErrorDto,
   })
   async updateStatus(
     @Request() req: AuthenticatedRequest,
@@ -301,14 +333,27 @@ export class OrdersController {
   @ApiResponse({
     status: 400,
     description: "Bad request (order already paid, invalid state, etc.)",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 401,
     description: "Unauthorized",
+    type: UnauthorizedErrorDto,
   })
   @ApiResponse({
     status: 404,
     description: "Order not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Conflict - Order already has active payment intent",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async retryPayment(
     @Request() req: AuthenticatedRequest,
@@ -342,14 +387,27 @@ export class OrdersController {
     status: 400,
     description:
       "Bad request (order cannot be cancelled, invalid status, etc.)",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 401,
     description: "Unauthorized",
+    type: UnauthorizedErrorDto,
   })
   @ApiResponse({
     status: 404,
     description: "Order not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Conflict - Order cannot be cancelled in current state",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
   })
   async cancelOrder(
     @Request() req: AuthenticatedRequest,

@@ -1,5 +1,9 @@
 import { calculateDiscountAmount } from "../../../common/utils/discount.utils";
-import { DiscountScope, DiscountType } from "../dto/create-discount.dto";
+import {
+  DiscountAppliesTo,
+  DiscountScope,
+  DiscountType,
+} from "../dto/create-discount.dto";
 import { DiscountResponseDto } from "../dto/discount-response.dto";
 import { AppliedCartDiscount } from "./discount-engine.types";
 import { ensureNonNegative, roundToTwoDecimals } from "./rounding.utils";
@@ -7,13 +11,17 @@ import { ensureNonNegative, roundToTwoDecimals } from "./rounding.utils";
 /**
  * Apply cart-level discounts to subtotal
  * Cart discounts are applied AFTER product-level and tiered/BOGO discounts
+ * Separates discounts by appliesTo (SUBTOTAL vs TOTAL)
  */
 export function applyCartDiscounts(
   subtotal: number,
   discounts: DiscountResponseDto[],
+  shippingCost: number = 0,
 ): {
-  cartDiscounts: AppliedCartDiscount[];
+  subtotalDiscounts: AppliedCartDiscount[];
+  totalDiscounts: AppliedCartDiscount[];
   subtotalAfterCartDiscounts: number;
+  totalAfterDiscounts: number;
 } {
   // Filter to only cart-level discounts
   const cartDiscounts = discounts.filter(
@@ -23,15 +31,66 @@ export function applyCartDiscounts(
       d.type !== DiscountType.TIERED,
   );
 
-  if (cartDiscounts.length === 0) {
-    return {
-      cartDiscounts: [],
-      subtotalAfterCartDiscounts: subtotal,
-    };
+  // Separate discounts by appliesTo
+  const subtotalDiscounts = cartDiscounts.filter(
+    (d) => d.appliesTo === DiscountAppliesTo.SUBTOTAL,
+  );
+  const totalDiscounts = cartDiscounts.filter(
+    (d) => d.appliesTo === DiscountAppliesTo.TOTAL,
+  );
+
+  // Apply SUBTOTAL discounts first
+  const subtotalAfterSubtotalDiscounts = applyDiscountsToAmount(
+    subtotal,
+    subtotalDiscounts,
+  );
+
+  // Add shipping to get total
+  const totalBeforeDiscounts = subtotalAfterSubtotalDiscounts + shippingCost;
+
+  // Apply TOTAL discounts to total (after shipping)
+  const totalAfterTotalDiscounts = applyDiscountsToAmount(
+    totalBeforeDiscounts,
+    totalDiscounts,
+  );
+
+  return {
+    subtotalDiscounts: subtotalDiscounts
+      .map((d) => ({
+        discountId: d.id,
+        discountCode: d.code,
+        discountAmount: calculateDiscountAmount(d, subtotal),
+        discountType: d.type,
+      }))
+      .filter((d) => d.discountAmount > 0),
+    totalDiscounts: totalDiscounts
+      .map((d) => ({
+        discountId: d.id,
+        discountCode: d.code,
+        discountAmount: calculateDiscountAmount(d, totalBeforeDiscounts),
+        discountType: d.type,
+      }))
+      .filter((d) => d.discountAmount > 0),
+    subtotalAfterCartDiscounts: roundToTwoDecimals(
+      subtotalAfterSubtotalDiscounts,
+    ),
+    totalAfterDiscounts: roundToTwoDecimals(totalAfterTotalDiscounts),
+  };
+}
+
+/**
+ * Apply discounts to an amount
+ */
+function applyDiscountsToAmount(
+  amount: number,
+  discounts: DiscountResponseDto[],
+): number {
+  if (discounts.length === 0) {
+    return amount;
   }
 
   // Sort by priority (ascending: lower = stronger)
-  const sortedDiscounts = [...cartDiscounts].sort(
+  const sortedDiscounts = [...discounts].sort(
     (a, b) => a.priority - b.priority,
   );
 
@@ -47,8 +106,7 @@ export function applyCartDiscounts(
     }
   }
 
-  let currentSubtotal = subtotal;
-  const appliedDiscounts: AppliedCartDiscount[] = [];
+  let currentAmount = amount;
 
   // Apply non-stackable discount (highest priority only)
   if (nonStackableDiscounts.length > 0) {
@@ -57,36 +115,18 @@ export function applyCartDiscounts(
     );
     const discountAmount = calculateDiscountAmount(
       highestPriority,
-      currentSubtotal,
+      currentAmount,
     );
     const roundedDiscount = roundToTwoDecimals(discountAmount);
-    currentSubtotal = ensureNonNegative(currentSubtotal - roundedDiscount);
-    appliedDiscounts.push({
-      discountId: highestPriority.id,
-      discountCode: highestPriority.code,
-      discountAmount: roundedDiscount,
-      discountType: highestPriority.type,
-    });
+    currentAmount = ensureNonNegative(currentAmount - roundedDiscount);
   }
 
   // Apply stackable discounts (all eligible)
   for (const discount of stackableDiscounts) {
-    const discountAmount = calculateDiscountAmount(
-      discount,
-      currentSubtotal, // Apply to already discounted subtotal
-    );
+    const discountAmount = calculateDiscountAmount(discount, currentAmount);
     const roundedDiscount = roundToTwoDecimals(discountAmount);
-    currentSubtotal = ensureNonNegative(currentSubtotal - roundedDiscount);
-    appliedDiscounts.push({
-      discountId: discount.id,
-      discountCode: discount.code,
-      discountAmount: roundedDiscount,
-      discountType: discount.type,
-    });
+    currentAmount = ensureNonNegative(currentAmount - roundedDiscount);
   }
 
-  return {
-    cartDiscounts: appliedDiscounts,
-    subtotalAfterCartDiscounts: roundToTwoDecimals(currentSubtotal),
-  };
+  return roundToTwoDecimals(currentAmount);
 }

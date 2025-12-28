@@ -41,6 +41,6 @@ import { RedisHealthService } from "./services/redis-health.service";
     BackgroundJobsService,
     DashboardService,
   ],
-  exports: [AdminService],
+  exports: [AdminService, RedisHealthService, BackgroundJobsService],
 })
 export class AdminModule {}

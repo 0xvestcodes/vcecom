@@ -29,12 +29,6 @@
     "build": "turbo run build",
     "dev": "turbo run dev",
     "start": "turbo run start",
-    "test": "turbo run test",
-    "test:watch": "turbo run test:watch",
-    "test:cov": "turbo run test:cov",
-    "test:local": "bash scripts/test-local.sh",
-    "test:local:no-docker": "bash scripts/test-local.sh --no-docker",
-    "test:local:cleanup": "bash scripts/test-local.sh --cleanup",
     "format-and-lint": "biome check .",
     "format-and-lint:fix": "biome check . --write",
     "check-types": "turbo run check-types",
@@ -43,6 +37,7 @@
     "changelog:unreleased": "git-cliff --unreleased",
     "changelog:ai": "tsx scripts/generate-changelog-ai.ts",
     "commit-history": "bash scripts/generate-commit-history.sh",
+    "seed:ecom": "tsx scripts/seed-ecom.ts",
     "semantic-release": "semantic-release",
     "semantic-release:beta": "semantic-release --config .releaserc.beta.js",
     "semantic-release:prod": "semantic-release --config .releaserc.prod.js",
@@ -77,7 +72,14 @@
   "dependencies": {
     "@types/qrcode": "^1.5.6",
     "argon2": "^0.44.0",
+    "esbuild": "^0.27.2",
     "otplib": "^12.0.1",
     "qrcode": "^1.5.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "^18.3.3",
+      "@types/react-dom": "^18.3.0"
+    }
   }
 }

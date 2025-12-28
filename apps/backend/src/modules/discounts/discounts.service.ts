@@ -38,6 +38,7 @@ import { EligibilityStore } from "../redis-store/stores/eligibility-store";
 import {
   CreateDiscountDto,
   DiscountApplicationType,
+  DiscountAppliesTo,
   DiscountScope,
   DiscountType,
   DiscountValueType,
@@ -127,6 +128,7 @@ export class DiscountsService {
         minQuantity: createDiscountDto.minQuantity || null,
         customerGroupIds: createDiscountDto.customerGroupIds || null,
         scope: createDiscountDto.scope || "PRODUCT",
+        appliesTo: createDiscountDto.appliesTo || "SUBTOTAL",
         priority: createDiscountDto.priority || 1,
         canStack: createDiscountDto.canStack ?? true,
         mutuallyExclusive: createDiscountDto.mutuallyExclusive ?? false,
@@ -206,35 +208,40 @@ export class DiscountsService {
    * Get all discounts with pagination
    */
   async findAll(page = 1, limit = 10) {
-    const offset = (page - 1) * limit;
+    try {
+      const offset = (page - 1) * limit;
 
-    const allDiscounts = await this.db
-      .select()
-      .from(discounts)
-      .orderBy(desc(discounts.createdAt))
-      .limit(limit)
-      .offset(offset);
+      const allDiscounts = await this.db
+        .select()
+        .from(discounts)
+        .orderBy(desc(discounts.createdAt))
+        .limit(limit)
+        .offset(offset);
 
-    // Get total count using COUNT(*) for performance
-    const countResult = await this.db
-      .select({ count: sql<number>`count(*)` })
-      .from(discounts);
-    const total = Number(countResult[0]?.count || 0);
-    const totalPages = Math.ceil(total / limit);
+      // Get total count using COUNT(*) for performance
+      const countResult = await this.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(discounts);
+      const total = Number(countResult[0]?.count || 0);
+      const totalPages = Math.ceil(total / limit);
 
-    const enrichedDiscounts = await Promise.all(
-      allDiscounts.map((discount) =>
-        this.enrichDiscountWithRelations(discount.id),
-      ),
-    );
+      const enrichedDiscounts = await Promise.all(
+        allDiscounts.map((discount) =>
+          this.enrichDiscountWithRelations(discount.id),
+        ),
+      );
 
-    return {
-      data: enrichedDiscounts,
-      total,
-      page,
-      limit,
-      totalPages,
-    };
+      return {
+        data: enrichedDiscounts,
+        total,
+        page,
+        limit,
+        totalPages,
+      };
+    } catch (error) {
+      console.error("Error in findAll:", error);
+      throw error;
+    }
   }
 
   /**
@@ -615,7 +622,7 @@ export class DiscountsService {
     if (cartVariantIds && cartVariantIds.length > 0) {
       try {
         rules = await this.filterByEligibility(rules, cartVariantIds);
-      } catch (error) {
+      } catch (_error) {
         // If eligibility filtering fails (Redis unavailable), continue with all rules
         // The discount engine will filter based on product matching
         // This ensures automatic discounts work even if Redis cache isn't warmed up
@@ -717,7 +724,7 @@ export class DiscountsService {
   ): Promise<DiscountResponseDto[]> {
     const variantIdSet = new Set(variantIds);
     const eligible: DiscountResponseDto[] = [];
-    let hasCacheMiss = false;
+    let _hasCacheMiss = false;
 
     for (const rule of rules) {
       try {
@@ -729,7 +736,7 @@ export class DiscountsService {
         if (!eligibilitySet) {
           // Not cached - include it anyway, discount engine will check eligibility
           // This ensures automatic discounts work even if Redis cache isn't warmed up
-          hasCacheMiss = true;
+          _hasCacheMiss = true;
           eligible.push(rule);
           continue;
         }
@@ -742,9 +749,9 @@ export class DiscountsService {
         if (hasEligibleVariant) {
           eligible.push(rule);
         }
-      } catch (error) {
+      } catch (_error) {
         // Redis error - include discount anyway, let discount engine filter it
-        hasCacheMiss = true;
+        _hasCacheMiss = true;
         eligible.push(rule);
       }
     }
@@ -1058,6 +1065,7 @@ export class DiscountsService {
         ? Number(discount.maxDiscountAmount)
         : null,
       scope: discount.scope as DiscountScope,
+      appliesTo: discount.appliesTo as DiscountAppliesTo,
       priority: discount.priority,
       canStack: discount.canStack,
       mutuallyExclusive: discount.mutuallyExclusive,

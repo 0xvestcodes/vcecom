@@ -22,7 +22,7 @@ export function ActivityLogsTable({
 }: ActivityLogsTableProps) {
   if (isLoading) {
     return (
-      <div className="border rounded-lg">
+      <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
         <Table>
           <TableHeader>
             <TableRow>
@@ -39,7 +39,7 @@ export function ActivityLogsTable({
             {Array.from({ length: 5 }, (_, i) => (
               <TableRow key={`activity-log-skeleton-row-${String(i)}`}>
                 <TableCell colSpan={7}>
-                  <div className="h-12 bg-muted animate-pulse rounded" />
+                  <div className="h-10 bg-muted/30 animate-pulse rounded" />
                 </TableCell>
               </TableRow>
             ))}
@@ -51,14 +51,14 @@ export function ActivityLogsTable({
 
   if (logs.length === 0) {
     return (
-      <div className="border rounded-lg p-8 text-center">
-        <p className="text-muted-foreground">No activity logs found</p>
+      <div className="rounded-lg border border-border/50 bg-card/30 p-8 text-center">
+        <p className="text-xs text-muted-foreground">No activity logs found</p>
       </div>
     );
   }
 
   return (
-    <div className="border rounded-lg">
+    <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
       <Table>
         <TableHeader>
           <TableRow>

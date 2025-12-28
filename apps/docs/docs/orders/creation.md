@@ -78,8 +78,58 @@ Orders are created automatically when payment is confirmed via webhook:
 1. Payment webhook received
 2. System retrieves checkout metadata (includes `customerId`)
 3. System creates order linked to `customerId`
-4. System commits inventory reservations
+4. **System commits inventory (decrements stock)** - happens immediately after order creation
 5. System clears cart
+
+### Inventory Commit During Order Creation
+
+**CRITICAL**: Inventory is decremented immediately when the order is created in `finalizeOrderFromPayment`:
+
+```typescript
+// In finalizeOrderFromPayment, after order creation:
+try {
+  // Release all cart reservations
+  await this.inventoryStore.releaseCartReservations(cart.id);
+
+  // Commit inventory for variant items (decrement stock)
+  for (const item of cartItemsWithVariants) {
+    await this.inventoryStore.incrementInventory(
+      item.productVariantId,
+      -item.quantity, // Negative to decrement
+    );
+  }
+
+  // Commit inventory for bundle items (all variants)
+  for (const bundleItem of bundleCartItems) {
+    const variantQuantities = flattenBundleSelections(
+      bundleMetadata.selections,
+      bundleItem.quantity,
+    );
+
+    for (const vq of variantQuantities) {
+      await this.inventoryStore.incrementInventory(
+        vq.variantId,
+        -vq.quantity, // Negative to decrement
+      );
+    }
+  }
+} catch (error) {
+  // CRITICAL ERROR: Inventory commit failed
+  // Order is already created, but inventory wasn't decremented
+  // Requires manual reconciliation
+  logger.error("CRITICAL: Failed to commit inventory for order", {
+    orderId,
+    error,
+    critical: true,
+  });
+}
+```
+
+**Important Notes:**
+- Inventory decrement happens **at order creation**, not at delivery
+- If inventory commit fails, order is still created (payment was successful)
+- Failed commits are logged as **CRITICAL** errors
+- Manual reconciliation required for failed commits (see [Inventory Reconciliation](./inventory-reconciliation))
 
 ### Checkout Metadata
 

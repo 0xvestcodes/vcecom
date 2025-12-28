@@ -1,8 +1,10 @@
 "use client";
 
-import { Check, Trash2, X } from "lucide-react";
+import { Check, Star, Trash2, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PaginationControls } from "@/components/common/pagination-controls";
+import { ProtectedButton } from "@/components/common/protected-button";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { DateTime } from "@/components/orders/date-time";
 import { Badge } from "@/components/ui/badge";
@@ -50,6 +52,21 @@ export function ReviewsPageClient() {
     router.replace(`/reviews?${params.toString()}`, { scroll: false });
   }, [page, router]);
 
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const paginationInfo = data
+    ? {
+        startItem: (data.page - 1) * data.limit + 1,
+        endItem: Math.min(data.page * data.limit, data.total),
+        total: data.total,
+        currentPage: data.page,
+        totalPages: data.totalPages,
+      }
+    : null;
+
   const handleApprove = async (reviewId: string) => {
     setProcessingReviewId(reviewId);
     try {
@@ -90,39 +107,15 @@ export function ReviewsPageClient() {
       title="Reviews"
       description="Moderate product reviews"
       pagination={
-        data && (
-          <div className="w-full flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              {data.total === 0 ? (
-                "Showing 0 reviews"
-              ) : (
-                <>
-                  Showing {(data.page - 1) * data.limit + 1} to{" "}
-                  {Math.min(data.page * data.limit, data.total)} of {data.total}{" "}
-                  reviews
-                </>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page - 1)}
-                disabled={data.page <= 1 || isLoading}
-              >
-                Previous
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setPage(page + 1)}
-                disabled={data.page >= data.totalPages || isLoading}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
-        )
+        <PaginationControls
+          paginationInfo={paginationInfo}
+          onPreviousPage={() => handlePageChange(page - 1)}
+          onNextPage={() => handlePageChange(page + 1)}
+          canGoPrevious={data ? data.page > 1 : false}
+          canGoNext={data ? data.page < data.totalPages : false}
+          isLoading={isLoading}
+          itemLabel="reviews"
+        />
       }
     >
       <ConfirmDialog
@@ -146,7 +139,7 @@ export function ReviewsPageClient() {
       )}
 
       {isLoading ? (
-        <div className="rounded-md border">
+        <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -160,23 +153,24 @@ export function ReviewsPageClient() {
             <TableBody>
               {Array.from({ length: 5 }, (_, i) => (
                 <TableRow key={`skeleton-row-${String(i)}`}>
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       ) : data && data.data.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <p className="text-lg font-medium mb-2">No pending reviews</p>
-          <p className="text-sm">All reviews have been moderated</p>
+        <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+          <Star className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p className="text-sm font-medium mb-1">No pending reviews</p>
+          <p className="text-xs">All reviews have been moderated</p>
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -189,8 +183,11 @@ export function ReviewsPageClient() {
             </TableHeader>
             <TableBody>
               {data?.data.map((review) => (
-                <TableRow key={review.id}>
-                  <TableCell>
+                <TableRow
+                  key={review.id}
+                  className="group hover:bg-muted/30 transition-colors"
+                >
+                  <TableCell className="text-xs">
                     <div className="flex items-center gap-1">
                       {Array.from({ length: 5 }, (_, i) => (
                         <span
@@ -206,19 +203,19 @@ export function ReviewsPageClient() {
                       ))}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
                     <div>
                       {review.title && (
                         <p className="font-medium">{review.title}</p>
                       )}
                       {review.comment && (
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-xs text-muted-foreground">
                           {review.comment}
                         </p>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
                     <Badge
                       variant={
                         review.status === "approved"
@@ -227,63 +224,76 @@ export function ReviewsPageClient() {
                             ? "destructive"
                             : "secondary"
                       }
+                      className="text-xs"
                     >
                       {review.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
                     <DateTime date={review.createdAt} />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
                     <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleApprove(review.id)}
-                        disabled={
-                          processingReviewId !== null || deleteReview.isPending
-                        }
-                        title="Approve review"
-                      >
-                        {processingReviewId === review.id &&
-                        approveReview.isPending ? (
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        ) : (
-                          <Check className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleReject(review.id)}
-                        disabled={
-                          processingReviewId !== null || deleteReview.isPending
-                        }
-                        title="Reject review"
-                      >
-                        {processingReviewId === review.id &&
-                        rejectReview.isPending ? (
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        ) : (
-                          <X className="h-4 w-4" />
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDeleteClick(review.id)}
-                        disabled={
-                          processingReviewId !== null || deleteReview.isPending
-                        }
-                        title="Delete review"
-                      >
-                        {deleteReview.isPending &&
-                        reviewToDelete === review.id ? (
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                        ) : (
-                          <Trash2 className="h-4 w-4" />
-                        )}
-                      </Button>
+                      <ProtectedButton requiredRoles={["admin", "reviewer"]}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleApprove(review.id)}
+                          disabled={
+                            processingReviewId !== null ||
+                            deleteReview.isPending
+                          }
+                          title="Approve review"
+                          className="text-xs h-8"
+                        >
+                          {processingReviewId === review.id &&
+                          approveReview.isPending ? (
+                            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          ) : (
+                            <Check className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </ProtectedButton>
+                      <ProtectedButton requiredRoles={["admin", "reviewer"]}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleReject(review.id)}
+                          disabled={
+                            processingReviewId !== null ||
+                            deleteReview.isPending
+                          }
+                          title="Reject review"
+                          className="text-xs h-8"
+                        >
+                          {processingReviewId === review.id &&
+                          rejectReview.isPending ? (
+                            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          ) : (
+                            <X className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </ProtectedButton>
+                      <ProtectedButton requiredRoles={["admin", "reviewer"]}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteClick(review.id)}
+                          disabled={
+                            processingReviewId !== null ||
+                            deleteReview.isPending
+                          }
+                          title="Delete review"
+                          className="text-xs h-8"
+                        >
+                          {deleteReview.isPending &&
+                          reviewToDelete === review.id ? (
+                            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </ProtectedButton>
                     </div>
                   </TableCell>
                 </TableRow>

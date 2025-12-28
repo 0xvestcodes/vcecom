@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  PayloadTooLargeException,
 } from "@nestjs/common";
 import { ContextService } from "../logging/context.service";
 import {
@@ -40,6 +41,19 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       response.requestContext ||
       ({} as Partial<import("../logging/context.service").RequestContext>);
     const requestId = requestContext.requestId || "unknown";
+
+    // Handle multer file size errors
+    if (
+      exception &&
+      typeof exception === "object" &&
+      "code" in exception &&
+      exception.code === "LIMIT_FILE_SIZE"
+    ) {
+      const payloadTooLargeException = new PayloadTooLargeException(
+        "File size exceeds maximum allowed size of 50MB",
+      );
+      exception = payloadTooLargeException;
+    }
 
     // Determine status code and message
     const status =
@@ -104,11 +118,38 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     if (typeof message === "string") {
       errorResponse.message = message;
     } else if (typeof message === "object") {
-      const httpMessage = message as HttpExceptionResponse;
-      errorResponse.message =
-        (httpMessage.message as string) || "An error occurred";
+      const httpMessage = message as HttpExceptionResponse & {
+        failures?: unknown;
+        adjustedCart?: unknown;
+        [key: string]: unknown;
+      };
+
+      // Extract message string
+      if (typeof httpMessage.message === "string") {
+        errorResponse.message = httpMessage.message;
+      } else if (Array.isArray(httpMessage.message)) {
+        // Validation errors - join array
+        errorResponse.message = httpMessage.message.join(", ");
+      }
+
       if (httpMessage.error) {
         errorResponse.error = httpMessage.error;
+      }
+
+      // Preserve structured error data (e.g., inventory failures)
+      // Check if this is a structured error with failures field
+      if (
+        "failures" in httpMessage ||
+        "adjustedCart" in httpMessage ||
+        Object.keys(httpMessage).some(
+          (key) => key !== "message" && key !== "error" && key !== "statusCode",
+        )
+      ) {
+        // Preserve the full object as data, excluding standard fields
+        const { message: _, error: __, statusCode: ___, ...rest } = httpMessage;
+        if (Object.keys(rest).length > 0) {
+          errorResponse.data = rest;
+        }
       }
     }
 

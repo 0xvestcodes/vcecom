@@ -16,8 +16,8 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Redis TTL and Expiration Strategy",
-    "permalink": "/docs/redis/expirations"
+    "title": "Admin Pagination",
+    "permalink": "/docs/admin/pagination"
   },
   "next": {
     "title": "Store API Reference",

@@ -11,6 +11,7 @@ import {
   cartItems,
   carts,
   customers,
+  desc,
   eq,
   inArray,
   productCollections,
@@ -19,6 +20,7 @@ import {
   productVariants,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { ReservationMode } from "../../common/constants/inventory.constants";
 import { ContextService } from "../../common/logging/context.service";
 import {
   createErrorContext,
@@ -39,11 +41,17 @@ import { DiscountAuditService } from "../discounts/services/discount-audit.servi
 import { DiscountProfiler } from "../discounts/services/discount-profiler.service";
 import { HotReloadWatcher } from "../discounts/services/hot-reload-watcher.service";
 import { BundlePricingService } from "../pricing/services/bundle-pricing.service";
-import { KEY_PATTERNS } from "../redis-store/constants/key-patterns";
+import { PriceResolutionService } from "../pricing/services/price-resolution.service";
+import { ProductEnrichmentService } from "../products/services/product-enrichment.service";
 import { RedisStoreService } from "../redis-store/redis-store.service";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
+import { FingerprintStore } from "../redis-store/stores/fingerprint-store";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
-import { BundleCartItemMetadata } from "./dto/bundle-cart-item.dto";
+import { StaleMarkerStore } from "../redis-store/stores/stale-marker-store";
+import {
+  BundleCartItemMetadata,
+  FlattenedBundleItemMetadata,
+} from "./dto/bundle-cart-item.dto";
 
 @Injectable()
 export class CartsService {
@@ -57,6 +65,10 @@ export class CartsService {
     private readonly hotReloadWatcher: HotReloadWatcher,
     private readonly bundleEligibilityService: BundleEligibilityService,
     private readonly bundlePricingService: BundlePricingService,
+    private readonly fingerprintStore: FingerprintStore,
+    private readonly staleMarkerStore: StaleMarkerStore,
+    private readonly productEnrichmentService: ProductEnrichmentService,
+    private readonly priceResolutionService: PriceResolutionService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
@@ -293,12 +305,43 @@ export class CartsService {
             )
         : [];
 
+    // Resolve current prices for variant items (with sale prices and price lists)
+    const variantItemsWithResolvedPrices = await Promise.all(
+      variantItemsWithProducts.map(async (item) => {
+        try {
+          const resolvedPrice =
+            await this.priceResolutionService.resolveVariantPrice({
+              variantId: item.productVariantId,
+              customerId: customerId || undefined,
+              date: new Date(),
+            });
+          return {
+            ...item,
+            price: resolvedPrice.finalPrice, // Use resolved price instead of stored price
+          };
+        } catch (error) {
+          this.logger.warn(
+            createLogContext(
+              this.contextService,
+              "CartsService.recalculateCartTotals.resolvePrice",
+              {
+                variantId: item.productVariantId,
+                error: error instanceof Error ? error.message : String(error),
+              },
+            ),
+            "Failed to resolve price, using stored cart price",
+          );
+          return item; // Fallback to stored price
+        }
+      }),
+    );
+
     // Calculate subtotal (bundles already have unit price calculated)
     const bundleSubtotal = bundleItems.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0,
     );
-    const variantSubtotal = variantItemsWithProducts.reduce(
+    const variantSubtotal = variantItemsWithResolvedPrices.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0,
     );
@@ -360,8 +403,8 @@ export class CartsService {
     let totalSgst = 0;
     let totalIgst = 0;
 
-    // Calculate GST for variant items
-    for (const item of variantItemsWithProducts) {
+    // Calculate GST for variant items (using resolved prices)
+    for (const item of variantItemsWithResolvedPrices) {
       const gstRate = gstRateMap.get(item.productId) || 0;
       const itemAmount = item.price * item.quantity;
 
@@ -477,7 +520,7 @@ export class CartsService {
 
     // Get all product IDs (variant items + bundle variants)
     const allVariantIds = [
-      ...variantItemsWithProducts.map((i) => i.productVariantId),
+      ...variantItemsWithResolvedPrices.map((i) => i.productVariantId),
       ...flattenedBundleItems.map((i) => i.productVariantId),
     ];
 
@@ -546,7 +589,8 @@ export class CartsService {
     }
 
     // Build cart items with full metadata for discount engine (variant items + flattened bundles)
-    const variantItemsForEngine = variantItemsWithProducts.map((item) => {
+    // Use resolved prices for discount calculation
+    const variantItemsForEngine = variantItemsWithResolvedPrices.map((item) => {
       const product = productMap.get(item.productId);
       return {
         id: item.id,
@@ -555,7 +599,7 @@ export class CartsService {
         categoryId: product?.categoryId || null,
         collectionIds: collectionsByProduct.get(item.productId) || [],
         tagIds: tagsByProduct.get(item.productId) || [],
-        price: item.price,
+        price: item.price, // Resolved price
         quantity: item.quantity,
       };
     });
@@ -678,6 +722,32 @@ export class CartsService {
     const subtotalAfterDiscount = Math.max(0, subtotal - discountAmount);
     const total = subtotalAfterDiscount + totalGstAmount;
 
+    // Update cart item prices to reflect resolved prices (for consistency)
+    // This ensures cart totals match displayed prices
+    try {
+      for (const item of variantItemsWithResolvedPrices) {
+        // Only update if price changed (to avoid unnecessary DB writes)
+        if (item.price !== variantItems.find((i) => i.id === item.id)?.price) {
+          await this.db
+            .update(cartItems)
+            .set({ price: item.price })
+            .where(eq(cartItems.id, item.id));
+        }
+      }
+    } catch (error) {
+      this.logger.warn(
+        createLogContext(
+          this.contextService,
+          "CartsService.recalculateCartTotals.updateItemPrices",
+          {
+            cartId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        ),
+        "Failed to update cart item prices, continuing with totals update",
+      );
+    }
+
     // Update cart totals
     try {
       await this.db
@@ -750,21 +820,30 @@ export class CartsService {
    * Automatically reinitializes cart if it's in error state
    */
   @Trace({ operation: "CartsService.getCart" })
-  async getCart(userId: string | null, sessionId: string | null) {
+  async getCart(
+    userId: string | null,
+    sessionId: string | null,
+    checkoutSessionId?: string | null,
+  ) {
     let customerId: string | null = null;
     if (userId) {
       customerId = await this.getCustomerId(userId);
     }
 
     const cart = await this.getOrCreateCart(customerId, sessionId);
-    return this.getCartById(cart.id, customerId);
+    return this.getCartById(cart.id, customerId, checkoutSessionId);
   }
 
   /**
    * Get cart by ID
+   * Optionally includes checkout session data (shipping cost, payment fee) when checkoutSessionId is provided
    */
   @Trace({ operation: "CartsService.getCartById" })
-  async getCartById(cartId: string, customerId?: string | null) {
+  async getCartById(
+    cartId: string,
+    customerId?: string | null,
+    checkoutSessionId?: string | null,
+  ) {
     // Get cart from database
     let cart: typeof carts.$inferSelect | undefined;
     try {
@@ -798,7 +877,20 @@ export class CartsService {
     let items: Array<typeof cartItems.$inferSelect>;
     try {
       items = await this.db
-        .select()
+        .select({
+          id: cartItems.id,
+          cartId: cartItems.cartId,
+          productVariantId: cartItems.productVariantId,
+          quantity: cartItems.quantity,
+          price: cartItems.price,
+          metadata: cartItems.metadata,
+          state: cartItems.state,
+          staleMarkedAt: cartItems.staleMarkedAt,
+          reacquiredAt: cartItems.reacquiredAt,
+          archivedAt: cartItems.archivedAt,
+          createdAt: cartItems.createdAt,
+          updatedAt: cartItems.updatedAt,
+        })
         .from(cartItems)
         .where(eq(cartItems.cartId, cart.id));
     } catch (error) {
@@ -814,19 +906,75 @@ export class CartsService {
       items = [];
     }
 
-    // Hydrate bundle items
-    const hydratedItems = await Promise.all(
+    // Get stale items for this cart
+    const staleVariantIds = await this.staleMarkerStore.getStaleItems(cart.id);
+
+    // Extract all variant IDs for enrichment
+    const variantIds = items.map((item) => item.productVariantId);
+
+    // Enrich all variants with product data
+    const enrichedVariants =
+      await this.productEnrichmentService.enrichVariants(variantIds);
+    const enrichedVariantsMap = new Map(
+      enrichedVariants.map((v) => [v.variantId, v]),
+    );
+
+    // Resolve prices for all variants
+    const resolvedPricesMap = new Map<
+      string,
+      Awaited<
+        ReturnType<typeof this.priceResolutionService.resolveVariantPrice>
+      >
+    >();
+    for (const variantId of variantIds) {
+      try {
+        const resolvedPrice =
+          await this.priceResolutionService.resolveVariantPrice({
+            variantId,
+            customerId: effectiveCustomerId || undefined,
+            date: new Date(),
+          });
+        resolvedPricesMap.set(variantId, resolvedPrice);
+      } catch (error) {
+        this.logger.warn(
+          createLogContext(
+            this.contextService,
+            "CartsService.getCartById.resolvePrice",
+            {
+              variantId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          ),
+          "Failed to resolve price for variant, using cart item price",
+        );
+      }
+    }
+
+    // Build enriched cart items
+    const enrichedItems = await Promise.all(
       items.map(async (item) => {
         const metadata = item.metadata as BundleCartItemMetadata | null;
+        const enrichedVariant = enrichedVariantsMap.get(item.productVariantId);
+        const resolvedPrice = resolvedPricesMap.get(item.productVariantId);
+
         if (metadata?.type === "bundle") {
-          return this.hydrateBundleItem(item, effectiveCustomerId);
+          return await this.buildEnrichedBundleItem(
+            item,
+            metadata,
+            effectiveCustomerId,
+            enrichedVariant,
+            resolvedPrice,
+            staleVariantIds.includes(item.productVariantId),
+          );
         }
-        // Variant item - return as-is with type
-        return {
-          ...item,
-          type: "variant" as const,
-          price: Number(item.price),
-        };
+
+        // Variant item
+        return this.buildEnrichedVariantItem(
+          item,
+          enrichedVariant,
+          resolvedPrice,
+          staleVariantIds.includes(item.productVariantId),
+        );
       }),
     );
 
@@ -843,10 +991,124 @@ export class CartsService {
       .where(eq(carts.id, cart.id))
       .limit(1);
 
+    // Build warnings array if there are stale items
+    const warnings =
+      staleVariantIds.length > 0
+        ? [
+            {
+              type: "STALE_ITEMS",
+              message: `${staleVariantIds.length} item(s) reservation expired. Availability will be revalidated at checkout.`,
+            },
+          ]
+        : [];
+
+    // Calculate item-level discounts (from sale prices and price lists)
+    const itemDiscounts = enrichedItems.reduce((sum, item) => {
+      const baseTotal = item.pricing.basePrice * item.quantity;
+      const finalTotal = item.pricing.unitPrice * item.quantity;
+      return sum + (baseTotal - finalTotal);
+    }, 0);
+
+    // Get discount details if discount code exists
+    let discountDetails:
+      | {
+          code: string;
+          type: string;
+          description: string;
+          amountSaved: number;
+          percentageSaved: number;
+          appliedTo: string;
+          eligibleItems?: string[];
+        }
+      | undefined;
+
+    if (updatedCart.discountCode) {
+      try {
+        const discount = await this.discountsService.findByCode(
+          updatedCart.discountCode,
+        );
+        const discountAmount = Number(updatedCart.discountAmount || 0);
+        const subtotalAfterItemDiscounts =
+          Number(updatedCart.subtotal) - itemDiscounts;
+        const percentageSaved =
+          subtotalAfterItemDiscounts > 0
+            ? (discountAmount / subtotalAfterItemDiscounts) * 100
+            : 0;
+
+        // Map discount type to simpler format
+        let mappedType: "percentage" | "fixed" | "buy_x_get_y";
+        if (discount.type === "PERCENTAGE") {
+          mappedType = "percentage";
+        } else if (discount.type === "BUY_X_GET_Y") {
+          mappedType = "buy_x_get_y";
+        } else {
+          mappedType = "fixed";
+        }
+
+        discountDetails = {
+          code: discount.code,
+          type: mappedType,
+          description: discount.description || discount.name || discount.code,
+          amountSaved: discountAmount,
+          percentageSaved: Math.round(percentageSaved * 100) / 100,
+          appliedTo: discount.appliesTo === "SUBTOTAL" ? "cart" : "items",
+          // TODO: Calculate eligible items based on discount scope
+        };
+      } catch (error) {
+        this.logger.warn(
+          createLogContext(
+            this.contextService,
+            "CartsService.getCartById.getDiscountDetails",
+            {
+              discountCode: updatedCart.discountCode,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          ),
+          "Failed to fetch discount details",
+        );
+      }
+    }
+
+    // Build price summary
+    const subtotal = Number(updatedCart.subtotal);
+    const couponDiscount = Number(updatedCart.discountAmount || 0);
+    const totalBeforeGst = subtotal - itemDiscounts - couponDiscount;
+    const gstAmount = Number(updatedCart.gstAmount || 0);
+    const total = Number(updatedCart.total);
+
+    // Fetch checkout session metadata if checkoutSessionId is provided
+    let shippingCost: number | undefined;
+    let paymentFee: number | undefined;
+
+    if (checkoutSessionId) {
+      try {
+        const metadata =
+          await this.checkoutStore.getCheckoutMetadata(checkoutSessionId);
+        if (metadata) {
+          shippingCost = metadata.shippingCost;
+          // paymentFee is stored in paise, keep it as-is for consistency
+          paymentFee = metadata.paymentFee;
+        }
+      } catch (error) {
+        this.logger.warn(
+          createLogContext(
+            this.contextService,
+            "CartsService.getCartById.getCheckoutMetadata",
+            {
+              checkoutSessionId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+          ),
+          "Failed to fetch checkout metadata, continuing without shipping/payment fees",
+        );
+        // Continue without checkout session data - non-critical
+      }
+    }
+
     return {
       ...updatedCart,
       discountCode: updatedCart.discountCode,
-      discountAmount: Number(updatedCart.discountAmount || 0),
+      discountAmount: couponDiscount,
       gstBreakdown: {
         cgst: gstBreakdown.cgst,
         sgst: gstBreakdown.sgst,
@@ -854,39 +1116,142 @@ export class CartsService {
         totalGst: gstBreakdown.gstAmount,
         isIntraState: gstBreakdown.cgst > 0 || gstBreakdown.sgst > 0,
       },
-      items: hydratedItems,
+      items: enrichedItems,
+      discount: discountDetails,
+      priceSummary: {
+        subtotal,
+        itemDiscounts,
+        couponDiscount,
+        totalBeforeGst,
+        gstAmount,
+        gstBreakdown: {
+          cgst: gstBreakdown.cgst,
+          sgst: gstBreakdown.sgst,
+          igst: gstBreakdown.igst,
+          totalGst: gstBreakdown.gstAmount,
+          isIntraState: gstBreakdown.cgst > 0 || gstBreakdown.sgst > 0,
+        },
+        total,
+      },
+      warnings: warnings.length > 0 ? warnings : undefined,
+      shippingCost,
+      paymentFee,
     };
   }
 
   /**
-   * Hydrate bundle cart item with full bundle structure
+   * Build enriched variant cart item
    */
-  private async hydrateBundleItem(
+  private buildEnrichedVariantItem(
     item: {
       id: string;
       productVariantId: string;
       quantity: number;
       price: number;
-      metadata: unknown;
+      state: string | null;
       createdAt: Date;
       updatedAt: Date;
     },
-    customerId: string | null,
+    enrichedVariant:
+      | Awaited<
+          ReturnType<typeof this.productEnrichmentService.enrichVariants>
+        >[0]
+      | undefined,
+    resolvedPrice:
+      | Awaited<
+          ReturnType<typeof this.priceResolutionService.resolveVariantPrice>
+        >
+      | undefined,
+    isStale: boolean,
   ) {
-    const metadata = item.metadata as BundleCartItemMetadata;
+    // Fallback to cart item price if enrichment/resolution failed
+    const unitPrice = resolvedPrice?.finalPrice ?? Number(item.price);
+    const basePrice = resolvedPrice?.basePrice ?? Number(item.price);
+    const compareAtPrice = resolvedPrice?.compareAtPrice ?? null;
+    const breakdown = resolvedPrice?.breakdown ?? {
+      basePrice: Number(item.price),
+      totalSavings: 0,
+      savingsPercentage: 0,
+    };
+
+    return {
+      id: item.id,
+      type: "variant" as const,
+      quantity: item.quantity,
+      variantId: item.productVariantId,
+      productId: enrichedVariant?.productId || "",
+      productTitle: enrichedVariant?.productTitle || "Product",
+      productSlug: enrichedVariant?.productSlug || "",
+      variantTitle: enrichedVariant?.variantTitle || null,
+      sku: enrichedVariant?.sku || "",
+      attributes: enrichedVariant?.attributes || {},
+      thumbnail: enrichedVariant?.thumbnail || null,
+      pricing: {
+        unitPrice,
+        lineTotal: unitPrice * item.quantity,
+        basePrice,
+        compareAtPrice,
+        breakdown: {
+          salePrice: breakdown.salePrice
+            ? {
+                amount: breakdown.salePrice.amount,
+                label: breakdown.salePrice.label || "Sale",
+              }
+            : undefined,
+          priceListDiscount: breakdown.priceListDiscount
+            ? {
+                amount: breakdown.priceListDiscount.amount,
+                listName: breakdown.priceListDiscount.listName,
+              }
+            : undefined,
+          savings: breakdown.totalSavings,
+          savingsPercentage: breakdown.savingsPercentage,
+        },
+      },
+      inventoryStatus: enrichedVariant?.inventoryStatus || "out_of_stock",
+      availableQuantity: enrichedVariant?.inventoryQuantity || 0,
+      gstRate: enrichedVariant?.gstRate || 0,
+      state: item.state || "fresh",
+      isStale,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    };
+  }
+
+  /**
+   * Build enriched bundle cart item
+   */
+  private async buildEnrichedBundleItem(
+    item: {
+      id: string;
+      productVariantId: string;
+      quantity: number;
+      price: number;
+      state: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+      metadata: unknown;
+    },
+    metadata: BundleCartItemMetadata,
+    customerId: string | null,
+    enrichedVariant:
+      | Awaited<
+          ReturnType<typeof this.productEnrichmentService.enrichVariants>
+        >[0]
+      | undefined,
+    resolvedPrice:
+      | Awaited<
+          ReturnType<typeof this.priceResolutionService.resolveVariantPrice>
+        >
+      | undefined,
+    isStale: boolean,
+  ) {
     const bundle = await this.bundleEligibilityService.getBundle(
       metadata.bundleId,
     );
 
     if (!bundle) {
       throw new NotFoundException(`Bundle ${metadata.bundleId} not found`);
-    }
-
-    // Validate bundle is still active
-    if (!bundle.isActive) {
-      throw new BadRequestException(
-        `Bundle ${metadata.bundleId} is no longer active`,
-      );
     }
 
     // Get bundle variant breakdown
@@ -898,20 +1263,64 @@ export class CartsService {
         customerId,
       );
 
+    // Use resolved price if available, otherwise use cart item price
+    const unitPrice = resolvedPrice?.finalPrice ?? Number(item.price);
+    const basePrice = resolvedPrice?.basePrice ?? Number(item.price);
+    const compareAtPrice = resolvedPrice?.compareAtPrice ?? null;
+    const breakdown = resolvedPrice?.breakdown ?? {
+      basePrice: Number(item.price),
+      totalSavings: 0,
+      savingsPercentage: 0,
+    };
+
     return {
       id: item.id,
       type: "bundle" as const,
-      productVariantId: item.productVariantId,
-      bundleId: metadata.bundleId,
-      selections: metadata.selections,
       quantity: item.quantity,
-      price: Number(item.price),
-      unitBundlePrice: Number(item.price),
+      variantId: item.productVariantId,
+      productId: enrichedVariant?.productId || "",
+      productTitle: enrichedVariant?.productTitle || bundle.title,
+      productSlug: enrichedVariant?.productSlug || "",
+      variantTitle: enrichedVariant?.variantTitle || null,
+      sku: enrichedVariant?.sku || "",
+      attributes: enrichedVariant?.attributes || {},
+      thumbnail: enrichedVariant?.thumbnail || null,
+      pricing: {
+        unitPrice,
+        lineTotal: unitPrice * item.quantity,
+        basePrice,
+        compareAtPrice,
+        breakdown: {
+          salePrice: breakdown.salePrice
+            ? {
+                amount: breakdown.salePrice.amount,
+                label: breakdown.salePrice.label || "Sale",
+              }
+            : undefined,
+          priceListDiscount: breakdown.priceListDiscount
+            ? {
+                amount: breakdown.priceListDiscount.amount,
+                listName: breakdown.priceListDiscount.listName,
+              }
+            : undefined,
+          savings: breakdown.totalSavings,
+          savingsPercentage: breakdown.savingsPercentage,
+        },
+      },
+      inventoryStatus: enrichedVariant?.inventoryStatus || "out_of_stock",
+      availableQuantity: enrichedVariant?.inventoryQuantity || 0,
+      gstRate: enrichedVariant?.gstRate || 0,
+      bundleId: metadata.bundleId,
+      bundleTitle: bundle.title,
+      bundleSetId: undefined, // Will be set if needed
+      selections: metadata.selections,
       bundleVariantBreakdown: variantBreakdown.map((vb) => ({
         variantId: vb.variantId,
         unitPrice: vb.unitPrice,
         quantity: vb.quantity,
       })),
+      state: item.state || "fresh",
+      isStale,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };
@@ -1029,6 +1438,64 @@ export class CartsService {
 
     const cart = await this.getOrCreateCart(customerId, sessionId);
 
+    // Enforce fingerprint-based reservation limit (abuse prevention)
+    const fingerprint = this.contextService.getValue("fingerprint");
+    if (fingerprint) {
+      try {
+        // Check if this cart already has reservations tracked for this fingerprint
+        const activeCartIds =
+          await this.fingerprintStore.getActiveCartIds(fingerprint);
+        const isNewCart = !activeCartIds.includes(cart.id);
+
+        // Only enforce limit if this is a new cart for this fingerprint
+        if (isNewCart) {
+          await this.fingerprintStore.enforceReservationLimit(fingerprint);
+        }
+
+        // Track this cart's reservation for the fingerprint
+        await this.fingerprintStore.addReservation(fingerprint, cart.id);
+      } catch (error) {
+        // If it's a BadRequestException (limit exceeded), rethrow it
+        if (error instanceof BadRequestException) {
+          throw error;
+        }
+        // Log other errors but continue - fingerprint tracking is non-critical
+        this.logger.warn(
+          createErrorContext(
+            this.contextService,
+            "addItem.fingerprintEnforcement",
+            error,
+            { fingerprint },
+          ),
+          "Failed to enforce fingerprint reservation limit (non-critical)",
+        );
+      }
+    }
+
+    // Enforce one cart per authenticated user (merge multiple carts if they exist)
+    if (userId) {
+      try {
+        await this.enforceOneCartPerUser(userId);
+        // Re-fetch cart after merge (cart ID might have changed)
+        const mergedCart = await this.getOrCreateCart(customerId, sessionId);
+        if (mergedCart.id !== cart.id) {
+          // Cart was merged - use the merged cart
+          return this.addItem(userId, sessionId, addItemDto);
+        }
+      } catch (error) {
+        // Log but continue - merge failure shouldn't block add item
+        this.logger.warn(
+          createErrorContext(
+            this.contextService,
+            "addItem.enforceOneCartPerUser",
+            error,
+            { userId },
+          ),
+          "Failed to enforce one cart per user (non-critical)",
+        );
+      }
+    }
+
     // Check if cart has active checkout session (snapshot locked)
     if (await this.isCartSnapshotLocked(cart.id)) {
       throw new ConflictException(
@@ -1110,84 +1577,80 @@ export class CartsService {
       )
       .limit(1);
 
+    // Check stock level (no reservation at cart time - race-to-checkout model)
+    const stockCheck = await this.inventoryStore.checkStockLevel(
+      addItemDto.productVariantId,
+    );
+
+    if (!stockCheck.canAdd) {
+      throw new BadRequestException(
+        "This item is currently out of stock. Please try again later.",
+      );
+    }
+
+    let reservationWarning: string | undefined;
+    if (stockCheck.warning) {
+      reservationWarning = stockCheck.warning;
+    }
+
     if (existingItem) {
       // Update quantity
       const newQuantity = existingItem.quantity + addItemDto.quantity;
 
-      // Check available inventory using InventoryStore
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(
-          addItemDto.productVariantId,
-        )) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        addItemDto.productVariantId,
-      );
-      const available = availableInventory - reservedInventory;
-
-      if (available < newQuantity) {
-        throw new BadRequestException(
-          `Insufficient inventory. Available: ${available}`,
-        );
-      }
-
-      // Reserve new quantity (Lua script handles delta automatically)
-      await this.inventoryStore.reserveInventory(
-        cart.id,
-        addItemDto.productVariantId,
-        newQuantity,
-      );
-      // Refresh TTL for the reservation
-      await this.inventoryStore.refreshReservationTTL(
-        cart.id,
-        addItemDto.productVariantId,
-      );
-
+      // Update quantity and set state to FRESH (clearing any stale state)
       await this.db
         .update(cartItems)
-        .set({ quantity: newQuantity })
+        .set({
+          quantity: newQuantity,
+          state: "fresh",
+          staleMarkedAt: null,
+        })
         .where(eq(cartItems.id, existingItem.id));
+
+      // Clear stale marker if it exists
+      await this.staleMarkerStore.clearStaleMarker(
+        cart.id,
+        addItemDto.productVariantId,
+      );
     } else {
-      // Check available inventory using InventoryStore
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(
-          addItemDto.productVariantId,
-        )) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        addItemDto.productVariantId,
-      );
-      const available = availableInventory - reservedInventory;
-
-      if (available < addItemDto.quantity) {
-        throw new BadRequestException(
-          `Insufficient inventory. Available: ${available}`,
-        );
-      }
-
-      // Reserve inventory
-      await this.inventoryStore.reserveInventory(
-        cart.id,
-        addItemDto.productVariantId,
-        addItemDto.quantity,
-      );
-      // Refresh TTL for the reservation
-      await this.inventoryStore.refreshReservationTTL(
-        cart.id,
-        addItemDto.productVariantId,
-      );
-
-      // Create new cart item
+      // Create new cart item with FRESH state
       await this.db.insert(cartItems).values({
         cartId: cart.id,
         productVariantId: addItemDto.productVariantId,
         quantity: addItemDto.quantity,
         price: variant.price,
+        state: "fresh",
       });
+
+      // Clear stale marker if it exists (in case item was previously stale)
+      await this.staleMarkerStore.clearStaleMarker(
+        cart.id,
+        addItemDto.productVariantId,
+      );
     }
 
     // Recalculate totals
     await this.recalculateCartTotals(cart.id, customerId);
 
-    return this.getCart(userId, sessionId);
+    const cartResponse = await this.getCart(userId, sessionId);
+
+    // Return cart with warning metadata if applicable
+    if (reservationWarning) {
+      return {
+        ...cartResponse,
+        warnings: [
+          {
+            type: "LOW_STOCK",
+            variantId: addItemDto.productVariantId,
+            message: reservationWarning,
+          },
+        ],
+      } as typeof cartResponse & {
+        warnings?: Array<{ type: string; variantId: string; message: string }>;
+      };
+    }
+
+    return cartResponse;
   }
 
   /**
@@ -1225,153 +1688,157 @@ export class CartsService {
       );
     }
 
-    // Flatten selections to variant quantities
-    const variantQuantities = this.bundlePricingService.flattenBundleSelections(
-      selections,
-      bundleQuantity,
-    );
-
-    // Reserve inventory for each variant
-    for (const vq of variantQuantities) {
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(vq.variantId)) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        vq.variantId,
-      );
-      const available = availableInventory - reservedInventory;
-
-      if (available < vq.quantity) {
-        throw new BadRequestException(
-          `Insufficient inventory for variant ${vq.variantId}. Available: ${available}, Required: ${vq.quantity}`,
-        );
-      }
-
-      // Reserve inventory
-      await this.inventoryStore.reserveInventory(
-        cartId,
-        vq.variantId,
-        vq.quantity,
-      );
-      await this.inventoryStore.refreshReservationTTL(cartId, vq.variantId);
-    }
-
-    // Calculate bundle price
-    const unitBundlePrice =
-      await this.bundlePricingService.calculateBundlePrice(
+    // Get pricing breakdown for each variant
+    const variantBreakdown =
+      await this.bundlePricingService.getBundleVariantBreakdown(
         bundleId,
         selections,
-        1, // unit price
+        bundleQuantity,
         customerId,
       );
 
-    // Get first variant ID for productVariantId (required by schema)
-    const firstVariantId = variantQuantities[0]?.variantId;
-    if (!firstVariantId) {
-      throw new BadRequestException("Bundle must have at least one variant");
-    }
+    // Generate unique bundle group ID to link all items from this bundle instance
+    const bundleGroupId = `${bundleId}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 
-    // Create bundle cart item with metadata
-    const metadata: BundleCartItemMetadata = {
-      type: "bundle",
-      bundleId,
-      selections,
-      bundleTitle: bundle.title,
-    };
-
-    await this.db.insert(cartItems).values({
-      cartId,
-      productVariantId: firstVariantId, // Required by schema, but bundle uses metadata
-      quantity: bundleQuantity,
-      price: unitBundlePrice,
-      metadata: metadata as unknown as Record<string, unknown>,
-    });
-
-    // Recalculate totals
-    await this.recalculateCartTotals(cartId, customerId);
-
-    return this.getCart(userId, sessionId);
-  }
-
-  /**
-   * Update bundle quantity in cart
-   */
-  private async updateBundleInCart(
-    cartId: string,
-    userId: string | null,
-    sessionId: string | null,
-    itemId: string,
-    metadata: BundleCartItemMetadata,
-    oldQuantity: number,
-    newQuantity: number,
-    customerId: string | null,
-  ) {
-    const delta = newQuantity - oldQuantity;
-
-    if (delta === 0) {
-      // No change, just refresh TTLs
-      const variantQuantities =
-        this.bundlePricingService.flattenBundleSelections(
-          metadata.selections,
-          newQuantity,
-        );
-      for (const vq of variantQuantities) {
-        await this.inventoryStore.refreshReservationTTL(cartId, vq.variantId);
+    // Create a map to track which set each variant belongs to
+    const variantToSetId = new Map<string, string>();
+    for (const [setId, variantIds] of Object.entries(selections)) {
+      for (const variantId of variantIds) {
+        variantToSetId.set(variantId, setId);
       }
-      return this.getCart(userId, sessionId);
     }
 
-    // Flatten selections to variant quantities for new quantity
-    const variantQuantities = this.bundlePricingService.flattenBundleSelections(
-      metadata.selections,
-      newQuantity,
-    );
+    // Check stock levels and create individual cart items for each variant
+    // No reservation at cart time - race-to-checkout model
+    const bundleWarnings: Array<{
+      type: string;
+      variantId: string;
+      message: string;
+    }> = [];
+    for (const breakdown of variantBreakdown) {
+      const variantId = breakdown.variantId;
+      const quantity = breakdown.quantity;
+      const unitPrice = breakdown.unitPrice;
 
-    // Adjust inventory reservations
-    for (const vq of variantQuantities) {
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(vq.variantId)) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        vq.variantId,
-      );
-      const available = availableInventory - reservedInventory;
-
-      if (available < vq.quantity) {
+      // Check stock level (no reservation at cart time)
+      const stockCheck = await this.inventoryStore.checkStockLevel(variantId);
+      if (!stockCheck.canAdd) {
         throw new BadRequestException(
-          `Insufficient inventory for variant ${vq.variantId}. Available: ${available}, Required: ${vq.quantity}`,
+          `Variant ${variantId} is currently out of stock and cannot be added to bundle.`,
         );
       }
 
-      // Reserve new quantity (Lua script handles delta automatically)
-      await this.inventoryStore.reserveInventory(
-        cartId,
-        vq.variantId,
-        vq.quantity,
-      );
-      await this.inventoryStore.refreshReservationTTL(cartId, vq.variantId);
+      if (stockCheck.warning) {
+        bundleWarnings.push({
+          type: "LOW_STOCK",
+          variantId,
+          message: stockCheck.warning,
+        });
+      }
+
+      // Check if this variant already exists in cart (from previous bundle or direct add)
+      const [existingItem] = await this.db
+        .select()
+        .from(cartItems)
+        .where(
+          and(
+            eq(cartItems.cartId, cartId),
+            eq(cartItems.productVariantId, variantId),
+          ),
+        )
+        .limit(1);
+
+      if (existingItem) {
+        // Merge with existing item - update quantity and price
+        const existingMetadata =
+          existingItem.metadata as FlattenedBundleItemMetadata | null;
+        const isFromBundle = existingMetadata?.fromBundle === true;
+
+        // If existing item is also from a bundle, we need to decide:
+        // Option 1: Merge quantities (additive)
+        // Option 2: Keep separate (current implementation)
+        // For now, we'll merge quantities if from same bundle group, otherwise keep separate
+        if (isFromBundle && existingMetadata.bundleGroupId === bundleGroupId) {
+          // Same bundle instance - merge quantities
+          const newQuantity = existingItem.quantity + quantity;
+          await this.db
+            .update(cartItems)
+            .set({
+              quantity: newQuantity,
+              // Update price to weighted average
+              price:
+                (existingItem.price * existingItem.quantity +
+                  unitPrice * quantity) /
+                newQuantity,
+              state: "fresh",
+              staleMarkedAt: null,
+            })
+            .where(eq(cartItems.id, existingItem.id));
+
+          // Clear stale marker if it exists
+          await this.staleMarkerStore.clearStaleMarker(cartId, variantId);
+        } else {
+          // Different bundle or regular item - create new cart item
+          const metadata: FlattenedBundleItemMetadata = {
+            fromBundle: true,
+            bundleId,
+            bundleTitle: bundle.title,
+            bundleGroupId,
+            bundleSetId: variantToSetId.get(variantId),
+          };
+
+          await this.db.insert(cartItems).values({
+            cartId,
+            productVariantId: variantId,
+            quantity,
+            price: unitPrice,
+            metadata: metadata as unknown as Record<string, unknown>,
+            state: "fresh",
+          });
+
+          // Clear stale marker if it exists
+          await this.staleMarkerStore.clearStaleMarker(cartId, variantId);
+        }
+      } else {
+        // New variant - create cart item
+        const metadata: FlattenedBundleItemMetadata = {
+          fromBundle: true,
+          bundleId,
+          bundleTitle: bundle.title,
+          bundleGroupId,
+          bundleSetId: variantToSetId.get(variantId),
+        };
+
+        await this.db.insert(cartItems).values({
+          cartId,
+          productVariantId: variantId,
+          quantity,
+          price: unitPrice,
+          metadata: metadata as unknown as Record<string, unknown>,
+          state: "fresh",
+        });
+
+        // Clear stale marker if it exists
+        await this.staleMarkerStore.clearStaleMarker(cartId, variantId);
+      }
     }
-
-    // Recalculate bundle price for new quantity
-    const unitBundlePrice =
-      await this.bundlePricingService.calculateBundlePrice(
-        metadata.bundleId,
-        metadata.selections,
-        1, // unit price
-        customerId,
-      );
-
-    // Update cart item
-    await this.db
-      .update(cartItems)
-      .set({
-        quantity: newQuantity,
-        price: unitBundlePrice,
-      })
-      .where(eq(cartItems.id, itemId));
 
     // Recalculate totals
     await this.recalculateCartTotals(cartId, customerId);
 
-    return this.getCart(userId, sessionId);
+    const cartResponse = await this.getCart(userId, sessionId);
+
+    // Return cart with warnings if any
+    if (bundleWarnings.length > 0) {
+      return {
+        ...cartResponse,
+        warnings: bundleWarnings,
+      } as typeof cartResponse & {
+        warnings?: Array<{ type: string; variantId: string; message: string }>;
+      };
+    }
+
+    return cartResponse;
   }
 
   /**
@@ -1414,74 +1881,62 @@ export class CartsService {
       throw new NotFoundException("Cart item not found");
     }
 
-    // Check if item is a bundle
-    const metadata = item.metadata as BundleCartItemMetadata | null;
-    if (metadata?.type === "bundle") {
-      return this.updateBundleInCart(
-        cart.id,
-        userId,
-        sessionId,
-        itemId,
-        metadata,
-        item.quantity,
-        updateDto.quantity,
-        customerId,
+    // Bundles are now flattened, so all items are handled the same way
+    // Variant item handling
+    // Check stock level (no reservation at cart time - race-to-checkout model)
+    const stockCheck = await this.inventoryStore.checkStockLevel(
+      item.productVariantId,
+    );
+
+    if (!stockCheck.canAdd) {
+      throw new BadRequestException(
+        "This item is currently out of stock. Please try again later.",
       );
     }
 
-    // Variant item handling (existing logic)
-    // Calculate quantity delta
-    const delta = updateDto.quantity - item.quantity;
-
-    if (delta > 0) {
-      // Increasing quantity - check available inventory and reserve additional
-      const availableInventory =
-        (await this.inventoryStore.getAvailableInventory(
-          item.productVariantId,
-        )) ?? 0;
-      const reservedInventory = await this.inventoryStore.getReservedInventory(
-        item.productVariantId,
-      );
-      const available = availableInventory - reservedInventory;
-
-      if (available < updateDto.quantity) {
-        throw new BadRequestException(
-          `Insufficient inventory. Available: ${available}`,
-        );
-      }
-
-      // Reserve new quantity (Lua script handles delta automatically)
-      await this.inventoryStore.reserveInventory(
-        cart.id,
-        item.productVariantId,
-        updateDto.quantity,
-      );
-    } else if (delta < 0) {
-      // Decreasing quantity - reserve new quantity (Lua script handles release)
-      await this.inventoryStore.reserveInventory(
-        cart.id,
-        item.productVariantId,
-        updateDto.quantity,
-      );
+    let reservationWarning: string | undefined;
+    if (stockCheck.warning) {
+      reservationWarning = stockCheck.warning;
     }
-    // If delta === 0, refresh TTL only
 
-    // Refresh TTL for the reservation
-    await this.inventoryStore.refreshReservationTTL(
+    // Update quantity and set state to FRESH (clearing any stale state)
+    await this.db
+      .update(cartItems)
+      .set({
+        quantity: updateDto.quantity,
+        state: "fresh",
+        staleMarkedAt: null,
+      })
+      .where(eq(cartItems.id, itemId));
+
+    // Clear stale marker if it exists
+    await this.staleMarkerStore.clearStaleMarker(
       cart.id,
       item.productVariantId,
     );
 
-    // Update quantity
-    await this.db
-      .update(cartItems)
-      .set({ quantity: updateDto.quantity })
-      .where(eq(cartItems.id, itemId));
-
     // Recalculate totals
     await this.recalculateCartTotals(cart.id, customerId);
 
-    return this.getCart(userId, sessionId);
+    const cartResponse = await this.getCart(userId, sessionId);
+
+    // Return cart with warning metadata if applicable
+    if (reservationWarning) {
+      return {
+        ...cartResponse,
+        warnings: [
+          {
+            type: "LOW_STOCK",
+            variantId: item.productVariantId,
+            message: reservationWarning,
+          },
+        ],
+      } as typeof cartResponse & {
+        warnings?: Array<{ type: string; variantId: string; message: string }>;
+      };
+    }
+
+    return cartResponse;
   }
 
   /**
@@ -1523,53 +1978,62 @@ export class CartsService {
       throw new NotFoundException("Cart item not found");
     }
 
-    // Check if item is a bundle
-    const metadata = item.metadata as BundleCartItemMetadata | null;
-    if (metadata?.type === "bundle") {
-      // Release reservations for all bundle variants
-      const variantQuantities =
-        this.bundlePricingService.flattenBundleSelections(
-          metadata.selections,
-          item.quantity,
-        );
+    // Bundles are now flattened, so all items are handled the same way
+    // Release reservation using atomic Lua script
+    // Check if soft reserved counter exists to determine mode
+    const softReservedKey = `inventory:soft_reserved:${item.productVariantId}`;
+    const hasSoftReservation =
+      await this.inventoryStore.exists(softReservedKey);
+    const mode = (hasSoftReservation ? "soft" : "hard") as ReservationMode;
 
-      for (const vq of variantQuantities) {
-        const reservation = await this.inventoryStore.getReservation(
-          cart.id,
-          vq.variantId,
-        );
-        if (reservation !== null && reservation > 0) {
-          const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(
-            cart.id,
-            vq.variantId,
-          );
-          await this.inventoryStore.delete(reservationKey);
-          await this.inventoryStore.releaseInventory(vq.variantId, reservation);
-        }
-      }
-    } else {
-      // Variant item - release reservation
-      const reservation = await this.inventoryStore.getReservation(
+    try {
+      await this.inventoryStore.releaseInventoryAtomic(
         cart.id,
         item.productVariantId,
+        mode,
       );
-      if (reservation !== null && reservation > 0) {
-        // Delete individual reservation
-        const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(
-          cart.id,
-          item.productVariantId,
-        );
-        await this.inventoryStore.delete(reservationKey);
-        // Decrement aggregated reserved count
-        await this.inventoryStore.releaseInventory(
-          item.productVariantId,
-          reservation,
-        );
-      }
+    } catch (error) {
+      // Log but continue - release failure shouldn't block item removal
+      this.logger.warn(
+        createErrorContext(
+          this.contextService,
+          "removeItem.releaseInventory",
+          error,
+          { cartId: cart.id, variantId: item.productVariantId },
+        ),
+        "Failed to release inventory during item removal (non-critical)",
+      );
     }
 
     // Delete item
     await this.db.delete(cartItems).where(eq(cartItems.id, itemId));
+
+    // Check if cart is now empty - if so, remove fingerprint tracking
+    const remainingItems = await this.db
+      .select({ id: cartItems.id })
+      .from(cartItems)
+      .where(eq(cartItems.cartId, cart.id))
+      .limit(1);
+
+    if (remainingItems.length === 0) {
+      const fingerprint = this.contextService.getValue("fingerprint");
+      if (fingerprint) {
+        try {
+          await this.fingerprintStore.removeReservation(fingerprint, cart.id);
+        } catch (error) {
+          // Log but don't throw - fingerprint tracking is non-critical
+          this.logger.warn(
+            createErrorContext(
+              this.contextService,
+              "removeItem.removeFingerprintReservation",
+              error,
+              { fingerprint, cartId: cart.id },
+            ),
+            "Failed to remove fingerprint reservation (non-critical)",
+          );
+        }
+      }
+    }
 
     // Recalculate totals
     await this.recalculateCartTotals(cart.id, customerId);
@@ -1588,6 +2052,41 @@ export class CartsService {
     }
 
     const cart = await this.getOrCreateCart(customerId, sessionId);
+
+    // Release all inventory reservations before clearing cart
+    try {
+      await this.inventoryStore.releaseCartReservations(cart.id);
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "CartsService.clearCart.releaseReservations",
+          error,
+          { cartId: cart.id },
+        ),
+        "Failed to release cart reservations during clear",
+      );
+      // Continue with cart clear even if reservation release fails
+    }
+
+    // Remove fingerprint tracking for this cart
+    const fingerprint = this.contextService.getValue("fingerprint");
+    if (fingerprint) {
+      try {
+        await this.fingerprintStore.removeReservation(fingerprint, cart.id);
+      } catch (error) {
+        // Log but don't throw - fingerprint tracking is non-critical
+        this.logger.warn(
+          createErrorContext(
+            this.contextService,
+            "clearCart.removeFingerprintReservation",
+            error,
+            { fingerprint, cartId: cart.id },
+          ),
+          "Failed to remove fingerprint reservation (non-critical)",
+        );
+      }
+    }
 
     // Delete all cart items
     await this.db.delete(cartItems).where(eq(cartItems.cartId, cart.id));
@@ -1649,6 +2148,186 @@ export class CartsService {
 
     // Clear the cart using the standard method
     await this.clearCart(userId, sessionId);
+  }
+
+  /**
+   * Enforce one cart per authenticated user
+   * Merges multiple carts into the newest cart and releases duplicate reservations
+   */
+  async enforceOneCartPerUser(userId: string): Promise<void> {
+    const customerId = await this.getCustomerId(userId);
+    if (!customerId) {
+      return; // No customer profile - skip merging
+    }
+
+    // Find all carts for this customer
+    const userCarts = await this.db
+      .select()
+      .from(carts)
+      .where(eq(carts.customerId, customerId))
+      .orderBy(desc(carts.updatedAt)); // Newest first
+
+    if (userCarts.length <= 1) {
+      return; // Only one cart or no carts - nothing to merge
+    }
+
+    // Use the newest cart as the target
+    const targetCart = userCarts[0];
+    const cartsToMerge = userCarts.slice(1);
+
+    this.logger.debug(
+      createLogContext(this.contextService, "enforceOneCartPerUser", {
+        userId,
+        customerId,
+        targetCartId: targetCart.id,
+        cartsToMerge: cartsToMerge.length,
+      }),
+      `Merging ${cartsToMerge.length} carts into cart ${targetCart.id}`,
+    );
+
+    // Merge items from other carts into target cart
+    for (const cartToMerge of cartsToMerge) {
+      const itemsToMerge = await this.db
+        .select()
+        .from(cartItems)
+        .where(eq(cartItems.cartId, cartToMerge.id));
+
+      for (const item of itemsToMerge) {
+        // Check if item already exists in target cart
+        const [existingItem] = await this.db
+          .select()
+          .from(cartItems)
+          .where(
+            and(
+              eq(cartItems.cartId, targetCart.id),
+              eq(cartItems.productVariantId, item.productVariantId),
+            ),
+          )
+          .limit(1);
+
+        if (existingItem) {
+          // Merge quantities and release old reservation
+          const newQuantity = existingItem.quantity + item.quantity;
+
+          // Release reservation from old cart (if exists - for legacy carts)
+          // No new reservation needed - race-to-checkout model
+          try {
+            const reservation = await this.inventoryStore.getReservation(
+              cartToMerge.id,
+              item.productVariantId,
+            );
+            if (reservation !== null && reservation > 0) {
+              const softReservedKey = `inventory:soft_reserved:${item.productVariantId}`;
+              const hasSoftReservation =
+                await this.inventoryStore.exists(softReservedKey);
+              const mode = (
+                hasSoftReservation ? "soft" : "hard"
+              ) as ReservationMode;
+              await this.inventoryStore.releaseInventoryAtomic(
+                cartToMerge.id,
+                item.productVariantId,
+                mode,
+              );
+            }
+          } catch (error) {
+            this.logger.warn(
+              createErrorContext(
+                this.contextService,
+                "enforceOneCartPerUser.releaseOldReservation",
+                error,
+                { oldCartId: cartToMerge.id, variantId: item.productVariantId },
+              ),
+              "Failed to release old reservation during merge (non-critical)",
+            );
+          }
+
+          // Update quantity in target cart
+          await this.db
+            .update(cartItems)
+            .set({ quantity: newQuantity })
+            .where(eq(cartItems.id, existingItem.id));
+        } else {
+          // Release reservation from old cart if exists (for legacy carts)
+          // No new reservation needed - race-to-checkout model
+          try {
+            const reservation = await this.inventoryStore.getReservation(
+              cartToMerge.id,
+              item.productVariantId,
+            );
+
+            if (reservation !== null && reservation > 0) {
+              // Release from old cart
+              const softReservedKey = `inventory:soft_reserved:${item.productVariantId}`;
+              const hasSoftReservation =
+                await this.inventoryStore.exists(softReservedKey);
+              const mode = (
+                hasSoftReservation ? "soft" : "hard"
+              ) as ReservationMode;
+              await this.inventoryStore.releaseInventoryAtomic(
+                cartToMerge.id,
+                item.productVariantId,
+                mode,
+              );
+            }
+          } catch (error) {
+            this.logger.warn(
+              createErrorContext(
+                this.contextService,
+                "enforceOneCartPerUser.releaseOldReservation",
+                error,
+                {
+                  oldCartId: cartToMerge.id,
+                  targetCartId: targetCart.id,
+                  variantId: item.productVariantId,
+                },
+              ),
+              "Failed to release old reservation during merge (non-critical)",
+            );
+            // Continue - item will be added without reservation
+          }
+
+          // Create new item in target cart
+          await this.db.insert(cartItems).values({
+            cartId: targetCart.id,
+            productVariantId: item.productVariantId,
+            quantity: item.quantity,
+            price: item.price,
+            metadata: item.metadata,
+          });
+        }
+      }
+
+      // Release all remaining reservations from old cart (cleanup)
+      try {
+        await this.inventoryStore.releaseCartReservations(cartToMerge.id);
+      } catch (error) {
+        this.logger.warn(
+          createErrorContext(
+            this.contextService,
+            "enforceOneCartPerUser.releaseRemainingReservations",
+            error,
+            { oldCartId: cartToMerge.id },
+          ),
+          "Failed to release remaining reservations from old cart",
+        );
+      }
+
+      // Delete old cart
+      await this.db.delete(carts).where(eq(carts.id, cartToMerge.id));
+    }
+
+    // Recalculate totals for merged cart
+    await this.recalculateCartTotals(targetCart.id, customerId);
+
+    this.logger.info(
+      createLogContext(this.contextService, "enforceOneCartPerUser", {
+        userId,
+        customerId,
+        targetCartId: targetCart.id,
+        mergedCarts: cartsToMerge.length,
+      }),
+      `Successfully merged ${cartsToMerge.length} carts into cart ${targetCart.id}`,
+    );
   }
 
   /**

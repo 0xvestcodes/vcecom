@@ -2,7 +2,9 @@ import { Module } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { ConfigModule } from "./common/config/config.module";
 import { HealthDatabaseController } from "./common/health/health-database.controller";
+import { HealthJobsController } from "./common/health/health-jobs.controller";
 import { HealthLoggerController } from "./common/health/health-logger.controller";
+import { HealthRedisController } from "./common/health/health-redis.controller";
 import { HealthTracingController } from "./common/health/health-tracing.controller";
 import { ContextModule } from "./common/logging/context.module";
 import { LoggerModule } from "./common/logging/logger.module";
@@ -20,6 +22,8 @@ import { CollectionsModule } from "./modules/collections/collections.module";
 import { CustomersModule } from "./modules/customers/customers.module";
 import { DatabaseModule } from "./modules/database/database.module";
 import { DiscountsModule } from "./modules/discounts/discounts.module";
+import { EmailModule } from "./modules/email/email.module";
+import { EventsModule } from "./modules/events/events.module";
 import { ExportsModule } from "./modules/exports/exports.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { InvoicesModule } from "./modules/invoices/invoices.module";
@@ -29,6 +33,7 @@ import { PaymentChargesModule } from "./modules/payment-charges/payment-charges.
 import { PaymentsModule } from "./modules/payments/payments.module";
 import { PermissionsModule } from "./modules/permissions/permissions.module";
 import { PricingModule } from "./modules/pricing/pricing.module";
+import { ProductAssociationsModule } from "./modules/product-associations/product-associations.module";
 import { ProductsModule } from "./modules/products/products.module";
 import { RedisStoreModule } from "./modules/redis-store/redis-store.module";
 import { ReviewsModule } from "./modules/reviews/reviews.module";
@@ -76,12 +81,17 @@ import { SystemLogsModule } from "./modules/system-logs/system-logs.module";
     StoresModule,
     ExportsModule,
     SystemLogsModule,
+    ProductAssociationsModule,
+    EventsModule,
+    EmailModule,
   ],
   controllers: [
     AppController,
     HealthLoggerController,
     HealthTracingController,
     HealthDatabaseController,
+    HealthRedisController,
+    HealthJobsController,
   ],
 })
 export class AppModule {}

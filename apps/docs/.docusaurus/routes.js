@@ -38,17 +38,33 @@ export default [
     exact: true
   },
   {
+    path: '/api-reference/admin',
+    component: ComponentCreator('/api-reference/admin', 'b62'),
+    exact: true
+  },
+  {
+    path: '/api-reference/store',
+    component: ComponentCreator('/api-reference/store', '402'),
+    exact: true
+  },
+  {
     path: '/docs',
-    component: ComponentCreator('/docs', 'dc1'),
+    component: ComponentCreator('/docs', 'a88'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', '0d2'),
+        component: ComponentCreator('/docs', '8a9'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', '9ed'),
+            component: ComponentCreator('/docs', '82e'),
             routes: [
+              {
+                path: '/docs/admin/pagination',
+                component: ComponentCreator('/docs/admin/pagination', '028'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
               {
                 path: '/docs/api-reference/admin-api',
                 component: ComponentCreator('/docs/api-reference/admin-api', 'da5'),
@@ -60,6 +76,11 @@ export default [
                 component: ComponentCreator('/docs/api-reference/store-api', '847'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/architecture/bugs',
+                component: ComponentCreator('/docs/architecture/bugs', '026'),
+                exact: true
               },
               {
                 path: '/docs/architecture/dependencies',
@@ -278,6 +299,11 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
+                path: '/docs/observability/health-checks',
+                component: ComponentCreator('/docs/observability/health-checks', 'a25'),
+                exact: true
+              },
+              {
                 path: '/docs/observability/logging',
                 component: ComponentCreator('/docs/observability/logging', '878'),
                 exact: true,
@@ -298,6 +324,12 @@ export default [
               {
                 path: '/docs/orders/fulfillment',
                 component: ComponentCreator('/docs/orders/fulfillment', '37d'),
+                exact: true,
+                sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/orders/inventory-reconciliation',
+                component: ComponentCreator('/docs/orders/inventory-reconciliation', '438'),
                 exact: true,
                 sidebar: "docsSidebar"
               },

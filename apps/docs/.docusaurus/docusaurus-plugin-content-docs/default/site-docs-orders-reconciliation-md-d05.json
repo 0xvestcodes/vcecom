@@ -20,7 +20,7 @@
     "permalink": "/docs/orders/refunds"
   },
   "next": {
-    "title": "Reviews System",
-    "permalink": "/docs/reviews/overview"
+    "title": "Inventory Reconciliation",
+    "permalink": "/docs/orders/inventory-reconciliation"
   }
 }

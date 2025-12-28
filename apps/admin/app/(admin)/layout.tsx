@@ -42,6 +42,9 @@ export default async function AdminLayout({
     redirect("/login");
   }
 
+  // Route protection is handled by middleware
+  // This layout just ensures user is authenticated
+
   return (
     <ErrorBoundaryWrapper>
       <SessionProvider initialSession={session}>

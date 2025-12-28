@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { FolderOpen, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { PaginationControls } from "@/components/common/pagination-controls";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { Button } from "@/components/ui/button";
 import { useAdminCollections } from "@/hooks/collections/use-admin-collections";
@@ -98,9 +99,9 @@ export function CollectionsPageClient() {
       title="Collections"
       description="Manage product collections"
       actions={
-        <Button asChild>
+        <Button asChild size="sm" className="text-xs">
           <Link href="/products/collections/create">
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 h-3.5 w-3.5" />
             Create Collection
           </Link>
         </Button>
@@ -113,40 +114,25 @@ export function CollectionsPageClient() {
         />
       }
       pagination={
-        data && data.pagination.totalPages > 1 ? (
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Showing{" "}
-              {(
-                (data.pagination.page - 1) * data.pagination.limit +
-                1
-              ).toLocaleString()}{" "}
-              to{" "}
-              {Math.min(
+        data ? (
+          <PaginationControls
+            paginationInfo={{
+              startItem: (data.pagination.page - 1) * data.pagination.limit + 1,
+              endItem: Math.min(
                 data.pagination.page * data.pagination.limit,
                 data.pagination.total,
-              ).toLocaleString()}{" "}
-              of {data.pagination.total.toLocaleString()} collections
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(data.pagination.page - 1)}
-                disabled={!data.pagination.hasPreviousPage}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => handlePageChange(data.pagination.page + 1)}
-                disabled={!data.pagination.hasNextPage}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+              ),
+              total: data.pagination.total,
+              currentPage: data.pagination.page,
+              totalPages: data.pagination.totalPages,
+            }}
+            onPreviousPage={() => handlePageChange(data.pagination.page - 1)}
+            onNextPage={() => handlePageChange(data.pagination.page + 1)}
+            canGoPrevious={data.pagination.hasPreviousPage}
+            canGoNext={data.pagination.hasNextPage}
+            isLoading={isLoading}
+            itemLabel="collections"
+          />
         ) : null
       }
     >
@@ -161,17 +147,18 @@ export function CollectionsPageClient() {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-lg font-medium mb-2">No collections found</p>
-          <p className="text-sm text-muted-foreground mb-4">
+        <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+          <FolderOpen className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p className="text-sm font-medium mb-1">No collections found</p>
+          <p className="text-xs mb-4">
             {filters.search
               ? "Try adjusting your search"
               : "Create your first collection to get started"}
           </p>
           {!filters.search && (
-            <Button asChild>
+            <Button asChild size="sm" className="text-xs">
               <Link href="/products/collections/create">
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="mr-2 h-3.5 w-3.5" />
                 Create Collection
               </Link>
             </Button>

@@ -24,7 +24,7 @@ export function ProductsTable({
   onDeleteProduct,
 }: ProductsTableProps) {
   return (
-    <div className="rounded-md border">
+    <div className="rounded-lg border border-border/50 overflow-hidden transition-all duration-200">
       <Table>
         <TableHeader>
           <TableRow>

@@ -488,32 +488,46 @@ Authorization: Bearer <token>
 
 ## System Management
 
-### Health Check
+### Health Checks
+
+The system provides multiple health check endpoints for monitoring. All health endpoints are publicly accessible (no authentication required).
+
+#### Database Health
 ```http
-GET /api/v1/admin/health
-Authorization: Bearer <token>
+GET /_health/database
 ```
 
-**Response:**
-```json
-{
-  "status": "healthy",
-  "timestamp": "2024-01-15T10:30:00Z",
-  "services": {
-    "database": "healthy",
-    "redis": "healthy",
-    "external": {
-      "razorpay": "healthy",
-      "email": "healthy"
-    }
-  },
-  "metrics": {
-    "uptime": "5d 2h 30m",
-    "memory": "256MB / 512MB",
-    "activeConnections": 45
-  }
-}
+Returns database connection pool status and connectivity test.
+
+#### Redis Health
+```http
+GET /_health/redis
 ```
+
+Returns Redis connection status, memory usage, client counts, and keyspace statistics.
+
+#### Jobs Health
+```http
+GET /_health/jobs
+```
+
+Returns status of all background jobs including last execution time, success/failure counts, and overall health.
+
+#### Logging Health
+```http
+GET /_health/logging
+```
+
+Returns logging system status.
+
+#### Tracing Health
+```http
+GET /_health/tracing
+```
+
+Returns OpenTelemetry tracing system status.
+
+For detailed health check documentation, see [Health Checks](../observability/health-checks.md).
 
 ### Cache Management
 ```http
@@ -660,3 +674,40 @@ curl -X GET "https://api.vcecom.com/api/v1/admin/orders?page=1&limit=20" \
 ```
 
 This API reference covers the core admin functionality. For detailed request/response schemas and additional endpoints, refer to the OpenAPI specification or contact the development team.
+
+## Interactive API Documentation
+
+For complete API documentation with interactive testing, see:
+
+- **[Admin API Interactive Docs](/api-reference/admin)** - Full OpenAPI specification with Redoc
+- **OpenAPI JSON**: Available at `/api/docs-json` endpoint
+
+The interactive documentation includes:
+- Complete endpoint documentation
+- Request/response schemas
+- Try-it-out functionality
+- Authentication examples
+- All admin endpoints organized by tags
+
+## Pagination
+
+All list endpoints support pagination:
+
+**Query Parameters:**
+- `page`: Page number (default: 1)
+- `limit`: Items per page (default: 20, max: 100)
+
+**Response Format:**
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 150,
+    "totalPages": 8
+  }
+}
+```
+
+See [Admin Pagination Documentation](/docs/admin/pagination) for details.

@@ -8,7 +8,7 @@ async function CheckoutConfirmForm({
 }: {
   checkoutSessionId: string;
 }) {
-  const cart = await getCart();
+  const cart = await getCart(checkoutSessionId);
 
   return (
     <CheckoutConfirmClient checkoutSessionId={checkoutSessionId} cart={cart} />

@@ -34,15 +34,15 @@ export function AbandonedCheckoutsTable({
 
   if (checkouts.length === 0) {
     return (
-      <div className="text-center py-8 text-muted-foreground">
-        <p className="text-lg font-medium mb-2">No abandoned checkouts found</p>
-        <p className="text-sm">Try adjusting your filters</p>
+      <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+        <p className="text-sm font-medium mb-1">No abandoned checkouts found</p>
+        <p className="text-xs">Try adjusting your filters</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
       <Table>
         <TableHeader>
           <TableRow>
@@ -60,38 +60,44 @@ export function AbandonedCheckoutsTable({
           {checkouts.map((checkout) => (
             <TableRow
               key={checkout.id}
-              className="cursor-pointer"
+              className="group cursor-pointer hover:bg-muted/30 transition-colors"
               onClick={() =>
                 router.push(`/orders/abandoned/${checkout.cartId}`)
               }
             >
-              <TableCell className="font-mono text-sm">
+              <TableCell className="font-mono text-xs">
                 {checkout.cartId.slice(0, 8)}...
               </TableCell>
-              <TableCell>
+              <TableCell className="text-xs">
                 {checkout.customerId ? "Customer" : "Guest"}
               </TableCell>
-              <TableCell>
+              <TableCell className="text-xs">
                 {checkout.customerEmail || (
                   <span className="text-muted-foreground">No email</span>
                 )}
               </TableCell>
-              <TableCell>
+              <TableCell className="text-xs">
                 <Money amount={checkout.total} />
               </TableCell>
-              <TableCell>{checkout.items.length}</TableCell>
-              <TableCell>
-                <Badge variant="outline">{checkout.checkoutState}</Badge>
+              <TableCell className="text-xs">{checkout.items.length}</TableCell>
+              <TableCell className="text-xs">
+                <Badge variant="outline" className="text-xs">
+                  {checkout.checkoutState}
+                </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="text-xs">
                 <DateTime date={checkout.createdAt} />
               </TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
+              <TableCell
+                className="text-xs"
+                onClick={(e) => e.stopPropagation()}
+              >
                 {checkout.paymentIntentId && onConvert && (
                   <Button
                     size="sm"
                     onClick={() => onConvert(checkout)}
                     variant="outline"
+                    className="text-xs h-8"
                   >
                     Convert to Order
                   </Button>

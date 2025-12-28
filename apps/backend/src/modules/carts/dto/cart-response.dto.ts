@@ -1,5 +1,6 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
 import { UserBundleSelection } from "../../bundles/services/bundle-eligibility.service";
+import { EnrichedCartItemDto } from "./enriched-cart-item.dto";
 
 export class BundleVariantBreakdownDto {
   @ApiProperty({
@@ -98,6 +99,123 @@ export class CartItemResponseDto {
   updatedAt: Date;
 }
 
+/**
+ * Detailed discount information
+ */
+export class CartDiscountDto {
+  @ApiProperty({
+    description: "Discount code",
+    example: "SAVE20",
+  })
+  code: string;
+
+  @ApiProperty({
+    description: "Discount type",
+    enum: ["percentage", "fixed", "buy_x_get_y"],
+    example: "percentage",
+  })
+  type: string;
+
+  @ApiProperty({
+    description: "Discount description",
+    example: "20% off your entire order",
+  })
+  description: string;
+
+  @ApiProperty({
+    description: "Amount saved in INR",
+    example: 200.0,
+    type: Number,
+  })
+  amountSaved: number;
+
+  @ApiProperty({
+    description: "Percentage saved",
+    example: 20,
+    type: Number,
+  })
+  percentageSaved: number;
+
+  @ApiProperty({
+    description: "What the discount applies to",
+    enum: ["cart", "shipping", "items"],
+    example: "cart",
+  })
+  appliedTo: string;
+
+  @ApiPropertyOptional({
+    description: "Cart item IDs eligible for this discount",
+    type: [String],
+  })
+  eligibleItems?: string[];
+}
+
+/**
+ * Price summary with all calculations
+ */
+export class PriceSummaryDto {
+  @ApiProperty({
+    description: "Subtotal before discounts",
+    example: 1999.98,
+    type: Number,
+  })
+  subtotal: number;
+
+  @ApiProperty({
+    description: "Item-level discounts (sales, price lists)",
+    example: 200.0,
+    type: Number,
+  })
+  itemDiscounts: number;
+
+  @ApiProperty({
+    description: "Coupon discount",
+    example: 180.0,
+    type: Number,
+  })
+  couponDiscount: number;
+
+  @ApiProperty({
+    description: "Total before GST",
+    example: 1619.98,
+    type: Number,
+  })
+  totalBeforeGst: number;
+
+  @ApiProperty({
+    description: "GST amount",
+    example: 291.6,
+    type: Number,
+  })
+  gstAmount: number;
+
+  @ApiProperty({
+    description: "GST breakdown",
+    type: Object,
+    example: {
+      cgst: 145.8,
+      sgst: 145.8,
+      igst: 0,
+      totalGst: 291.6,
+      isIntraState: true,
+    },
+  })
+  gstBreakdown: {
+    cgst: number;
+    sgst: number;
+    igst: number;
+    totalGst: number;
+    isIntraState: boolean;
+  };
+
+  @ApiProperty({
+    description: "Final total",
+    example: 1911.58,
+    type: Number,
+  })
+  total: number;
+}
+
 export class CartResponseDto {
   @ApiProperty({
     description: "Cart ID",
@@ -168,11 +286,39 @@ export class CartResponseDto {
   })
   total: number;
 
-  @ApiProperty({
-    description: "Cart items",
-    type: [CartItemResponseDto],
+  @ApiPropertyOptional({
+    description:
+      "Shipping cost from checkout session (only present when checkoutSessionId is provided)",
+    example: 50.0,
+    type: Number,
   })
-  items: CartItemResponseDto[];
+  shippingCost?: number;
+
+  @ApiPropertyOptional({
+    description:
+      "Payment method fee in paise from checkout session (only present when checkoutSessionId is provided)",
+    example: 200,
+    type: Number,
+  })
+  paymentFee?: number;
+
+  @ApiProperty({
+    description: "Cart items with enriched product data",
+    type: [EnrichedCartItemDto],
+  })
+  items: EnrichedCartItemDto[];
+
+  @ApiPropertyOptional({
+    description: "Detailed discount information",
+    type: CartDiscountDto,
+  })
+  discount?: CartDiscountDto;
+
+  @ApiProperty({
+    description: "Price summary with all calculations",
+    type: PriceSummaryDto,
+  })
+  priceSummary: PriceSummaryDto;
 
   @ApiProperty({
     description: "Cart expiration timestamp",

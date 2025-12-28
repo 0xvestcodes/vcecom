@@ -14,6 +14,7 @@ import { MediaCacheInvalidationService } from "./services/media-cache-invalidati
 import { MediaConsistencyService } from "./services/media-consistency.service";
 import { MediaConsistencyWorker } from "./services/media-consistency-worker.service";
 import { MediaTransactionService } from "./services/media-transaction.service";
+import { ProductEnrichmentService } from "./services/product-enrichment.service";
 import { StorefrontSearchController } from "./storefront-search.controller";
 import { VariantsController } from "./variants.controller";
 import { VariantsService } from "./variants.service";
@@ -37,6 +38,7 @@ import { VariantsService } from "./variants.service";
   providers: [
     ProductsService,
     VariantsService,
+    ProductEnrichmentService,
     MediaAuditService,
     MediaConsistencyService,
     MediaConsistencyWorker,
@@ -46,6 +48,7 @@ import { VariantsService } from "./variants.service";
   exports: [
     ProductsService,
     VariantsService,
+    ProductEnrichmentService,
     MediaConsistencyService,
     MediaAuditService,
     MediaConsistencyWorker,

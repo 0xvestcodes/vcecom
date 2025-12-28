@@ -88,11 +88,8 @@ export class BundleEligibilityService {
         );
       }
 
-      // Check for duplicates within set selection
-      const uniqueVariants = new Set(selectedVariants);
-      if (uniqueVariants.size !== selectedVariants.length) {
-        errors.push(`Set "${set.title}" has duplicate variants in selection`);
-      }
+      // Duplicates are now allowed within set selections
+      // No duplicate check needed
 
       // Validate each variant is allowed in the set
       const allowedVariantIds = set.items.map((item) => item.variantId);
@@ -105,20 +102,8 @@ export class BundleEligibilityService {
       }
     }
 
-    // Check for duplicate variants across all sets (if bundle doesn't allow mix and match)
-    if (!bundle.allowMixAndMatch) {
-      const allSelectedVariants: string[] = [];
-      for (const variants of Object.values(selection)) {
-        allSelectedVariants.push(...variants);
-      }
-
-      const uniqueAllVariants = new Set(allSelectedVariants);
-      if (uniqueAllVariants.size !== allSelectedVariants.length) {
-        errors.push(
-          "Duplicate variants found across sets (bundle does not allow mix and match)",
-        );
-      }
-    }
+    // Duplicates are now allowed across sets as well
+    // No duplicate check needed even if bundle doesn't allow mix and match
 
     return {
       isValid: errors.length === 0,

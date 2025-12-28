@@ -34,6 +34,12 @@ import { VerifyPaymentDto } from "./dto/verify-payment.dto";
 import { RazorpayWebhookEventDto } from "./dto/webhook-event.dto";
 import { RazorpayConfigService } from "./razorpay-config.service";
 
+// Error type for Node.js errors with code property
+interface NodeError extends Error {
+  code?: string;
+  statusCode?: number;
+}
+
 @Injectable()
 export class PaymentsService implements OnModuleInit {
   private razorpay: Razorpay | null = null;
@@ -323,13 +329,14 @@ export class PaymentsService implements OnModuleInit {
 
           // Determine error type for better diagnostics
           // Razorpay SDK errors can be timeout, network, or API errors
+          const nodeError = error as NodeError;
           const isTimeoutError =
             error instanceof Error &&
             (error.name === "TimeoutError" ||
               error.name === "ETIMEDOUT" ||
               error.message.includes("timed out") ||
               error.message.includes("timeout") ||
-              (error as any).code === "ETIMEDOUT");
+              nodeError.code === "ETIMEDOUT");
           const isNetworkError =
             error instanceof Error &&
             (error.message.includes("ECONNREFUSED") ||
@@ -337,14 +344,14 @@ export class PaymentsService implements OnModuleInit {
               error.message.includes("ETIMEDOUT") ||
               error.message.includes("network") ||
               error.message.includes("ECONNRESET") ||
-              (error as any).code === "ECONNREFUSED" ||
-              (error as any).code === "ENOTFOUND" ||
-              (error as any).code === "ECONNRESET");
+              nodeError.code === "ECONNREFUSED" ||
+              nodeError.code === "ENOTFOUND" ||
+              nodeError.code === "ECONNRESET");
           const isRazorpayApiError =
             error instanceof Error &&
             (error.message.includes("Razorpay") ||
               error.message.includes("razorpay") ||
-              (error as any).statusCode !== undefined);
+              nodeError.statusCode !== undefined);
 
           console.error(
             `[PaymentsService] Razorpay API call failed:`,
@@ -359,8 +366,8 @@ export class PaymentsService implements OnModuleInit {
               isNetworkError,
               isRazorpayApiError,
               errorType: error instanceof Error ? error.name : typeof error,
-              errorCode: (error as any).code,
-              statusCode: (error as any).statusCode,
+              errorCode: nodeError.code,
+              statusCode: nodeError.statusCode,
             },
           );
 
@@ -379,8 +386,8 @@ export class PaymentsService implements OnModuleInit {
                 isNetworkError,
                 isRazorpayApiError,
                 errorType: error instanceof Error ? error.name : typeof error,
-                errorCode: (error as any).code,
-                statusCode: (error as any).statusCode,
+                errorCode: nodeError.code,
+                statusCode: nodeError.statusCode,
               },
             ),
             `Failed to create Razorpay order${isTimeoutError ? " (timeout)" : isNetworkError ? " (network error)" : isRazorpayApiError ? " (Razorpay API error)" : ""}`,

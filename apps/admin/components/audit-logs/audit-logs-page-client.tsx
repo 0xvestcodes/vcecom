@@ -228,9 +228,16 @@ export function AuditLogsPageClient() {
         error={queryError ? (queryError as FetchError) : null}
         data={data}
         isEmpty={(d) => d?.logs.length === 0}
-        emptyComponent={<div>No audit logs found</div>}
+        emptyComponent={
+          <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+            <p className="text-sm font-medium mb-1">No audit logs found</p>
+            <p className="text-xs">
+              Audit logs will appear here as changes are made
+            </p>
+          </div>
+        }
       >
-        <div className="border rounded-md">
+        <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -277,11 +284,13 @@ function AuditLogRow({ log }: { log: AuditLog }) {
   return (
     <>
       <TableRow
-        className="cursor-pointer"
+        className="group cursor-pointer hover:bg-muted/30 transition-colors"
         onClick={() => setShowDiff(!showDiff)}
       >
-        <TableCell>{format(new Date(log.createdAt), "PPp")}</TableCell>
-        <TableCell>
+        <TableCell className="text-xs">
+          {format(new Date(log.createdAt), "PPp")}
+        </TableCell>
+        <TableCell className="text-xs">
           <div>
             <div className="font-medium">{log.adminEmail}</div>
             {log.adminId && (
@@ -289,10 +298,12 @@ function AuditLogRow({ log }: { log: AuditLog }) {
             )}
           </div>
         </TableCell>
-        <TableCell>
-          <Badge variant="outline">{log.action}</Badge>
+        <TableCell className="text-xs">
+          <Badge variant="outline" className="text-xs">
+            {log.action}
+          </Badge>
         </TableCell>
-        <TableCell>
+        <TableCell className="text-xs">
           <div>
             <div className="font-medium">{log.resourceType}</div>
             <div className="text-xs text-muted-foreground">
@@ -300,16 +311,16 @@ function AuditLogRow({ log }: { log: AuditLog }) {
             </div>
           </div>
         </TableCell>
-        <TableCell>
+        <TableCell className="text-xs">
           {log.changes && log.changes.length > 0 ? (
-            <Button variant="link" size="sm">
+            <Button variant="link" size="sm" className="text-xs h-8">
               {log.changes.length} change{log.changes.length !== 1 ? "s" : ""}
             </Button>
           ) : (
             <span className="text-muted-foreground">No changes</span>
           )}
         </TableCell>
-        <TableCell>
+        <TableCell className="text-xs">
           {log.ipAddress ? (
             <code className="text-xs">{log.ipAddress}</code>
           ) : (

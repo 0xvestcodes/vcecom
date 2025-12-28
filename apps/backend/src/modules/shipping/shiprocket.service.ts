@@ -1,10 +1,18 @@
 import {
+  BadRequestException,
   Inject,
   Injectable,
   NotFoundException,
   OnModuleInit,
 } from "@nestjs/common";
-import { addresses, eq, orderItems, orders, shipments } from "@vcecom/db";
+import {
+  addresses,
+  customers,
+  eq,
+  orderItems,
+  orders,
+  shipments,
+} from "@vcecom/db";
 import { AppConfigService } from "../../common/config/app.config.service";
 import {
   SHIPROCKET_CANCEL_SHIPMENT_ENDPOINT_TEMPLATE,
@@ -338,6 +346,7 @@ export class ShiprocketService implements OnModuleInit {
         orderNumber: orders.orderNumber,
         total: orders.total,
         shippingAddressId: orders.shippingAddressId,
+        customerId: orders.customerId,
         shippingProvider: orders.shippingProvider,
       })
       .from(orders)
@@ -357,6 +366,24 @@ export class ShiprocketService implements OnModuleInit {
 
     if (!shippingAddress) {
       throw new NotFoundException("Shipping address not found");
+    }
+
+    // Get customer details for phone and email
+    let customerPhone = "";
+    let customerEmail = "";
+    if (order.customerId) {
+      const [customer] = await this.db
+        .select({
+          phone: customers.phone,
+          email: customers.email,
+        })
+        .from(customers)
+        .where(eq(customers.id, order.customerId))
+        .limit(1);
+      if (customer) {
+        customerPhone = customer.phone || "";
+        customerEmail = customer.email || "";
+      }
     }
 
     // Get order items to calculate weight if not provided
@@ -379,42 +406,46 @@ export class ShiprocketService implements OnModuleInit {
     // Ensure we have a valid weight (fallback to 0.5kg minimum)
     calculatedWeight = calculatedWeight || 0.5;
 
+    // Validate shipping address before proceeding
+    this.validateShippingAddress(shippingAddress);
+
     // Get seller pickup PIN code (from environment or use default)
-    // Note: Currently not used in payload, but kept for future use
     const _sellerPincode =
       pickupPincode || process.env.SELLER_PINCODE || "400001";
+
+    // Extract customer information with defaults
+    const customerName = this.extractCustomerName(shippingAddress);
 
     // Prepare shipment creation payload for Shiprocket API
     const shipmentPayload = {
       order_id: order.orderNumber,
       order_date: new Date().toISOString().split("T")[0],
       pickup_location: "Primary",
-      billing_customer_name: shippingAddress.street.split(",")[0] || "Customer",
+      billing_customer_name: customerName,
       billing_last_name: "",
-      billing_address: shippingAddress.street,
+      billing_address: shippingAddress.street || "",
       billing_address_2: "",
-      billing_city: shippingAddress.city,
-      billing_state: shippingAddress.state,
+      billing_city: shippingAddress.city || "",
+      billing_state: shippingAddress.state || "",
       billing_country: shippingAddress.country || "India",
-      billing_pincode: shippingAddress.pincode,
-      billing_email: "",
-      billing_phone: "",
+      billing_pincode: shippingAddress.pincode || "",
+      billing_email: customerEmail,
+      billing_phone: customerPhone,
       shipping_is_billing: true,
-      shipping_customer_name:
-        shippingAddress.street.split(",")[0] || "Customer",
+      shipping_customer_name: customerName,
       shipping_last_name: "",
-      shipping_address: shippingAddress.street,
+      shipping_address: shippingAddress.street || "",
       shipping_address_2: "",
-      shipping_city: shippingAddress.city,
-      shipping_state: shippingAddress.state,
+      shipping_city: shippingAddress.city || "",
+      shipping_state: shippingAddress.state || "",
       shipping_country: shippingAddress.country || "India",
-      shipping_pincode: shippingAddress.pincode,
-      shipping_email: "",
-      shipping_phone: "",
+      shipping_pincode: shippingAddress.pincode || "",
+      shipping_email: customerEmail,
+      shipping_phone: customerPhone,
       order_items: await this.prepareOrderItems(orderId),
       payment_method: "Prepaid",
       sub_total: order.total.toString(),
-      length: "10",
+      length: "10", // Default dimensions in cm
       breadth: "10",
       height: "10",
       weight: calculatedWeight.toString(),
@@ -781,5 +812,68 @@ export class ShiprocketService implements OnModuleInit {
       status: "cancelled",
       message: response.message || "Shipment cancelled successfully",
     };
+  }
+
+  /**
+   * Validate shipping address before creating shipment
+   */
+  private validateShippingAddress(address: {
+    street?: string | null;
+    city?: string | null;
+    state?: string | null;
+    pincode?: string | null;
+    country?: string | null;
+  }): void {
+    const errors: string[] = [];
+
+    if (!address.street || address.street.trim() === "") {
+      errors.push("Street address is required");
+    }
+
+    if (!address.city || address.city.trim() === "") {
+      errors.push("City is required");
+    }
+
+    if (!address.state || address.state.trim() === "") {
+      errors.push("State is required");
+    }
+
+    if (!address.pincode || address.pincode.trim() === "") {
+      errors.push("PIN code is required");
+    } else if (!/^\d{6}$/.test(address.pincode.trim())) {
+      errors.push("PIN code must be 6 digits");
+    }
+
+    if (!address.country || address.country.trim() === "") {
+      errors.push("Country is required");
+    }
+
+    if (errors.length > 0) {
+      throw new BadRequestException(
+        `Invalid shipping address: ${errors.join(", ")}`,
+      );
+    }
+  }
+
+  /**
+   * Extract customer name from address
+   * Tries to get name from street address or uses default
+   */
+  private extractCustomerName(address: {
+    street?: string | null;
+    name?: string | null;
+  }): string {
+    // Try to get name from address.name field first
+    if (address.name && address.name.trim() !== "") {
+      return address.name.trim().split(" ")[0] || "Customer";
+    }
+
+    // Fallback: try to extract from street address (first part before comma)
+    if (address.street?.includes(",")) {
+      return address.street.split(",")[0].trim() || "Customer";
+    }
+
+    // Default fallback
+    return "Customer";
   }
 }

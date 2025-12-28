@@ -43,14 +43,22 @@ interface DiscountBogoEditorProps {
 export function DiscountBogoEditor({
   buyProductIds = [],
   buyCategoryIds = [],
+  buyCollectionIds = [],
+  buyTagIds: _buyTagIds = [],
   getProductIds = [],
   getCategoryIds = [],
+  getCollectionIds = [],
+  getTagIds: _getTagIds = [],
   buyQuantity = 1,
   getQuantity = 1,
   onBuyProductIdsChange,
   onBuyCategoryIdsChange,
+  onBuyCollectionIdsChange,
+  onBuyTagIdsChange: _onBuyTagIdsChange,
   onGetProductIdsChange,
   onGetCategoryIdsChange,
+  onGetCollectionIdsChange,
+  onGetTagIdsChange: _onGetTagIdsChange,
   onBuyQuantityChange,
   onGetQuantityChange,
 }: DiscountBogoEditorProps) {
@@ -196,6 +204,55 @@ export function DiscountBogoEditor({
         )}
       </div>
 
+      {/* Buy Collections */}
+      <div className="space-y-2">
+        <Label>Buy Collections</Label>
+        <Select
+          value=""
+          onValueChange={(value) => {
+            if (value && !buyCollectionIds.includes(value)) {
+              onBuyCollectionIdsChange([...buyCollectionIds, value]);
+            }
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select collection" />
+          </SelectTrigger>
+          <SelectContent>
+            {_collections
+              .filter((col) => !buyCollectionIds.includes(col.id))
+              .map((collection) => (
+                <SelectItem key={collection.id} value={collection.id}>
+                  {collection.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+        {buyCollectionIds && buyCollectionIds.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {buyCollectionIds.map((id) => {
+              const collection = _collections.find((c) => c.id === id);
+              return (
+                <Badge key={id} variant="secondary" className="px-3 py-1">
+                  {collection?.name || id}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onBuyCollectionIdsChange(
+                        buyCollectionIds.filter((cid) => cid !== id),
+                      )
+                    }
+                    className="ml-2 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* Get Products */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -278,6 +335,55 @@ export function DiscountBogoEditor({
                     onClick={() =>
                       onGetCategoryIdsChange(
                         getCategoryIds.filter((cid) => cid !== id),
+                      )
+                    }
+                    className="ml-2 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Get Collections */}
+      <div className="space-y-2">
+        <Label>Get Collections (Discounted)</Label>
+        <Select
+          value=""
+          onValueChange={(value) => {
+            if (value && !getCollectionIds.includes(value)) {
+              onGetCollectionIdsChange([...getCollectionIds, value]);
+            }
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Select collection" />
+          </SelectTrigger>
+          <SelectContent>
+            {_collections
+              .filter((col) => !getCollectionIds.includes(col.id))
+              .map((collection) => (
+                <SelectItem key={collection.id} value={collection.id}>
+                  {collection.name}
+                </SelectItem>
+              ))}
+          </SelectContent>
+        </Select>
+        {getCollectionIds && getCollectionIds.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {getCollectionIds.map((id) => {
+              const collection = _collections.find((c) => c.id === id);
+              return (
+                <Badge key={id} variant="secondary" className="px-3 py-1">
+                  {collection?.name || id}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onGetCollectionIdsChange(
+                        getCollectionIds.filter((cid) => cid !== id),
                       )
                     }
                     className="ml-2 hover:text-destructive"

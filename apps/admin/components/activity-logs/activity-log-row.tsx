@@ -61,12 +61,12 @@ export function ActivityLogRow({ log }: ActivityLogRowProps) {
     <>
       <TableRow
         className={cn(
-          "cursor-pointer hover:bg-muted/50",
+          "group cursor-pointer hover:bg-muted/30 transition-colors",
           isExpanded && "bg-muted/30",
         )}
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <TableCell className="w-10">
+        <TableCell className="w-10 text-xs">
           <Button
             variant="ghost"
             size="sm"
@@ -77,16 +77,16 @@ export function ActivityLogRow({ log }: ActivityLogRowProps) {
             }}
           >
             {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="h-3.5 w-3.5" />
             ) : (
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3.5 w-3.5" />
             )}
           </Button>
         </TableCell>
         <TableCell className="font-mono text-xs">
           {format(new Date(log.createdAt), "MMM dd, yyyy HH:mm:ss")}
         </TableCell>
-        <TableCell>
+        <TableCell className="text-xs">
           <div className="flex flex-col">
             <span className="font-medium">{log.adminEmail || "Unknown"}</span>
             {log.ipAddress && (
@@ -96,16 +96,18 @@ export function ActivityLogRow({ log }: ActivityLogRowProps) {
             )}
           </div>
         </TableCell>
-        <TableCell>
-          <Badge variant={getActionSeverity(log.action)}>{log.action}</Badge>
+        <TableCell className="text-xs">
+          <Badge variant={getActionSeverity(log.action)} className="text-xs">
+            {log.action}
+          </Badge>
         </TableCell>
-        <TableCell>
+        <TableCell className="text-xs">
           {log.resource ? (
-            <Badge variant={getResourceColor(log.resource)}>
+            <Badge variant={getResourceColor(log.resource)} className="text-xs">
               {log.resource}
             </Badge>
           ) : (
-            <span className="text-muted-foreground text-sm">—</span>
+            <span className="text-muted-foreground text-xs">—</span>
           )}
         </TableCell>
         <TableCell className="font-mono text-xs">

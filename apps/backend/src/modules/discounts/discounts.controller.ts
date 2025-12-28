@@ -20,6 +20,14 @@ import {
 } from "@nestjs/swagger";
 import { Public } from "../../common/decorators/public.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
+import {
+  BadRequestErrorDto,
+  ConflictErrorDto,
+  ForbiddenErrorDto,
+  NotFoundErrorDto,
+  TooManyRequestsErrorDto,
+  UnauthorizedErrorDto,
+} from "../../common/dto/error-response.dto";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { DriftSeverity } from "./audit/discount-audit.types";
@@ -64,14 +72,27 @@ export class DiscountsController {
   @ApiResponse({
     status: 400,
     description: "Bad request - Invalid discount data or code already exists",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 401,
     description: "Unauthorized",
+    type: UnauthorizedErrorDto,
   })
   @ApiResponse({
     status: 403,
     description: "Forbidden - Admin access required",
+    type: ForbiddenErrorDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Conflict - Discount code already exists",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 422,
+    description: "Unprocessable entity - Invalid discount rules or conditions",
+    type: BadRequestErrorDto,
   })
   async create(
     @Body() createDiscountDto: CreateDiscountDto,
@@ -104,13 +125,27 @@ export class DiscountsController {
   @ApiResponse({
     status: 401,
     description: "Unauthorized",
+    type: UnauthorizedErrorDto,
   })
   @ApiResponse({
     status: 403,
     description: "Forbidden - Admin access required",
+    type: ForbiddenErrorDto,
   })
-  async findAll(@Query("page") page?: number, @Query("limit") limit?: number) {
-    return this.discountsService.findAll(page || 1, limit || 10);
+  @ApiResponse({
+    status: 429,
+    description: "Too many requests - Rate limit exceeded",
+    type: TooManyRequestsErrorDto,
+  })
+  async findAll(
+    @Query("page") page?: string | number,
+    @Query("limit") limit?: string | number,
+  ) {
+    const pageNum = page ? Math.max(1, Number(page) || 1) : 1;
+    const limitNum = limit
+      ? Math.min(100, Math.max(1, Number(limit) || 10))
+      : 10;
+    return this.discountsService.findAll(pageNum, limitNum);
   }
 
   @Get(":id")
@@ -132,14 +167,17 @@ export class DiscountsController {
   @ApiResponse({
     status: 404,
     description: "Discount not found",
+    type: NotFoundErrorDto,
   })
   @ApiResponse({
     status: 401,
     description: "Unauthorized",
+    type: UnauthorizedErrorDto,
   })
   @ApiResponse({
     status: 403,
     description: "Forbidden - Admin access required",
+    type: ForbiddenErrorDto,
   })
   async findOne(@Param("id") id: string): Promise<DiscountResponseDto> {
     return this.discountsService.findOne(id);
@@ -163,18 +201,32 @@ export class DiscountsController {
   @ApiResponse({
     status: 400,
     description: "Bad request - Invalid discount data",
+    type: BadRequestErrorDto,
   })
   @ApiResponse({
     status: 404,
     description: "Discount not found",
+    type: NotFoundErrorDto,
   })
   @ApiResponse({
     status: 401,
     description: "Unauthorized",
+    type: UnauthorizedErrorDto,
   })
   @ApiResponse({
     status: 403,
     description: "Forbidden - Admin access required",
+    type: ForbiddenErrorDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Conflict - Discount update conflicts with existing data",
+    type: ConflictErrorDto,
+  })
+  @ApiResponse({
+    status: 422,
+    description: "Unprocessable entity - Invalid discount rules",
+    type: BadRequestErrorDto,
   })
   async update(
     @Param("id") id: string,
@@ -200,14 +252,22 @@ export class DiscountsController {
   @ApiResponse({
     status: 404,
     description: "Discount not found",
+    type: NotFoundErrorDto,
   })
   @ApiResponse({
     status: 401,
     description: "Unauthorized",
+    type: UnauthorizedErrorDto,
   })
   @ApiResponse({
     status: 403,
     description: "Forbidden - Admin access required",
+    type: ForbiddenErrorDto,
+  })
+  @ApiResponse({
+    status: 409,
+    description: "Conflict - Discount is in use and cannot be deleted",
+    type: ConflictErrorDto,
   })
   async remove(@Param("id") id: string): Promise<{ message: string }> {
     return this.discountsService.remove(id);
@@ -333,8 +393,20 @@ export class PublicDiscountsController {
     description: "Discount validation result",
   })
   @ApiResponse({
+    status: 400,
+    description: "Bad request - Invalid validation parameters",
+    type: BadRequestErrorDto,
+  })
+  @ApiResponse({
     status: 404,
     description: "Discount code not found",
+    type: NotFoundErrorDto,
+  })
+  @ApiResponse({
+    status: 422,
+    description:
+      "Unprocessable entity - Discount not applicable (minimum order amount, customer group, etc.)",
+    type: BadRequestErrorDto,
   })
   async validateDiscount(
     @Request() req,

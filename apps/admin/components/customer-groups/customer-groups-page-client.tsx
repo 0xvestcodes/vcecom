@@ -1,7 +1,7 @@
 "use client";
 
 import { format } from "date-fns";
-import { Plus } from "lucide-react";
+import { Plus, UserCog } from "lucide-react";
 import Link from "next/link";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { Badge } from "@/components/ui/badge";
@@ -25,15 +25,15 @@ export function CustomerGroupsPageClient() {
         title="Customer Groups"
         description="Manage customer groups and assign price lists"
         actions={
-          <Button asChild>
+          <Button asChild size="sm" className="text-xs">
             <Link href="/customer-groups/create">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="mr-2 h-3.5 w-3.5" />
               Create Group
             </Link>
           </Button>
         }
       >
-        <div className="border rounded-lg">
+        <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -49,7 +49,7 @@ export function CustomerGroupsPageClient() {
               {Array.from({ length: 5 }, (_, i) => (
                 <TableRow key={`customer-group-list-skeleton-row-${String(i)}`}>
                   <TableCell colSpan={6}>
-                    <div className="h-12 bg-muted animate-pulse rounded" />
+                    <div className="h-10 bg-muted/30 animate-pulse rounded" />
                   </TableCell>
                 </TableRow>
               ))}
@@ -86,15 +86,15 @@ export function CustomerGroupsPageClient() {
         </Button>
       }
     >
-      <div className="border rounded-lg">
+      <div className="rounded-xl border-border/50 overflow-hidden transition-all duration-200">
         {!groups || groups.length === 0 ? (
-          <div className="p-8 text-center">
-            <p className="text-muted-foreground mb-4">
-              No customer groups found
-            </p>
-            <Button asChild variant="outline">
+          <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+            <UserCog className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p className="text-sm font-medium mb-1">No customer groups found</p>
+            <p className="text-xs mb-4">Create your first customer group</p>
+            <Button asChild size="sm" className="text-xs">
               <Link href="/customer-groups/create">
-                <Plus className="mr-2 h-4 w-4" />
+                <Plus className="mr-2 h-3.5 w-3.5" />
                 Create First Group
               </Link>
             </Button>
@@ -113,8 +113,11 @@ export function CustomerGroupsPageClient() {
             </TableHeader>
             <TableBody>
               {groups.map((group) => (
-                <TableRow key={group.id}>
-                  <TableCell className="font-medium">
+                <TableRow
+                  key={group.id}
+                  className="group hover:bg-muted/30 transition-colors"
+                >
+                  <TableCell className="font-medium text-xs">
                     <Link
                       href={`/customer-groups/${group.id}`}
                       className="hover:underline"
@@ -122,13 +125,15 @@ export function CustomerGroupsPageClient() {
                       {group.name}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
+                  <TableCell className="text-muted-foreground text-xs">
                     {group.description || "—"}
                   </TableCell>
-                  <TableCell>{group.memberCount || 0}</TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
+                    {group.memberCount || 0}
+                  </TableCell>
+                  <TableCell className="text-xs">
                     {group.priceLists && group.priceLists.length > 0 ? (
-                      <Badge variant="secondary">
+                      <Badge variant="secondary" className="text-xs">
                         {group.priceLists.length} list
                         {group.priceLists.length !== 1 ? "s" : ""}
                       </Badge>
@@ -136,12 +141,15 @@ export function CustomerGroupsPageClient() {
                       <span className="text-muted-foreground">—</span>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={group.isActive ? "default" : "secondary"}>
+                  <TableCell className="text-xs">
+                    <Badge
+                      variant={group.isActive ? "default" : "secondary"}
+                      className="text-xs"
+                    >
                       {group.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="text-xs">
                     {format(new Date(group.createdAt), "MMM dd, yyyy")}
                   </TableCell>
                 </TableRow>

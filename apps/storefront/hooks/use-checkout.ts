@@ -1,8 +1,13 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { endpoints, get, post } from "@/lib/api/client";
+import {
+  extractCheckoutInventoryError,
+  isCheckoutInventoryError,
+} from "@/lib/api/errors";
 import {
   applyAddressResponseSchema,
   type CheckoutAddress,
@@ -17,6 +22,7 @@ import { orderSchema } from "@/lib/validations/order";
  */
 export function useStartCheckout() {
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   return useMutation({
     mutationFn: async (input: { cartId: string; guestEmail?: string }) => {
@@ -26,8 +32,49 @@ export function useStartCheckout() {
     onSuccess: (data) => {
       queryClient.setQueryData(["checkout", "session"], data);
     },
-    onError: (error: Error) => {
-      toast.error(error.message || "Failed to start checkout");
+    onError: (error: unknown) => {
+      // Handle inventory-related checkout errors
+      if (isCheckoutInventoryError(error)) {
+        const inventoryError = extractCheckoutInventoryError(error);
+
+        if (inventoryError) {
+          // Invalidate cart to refresh with adjusted quantities
+          queryClient.invalidateQueries({ queryKey: ["cart"] });
+
+          // Show detailed error message
+          const failureCount = inventoryError.failures.length;
+          if (failureCount === 1) {
+            const failure = inventoryError.failures[0];
+            if (failure.available > 0) {
+              toast.error(
+                `Only ${failure.available} unit(s) available. Your cart has been updated.`,
+                { duration: 5000 },
+              );
+            } else {
+              toast.error(
+                "This item is no longer available. It has been removed from your cart.",
+                { duration: 5000 },
+              );
+            }
+          } else {
+            toast.error(
+              `${failureCount} item(s) are no longer available. Your cart has been updated.`,
+              { duration: 5000 },
+            );
+          }
+
+          // Redirect to cart page to show updated cart
+          setTimeout(() => {
+            router.push("/cart");
+          }, 2000);
+          return;
+        }
+      }
+
+      // Generic checkout error
+      const message =
+        error instanceof Error ? error.message : "Failed to start checkout";
+      toast.error(message);
     },
   });
 }

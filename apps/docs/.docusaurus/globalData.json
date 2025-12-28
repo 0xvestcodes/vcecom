@@ -11,6 +11,11 @@
           "mainDocId": "introduction",
           "docs": [
             {
+              "id": "admin/pagination",
+              "path": "/docs/admin/pagination",
+              "sidebar": "docsSidebar"
+            },
+            {
               "id": "api-reference/admin-api",
               "path": "/docs/api-reference/admin-api",
               "sidebar": "docsSidebar"
@@ -19,6 +24,10 @@
               "id": "api-reference/store-api",
               "path": "/docs/api-reference/store-api",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "architecture/bugs",
+              "path": "/docs/architecture/bugs"
             },
             {
               "id": "architecture/dependencies",
@@ -201,6 +210,10 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "observability/health-checks",
+              "path": "/docs/observability/health-checks"
+            },
+            {
               "id": "observability/logging",
               "path": "/docs/observability/logging",
               "sidebar": "docsSidebar"
@@ -218,6 +231,11 @@
             {
               "id": "orders/fulfillment",
               "path": "/docs/orders/fulfillment",
+              "sidebar": "docsSidebar"
+            },
+            {
+              "id": "orders/inventory-reconciliation",
+              "path": "/docs/orders/inventory-reconciliation",
               "sidebar": "docsSidebar"
             },
             {

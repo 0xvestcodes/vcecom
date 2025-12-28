@@ -141,8 +141,9 @@ export interface OrderQueryParams {
   minValue?: number;
   maxValue?: number;
   paymentMethod?: "COD" | "prepaid" | "all";
-  sortBy?: OrderSortBy;
-  sortOrder?: OrderSortOrder;
+  // Note: sortBy and sortOrder are temporarily removed as backend doesn't support them yet
+  // sortBy?: OrderSortBy;
+  // sortOrder?: OrderSortOrder;
 }
 
 export type TimelineEventType =
