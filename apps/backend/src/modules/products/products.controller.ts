@@ -26,9 +26,7 @@ import {
   ApiOperation,
   ApiParam,
   ApiQuery,
-  ApiResponse,
   ApiTags,
-  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import { Request as ExpressRequest } from "express";
@@ -40,17 +38,13 @@ import {
   ConflictErrorDto,
   ForbiddenErrorDto,
   NotFoundErrorDto,
-  TooManyRequestsErrorDto,
   UnauthorizedErrorDto,
 } from "../../common/dto/error-response.dto";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { DB_TOKEN } from "../../modules/database/database.module";
 import type { Database } from "../../modules/database/db";
 import { ReviewQueryDto } from "../reviews/dto/review-query.dto";
-import {
-  PaginatedReviewsResponseDto,
-  ReviewResponseDto,
-} from "../reviews/dto/review-response.dto";
+import { PaginatedReviewsResponseDto } from "../reviews/dto/review-response.dto";
 import { ReviewsService } from "../reviews/services/reviews.service";
 import { ProductCollectionResponseDto } from "./dto/product-collection-response.dto";
 
@@ -71,6 +65,7 @@ import {
 import { QueryProductsDto } from "./dto/query-products.dto";
 import { SearchProductsDto, SearchResponseDto } from "./dto/search.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
+import { VariantInventoryResponseDto } from "./dto/variant-inventory.dto";
 import { CreateProductVariantOptionTypeDto } from "./dto/variant-option-types/create-product-variant-option-type.dto";
 import { CreateVariantOptionTypeDto } from "./dto/variant-option-types/create-variant-option-type.dto";
 import { CreateVariantOptionValueDto } from "./dto/variant-option-types/create-variant-option-value.dto";
@@ -263,6 +258,32 @@ export class ProductsController {
     @Param("id") productId: string,
   ): Promise<VariantResponseDto[]> {
     return this.variantsService.findByProductId(productId);
+  }
+
+  @Public()
+  @Get("variants/:variantId/inventory")
+  @RateLimit(RATE_LIMIT_PRESETS.STOREFRONT_GET)
+  @ApiOperation({
+    summary: "Get variant inventory (live polling)",
+    description:
+      "Get real-time inventory data for a variant. Returns available, reserved, and total inventory from Redis. Public endpoint for live inventory updates.",
+  })
+  @ApiParam({
+    name: "variantId",
+    description: "Variant ID",
+    example: "123e4567-e89b-12d3-a456-426614174000",
+  })
+  @ApiOkResponse({
+    description: "Variant inventory retrieved successfully",
+    type: VariantInventoryResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: "Variant not found",
+  })
+  async getVariantInventory(
+    @Param("variantId") variantId: string,
+  ): Promise<VariantInventoryResponseDto> {
+    return this.variantsService.getVariantInventory(variantId);
   }
 
   @Public()

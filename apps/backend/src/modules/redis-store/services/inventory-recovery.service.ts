@@ -1,5 +1,5 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
-import { Cron } from "@nestjs/schedule";
+import { Cron, Interval } from "@nestjs/schedule";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
 import {
@@ -71,6 +71,46 @@ export class InventoryRecoveryService implements OnModuleInit {
             "Failed to run inventory recovery",
           );
           // Don't throw - allow service to start even if recovery fails
+        }
+      });
+  }
+
+  /**
+   * Periodic inventory sync from database to Redis (runs every 30 seconds)
+   * Ensures Redis cache stays in sync with database inventory
+   * Idempotent and safe under concurrency
+   */
+  @Interval(30000) // 30 seconds in milliseconds
+  async handleInventorySync() {
+    return this.tracingService
+      .startSpan({
+        operation: "InventoryRecoveryService.handleInventorySync",
+        logLifecycle: false, // Don't log every 30 seconds to avoid log spam
+      })
+      .execute(async () => {
+        try {
+          const result =
+            await this.inventoryStore.syncAllInventoryFromDatabase();
+          if (result.errors > 0) {
+            this.logger.warn(
+              createLogContext(this.contextService, "handleInventorySync", {
+                synced: result.synced,
+                errors: result.errors,
+              }),
+              "Inventory sync completed with errors",
+            );
+          }
+        } catch (error) {
+          // Fail closed - log error but don't throw
+          // This ensures the worker continues running even if sync fails
+          this.logger.error(
+            createErrorContext(
+              this.contextService,
+              "handleInventorySync",
+              error,
+            ),
+            "Failed to sync inventory from database",
+          );
         }
       });
   }

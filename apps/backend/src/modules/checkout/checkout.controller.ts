@@ -332,9 +332,9 @@ export class CheckoutController {
 
     // Convert cart items to format expected by payment charge service
     const cartItems = cart.items.map((item) => ({
-      productVariantId: item.productVariantId,
+      productVariantId: item.variantId, // Use variantId from enriched item
       quantity: item.quantity,
-      price: item.price,
+      price: item.pricing.unitPrice, // Use unitPrice from pricing breakdown
       metadata: (item as { metadata?: unknown }).metadata,
     }));
 

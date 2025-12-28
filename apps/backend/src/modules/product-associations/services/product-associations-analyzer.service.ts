@@ -116,15 +116,19 @@ export class ProductAssociationsAnalyzer implements OnModuleInit {
           if (!coOccurrenceMap.has(productA)) {
             coOccurrenceMap.set(productA, new Map());
           }
-          const productAMap = coOccurrenceMap.get(productA)!;
-          productAMap.set(productB, (productAMap.get(productB) || 0) + 1);
+          const productAMap = coOccurrenceMap.get(productA);
+          if (productAMap) {
+            productAMap.set(productB, (productAMap.get(productB) || 0) + 1);
+          }
 
           // Count B -> A (bidirectional)
           if (!coOccurrenceMap.has(productB)) {
             coOccurrenceMap.set(productB, new Map());
           }
-          const productBMap = coOccurrenceMap.get(productB)!;
-          productBMap.set(productA, (productBMap.get(productA) || 0) + 1);
+          const productBMap = coOccurrenceMap.get(productB);
+          if (productBMap) {
+            productBMap.set(productA, (productBMap.get(productA) || 0) + 1);
+          }
         }
       }
     }

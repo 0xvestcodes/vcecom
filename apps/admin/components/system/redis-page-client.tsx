@@ -1,7 +1,6 @@
 "use client";
 
 import { Database } from "lucide-react";
-import { EmptyState } from "@/components/common/empty-state";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import {
   Card,
@@ -54,12 +53,11 @@ export function RedisPageClient() {
             <CardTitle>Redis Health</CardTitle>
           </CardHeader>
           <CardContent>
-            <EmptyState
-              type="default"
-              title="No data available"
-              description="Unable to fetch Redis health data."
-              icon={<Database className="h-12 w-12" />}
-            />
+            <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+              <Database className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p className="text-sm font-medium mb-1">No data available</p>
+              <p className="text-xs">Unable to fetch Redis health data.</p>
+            </div>
           </CardContent>
         </Card>
       </AdminPageLayout>
@@ -79,27 +77,27 @@ export function RedisPageClient() {
       description="Monitor Redis connection status and metrics"
     >
       <div className="space-y-4">
-        <Card>
-          <CardHeader>
+        <Card className="rounded-xl border-border/50 bg-card/50">
+          <CardHeader className="p-4">
             <div className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              <CardTitle>Redis Health</CardTitle>
+              <Database className="h-4 w-4" />
+              <CardTitle className="text-sm">Redis Health</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Redis connection status and metrics
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-6 p-4">
             {/* Connection Status */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Connection Status</span>
+                <span className="text-xs font-medium">Connection Status</span>
                 <div className="flex items-center gap-2">
                   <div className={`h-2 w-2 rounded-full ${statusColor}`} />
-                  <span className="text-sm capitalize">{health.status}</span>
+                  <span className="text-xs capitalize">{health.status}</span>
                 </div>
               </div>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-xs text-muted-foreground">
                 Status: {health.connection.status}
                 {health.connection.latency && (
                   <span className="ml-2">
@@ -112,8 +110,8 @@ export function RedisPageClient() {
             {/* Memory Usage */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">Memory Usage</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-xs font-medium">Memory Usage</span>
+                <span className="text-xs text-muted-foreground">
                   {health.memory.percentage.toFixed(1)}%
                 </span>
               </div>
@@ -129,14 +127,14 @@ export function RedisPageClient() {
             {/* Clients */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <div className="text-sm font-medium">Connected Clients</div>
-                <div className="text-2xl font-bold">
+                <div className="text-xs font-medium">Connected Clients</div>
+                <div className="text-sm font-bold">
                   {health.clients.connected}
                 </div>
               </div>
               <div>
-                <div className="text-sm font-medium">Blocked Clients</div>
-                <div className="text-2xl font-bold">
+                <div className="text-xs font-medium">Blocked Clients</div>
+                <div className="text-sm font-bold">
                   {health.clients.blocked}
                 </div>
               </div>
@@ -144,8 +142,8 @@ export function RedisPageClient() {
 
             {/* Keyspace */}
             <div>
-              <div className="text-sm font-medium mb-2">Keyspace</div>
-              <div className="text-2xl font-bold mb-2">
+              <div className="text-xs font-medium mb-2">Keyspace</div>
+              <div className="text-sm font-bold mb-2">
                 {health.keyspace.totalKeys.toLocaleString()} keys
               </div>
               {keys && Object.keys(keys).length > 0 && (
@@ -153,9 +151,9 @@ export function RedisPageClient() {
                   {Object.entries(keys).map(([pattern, count]) => (
                     <div
                       key={pattern}
-                      className="flex items-center justify-between text-sm"
+                      className="flex items-center justify-between text-xs"
                     >
-                      <span className="text-muted-foreground font-mono text-xs">
+                      <span className="text-muted-foreground font-mono">
                         {pattern}
                       </span>
                       <span className="font-medium">
@@ -170,8 +168,8 @@ export function RedisPageClient() {
             {/* Replication */}
             {health.replication && (
               <div>
-                <div className="text-sm font-medium mb-2">Replication</div>
-                <div className="text-sm text-muted-foreground">
+                <div className="text-xs font-medium mb-2">Replication</div>
+                <div className="text-xs text-muted-foreground">
                   Role:{" "}
                   <span className="capitalize">{health.replication.role}</span>
                   {health.replication.connectedSlaves !== undefined && (
@@ -184,7 +182,7 @@ export function RedisPageClient() {
             )}
 
             {/* Timestamp */}
-            <div className="text-xs text-muted-foreground pt-4 border-t">
+            <div className="text-xs text-muted-foreground pt-4 border-t border-border/50">
               Last updated: {new Date(health.timestamp).toLocaleString()}
             </div>
           </CardContent>

@@ -10,6 +10,7 @@ export interface AdminSession {
   id: string;
   email: string;
   role: "admin" | "customer" | "support" | "reviewer" | "marketing";
+  roleId?: string | null;
   activeSessionsCount: number;
   twoFactorEnabled: boolean;
 }

@@ -369,6 +369,7 @@ export class AdminAuthService {
     id: string;
     email: string;
     role: string;
+    roleId: string | null;
     activeSessionsCount: number;
     has2fa: boolean;
   }> {
@@ -391,6 +392,7 @@ export class AdminAuthService {
       id: admin.id,
       email: admin.email,
       role: admin.role,
+      roleId: admin.roleId ?? null,
       activeSessionsCount: sessions.length,
       has2fa,
     };

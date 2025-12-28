@@ -213,6 +213,56 @@ export const KEY_PATTERNS = {
    */
   BUNDLE_ELIGIBILITY: (bundleId: string, setId: string) =>
     `bundle:${bundleId}:eligibility:${setId}`,
+
+  /**
+   * Soft reserved inventory counter (global per variant)
+   * Format: inventory:soft_reserved:{variantId}
+   * TTL: None (persistent, managed separately)
+   */
+  INVENTORY_SOFT_RESERVED: (variantId: string) =>
+    `inventory:soft_reserved:${variantId}`,
+
+  /**
+   * Heartbeat keys (per cart)
+   * Format: heartbeat:{cartId}
+   * TTL: 2 minutes (refreshed on heartbeat)
+   */
+  HEARTBEAT: (cartId: string) => `heartbeat:${cartId}`,
+
+  /**
+   * Stale cart marker (per cart)
+   * Format: cart:stale:{cartId}
+   * TTL: 5 minutes (safety net)
+   */
+  CART_STALE: (cartId: string) => `cart:stale:${cartId}`,
+
+  /**
+   * Cart prefix for scanning
+   * Format: cart:{cartId}
+   */
+  CART_PREFIX: () => `cart:`,
+
+  /**
+   * Inventory reservation prefix for scanning
+   * Format: inventory:reservation:*
+   */
+  INVENTORY_RESERVATION_PREFIX: () => `inventory:reservation:`,
+
+  /**
+   * Fingerprint active reservations set
+   * Format: fingerprint:reservations:{fingerprint}
+   * TTL: 15 minutes (matches reservation TTL)
+   */
+  FINGERPRINT_RESERVATIONS: (fingerprint: string) =>
+    `fingerprint:reservations:${fingerprint}`,
+
+  /**
+   * Stale item marker (per cart item)
+   * Format: stale:item:{cartId}:{variantId}
+   * TTL: 7 days (longer than cart expiry for recovery window)
+   */
+  STALE_ITEM: (cartId: string, variantId: string) =>
+    `stale:item:${cartId}:${variantId}`,
 } as const;
 
 /**
@@ -288,4 +338,10 @@ export const TTL = {
    * Bundle eligibility expiration: 24 hours
    */
   BUNDLE_ELIGIBILITY: 24 * 60 * 60, // 24 hours in seconds
+
+  /**
+   * Stale item marker TTL: 7 days
+   * Longer than cart expiry (30 days) to allow recovery window
+   */
+  STALE_ITEM: 7 * 24 * 60 * 60, // 7 days in seconds
 } as const;

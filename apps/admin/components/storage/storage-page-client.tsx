@@ -141,14 +141,14 @@ export function StoragePageClient() {
             isLoading={true}
           />
         ) : data && data.files.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <ImageIcon className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p className="text-lg font-medium mb-2">
+          <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+            <ImageIcon className="h-12 w-12 mx-auto mb-3 opacity-50" />
+            <p className="text-sm font-medium mb-1">
               {debouncedPrefix
                 ? "No files found with this prefix"
                 : STORAGE_EMPTY_STATE_TITLE}
             </p>
-            <p className="text-sm">
+            <p className="text-xs mb-4">
               {debouncedPrefix
                 ? "Try a different prefix or upload a new file"
                 : STORAGE_EMPTY_STATE_DESCRIPTION}
@@ -156,7 +156,8 @@ export function StoragePageClient() {
             {debouncedPrefix && (
               <Button
                 variant="outline"
-                className="mt-4"
+                size="sm"
+                className="mt-4 text-xs"
                 onClick={() => setPrefix("")}
               >
                 Clear filter

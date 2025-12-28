@@ -125,9 +125,10 @@ export class OrdersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth("JWT-auth")
   @ApiOperation({
-    summary: "Get all orders for authenticated customer",
+    summary: "Get all orders for authenticated customer with enriched data",
     description:
-      "Returns all orders for the authenticated customer. Optionally filter by status.",
+      "Returns all orders for the authenticated customer with enriched product data, " +
+      "addresses, and payment details. Optionally filter by status.",
   })
   @ApiQuery({
     name: "status",
@@ -155,9 +156,11 @@ export class OrdersController {
   @Get(":id")
   @Public()
   @ApiOperation({
-    summary: "Get order by ID",
+    summary: "Get order by ID with enriched product data",
     description:
-      "Returns a specific order by ID. Supports both authenticated customers and guest orders.",
+      "Returns a specific order by ID with complete product details (titles, images, SKUs), " +
+      "embedded addresses, payment details, shipping information, and pricing snapshots. " +
+      "Supports both authenticated customers and guest orders. No additional API calls needed for display.",
   })
   @ApiParam({
     name: "id",

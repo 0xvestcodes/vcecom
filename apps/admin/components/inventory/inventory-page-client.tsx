@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { ProtectedButton } from "@/components/common/protected-button";
 import { QueryState } from "@/components/common/query-state";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { InventoryListSkeleton } from "@/components/skeletons/inventory-list-skeleton";
@@ -140,15 +141,19 @@ export function InventoryPageClient() {
       description="Manage inventory levels across all product variants"
       actions={
         <>
-          <Button asChild variant="outline">
-            <Link href="/inventory/bulk-adjust">
-              <Plus className="mr-2 h-4 w-4" />
-              Bulk Adjust
-            </Link>
-          </Button>
-          <Button asChild>
-            <Link href="/inventory/settings">Settings</Link>
-          </Button>
+          <ProtectedButton requiredRoles={["admin"]}>
+            <Button asChild variant="outline">
+              <Link href="/inventory/bulk-adjust">
+                <Plus className="mr-2 h-4 w-4" />
+                Bulk Adjust
+              </Link>
+            </Button>
+          </ProtectedButton>
+          <ProtectedButton requiredRoles={["admin"]}>
+            <Button asChild>
+              <Link href="/inventory/settings">Settings</Link>
+            </Button>
+          </ProtectedButton>
         </>
       }
       filters={

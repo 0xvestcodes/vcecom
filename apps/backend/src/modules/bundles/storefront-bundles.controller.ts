@@ -24,9 +24,11 @@ export class StorefrontBundlesController {
   @Get()
   @RateLimit(RATE_LIMIT_PRESETS.STOREFRONT_GET)
   @ApiOperation({
-    summary: "List all active bundles",
+    summary: "List all active bundles with enriched product data",
     description:
-      "Retrieve a paginated list of all active bundles (public endpoint)",
+      "Retrieve a paginated list of all active bundles with complete product details " +
+      "(product IDs, titles, images, SKUs, attributes, pricing) for all variants. " +
+      "Public endpoint.",
   })
   @ApiQuery({
     name: "page",
@@ -56,8 +58,11 @@ export class StorefrontBundlesController {
   @Get(":id")
   @RateLimit(RATE_LIMIT_PRESETS.STOREFRONT_GET)
   @ApiOperation({
-    summary: "Get a single bundle",
-    description: "Retrieve a single active bundle by ID (public endpoint)",
+    summary: "Get a single bundle with enriched product data",
+    description:
+      "Retrieve a single active bundle by ID with complete product details " +
+      "(product IDs, titles, images, SKUs, attributes, pricing) for all variants. " +
+      "No additional API calls needed for display. Public endpoint.",
   })
   @ApiParam({
     name: "id",

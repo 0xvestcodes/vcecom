@@ -1,6 +1,7 @@
 node_modules/
 dist/
-drizzle/
+# Ignore drizzle metadata (regenerated), but allow migration SQL files
+drizzle/meta/
 *.log
 
 packages/db/.env

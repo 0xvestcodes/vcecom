@@ -4,6 +4,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { ProtectedButton } from "@/components/common/protected-button";
 import { QueryState } from "@/components/common/query-state";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { ProductsTableSkeleton } from "@/components/skeletons/products-table-skeleton";
@@ -74,12 +75,14 @@ export function ProductsPageClient() {
       title="Products"
       description="Manage your product catalog"
       actions={
-        <Button asChild>
-          <Link href="/products/create">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Product
-          </Link>
-        </Button>
+        <ProtectedButton requiredRoles={["admin", "marketing"]}>
+          <Button asChild>
+            <Link href="/products/create">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Product
+            </Link>
+          </Button>
+        </ProtectedButton>
       }
       filters={
         <ProductFiltersBar

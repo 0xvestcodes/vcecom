@@ -6,7 +6,6 @@ import {
 import {
   addresses,
   and,
-  cartItems,
   carts,
   customers,
   desc,
@@ -29,7 +28,6 @@ import {
 } from "../../common/logging/logging.helper";
 import { calculateGstBreakdown } from "../../common/utils/gst.utils";
 import type { Database } from "../../modules/database/db";
-import { UserBundleSelection } from "../bundles/services/bundle-eligibility.service";
 import { CartsService } from "../carts/carts.service";
 import { DB_TOKEN } from "../database/database.module";
 import { OrderResponseDto } from "../orders/dto/order-response.dto";
@@ -769,12 +767,6 @@ export class AdminService {
       const cart = allCarts.find((c) => c.id === session.cartId);
       if (!cart) continue;
 
-      // Get cart items
-      const cartItemsData = await this.db
-        .select()
-        .from(cartItems)
-        .where(eq(cartItems.cartId, cart.id));
-
       // Get customer email if exists
       let customerEmail: string | null = null;
       if (cart.customerId) {
@@ -801,14 +793,11 @@ export class AdminService {
         if (cart.total < query.minValue) continue;
       }
 
-      // Calculate GST breakdown (simplified - using cart's shipping address if available)
-      const gstBreakdown = {
-        cgst: 0,
-        sgst: 0,
-        igst: 0,
-        totalGst: cart.gstAmount,
-        isIntraState: true, // Simplified
-      };
+      // Get enriched cart using CartsService
+      const enrichedCart = await this._cartsService.getCartById(
+        cart.id,
+        cart.customerId,
+      );
 
       abandonedCheckouts.push({
         id: session.sessionId,
@@ -816,30 +805,13 @@ export class AdminService {
         customerId: cart.customerId,
         sessionId: cart.sessionId,
         checkoutState: session.checkoutState as "CREATED" | "LOCKED",
-        subtotal: cart.subtotal,
-        gstAmount: cart.gstAmount,
-        discountCode: cart.discountCode,
-        discountAmount: cart.discountAmount,
-        gstBreakdown,
-        total: cart.total,
-        items: cartItemsData.map((item) => {
-          const metadata = item.metadata as {
-            type?: "variant" | "bundle";
-            bundleId?: string;
-            selections?: UserBundleSelection;
-          };
-          return {
-            id: item.id,
-            type: (metadata?.type || "variant") as "variant" | "bundle",
-            productVariantId: item.productVariantId,
-            bundleId: metadata?.bundleId,
-            selections: metadata?.selections,
-            quantity: item.quantity,
-            price: item.price,
-            createdAt: item.createdAt,
-            updatedAt: item.updatedAt,
-          };
-        }),
+        subtotal: enrichedCart.priceSummary.subtotal,
+        gstAmount: enrichedCart.priceSummary.gstAmount,
+        discountCode: enrichedCart.discountCode,
+        discountAmount: enrichedCart.priceSummary.couponDiscount,
+        gstBreakdown: enrichedCart.priceSummary.gstBreakdown,
+        total: enrichedCart.priceSummary.total,
+        items: enrichedCart.items,
         paymentIntentId: session.paymentIntentId,
         customerEmail,
         createdAt: cart.createdAt,
@@ -939,12 +911,6 @@ export class AdminService {
       return null;
     }
 
-    // Get cart items
-    const cartItemsData = await this.db
-      .select()
-      .from(cartItems)
-      .where(eq(cartItems.cartId, cart.id));
-
     // Get customer email if exists
     let customerEmail: string | null = null;
     if (cart.customerId) {
@@ -956,14 +922,11 @@ export class AdminService {
       customerEmail = customer?.email || null;
     }
 
-    // Calculate GST breakdown
-    const gstBreakdown = {
-      cgst: 0,
-      sgst: 0,
-      igst: 0,
-      totalGst: cart.gstAmount,
-      isIntraState: true,
-    };
+    // Get enriched cart using CartsService
+    const enrichedCart = await this._cartsService.getCartById(
+      cart.id,
+      cart.customerId,
+    );
 
     return {
       id: sessionData.sessionId,
@@ -971,30 +934,13 @@ export class AdminService {
       customerId: cart.customerId,
       sessionId: cart.sessionId,
       checkoutState: sessionData.checkoutState as "CREATED" | "LOCKED",
-      subtotal: cart.subtotal,
-      gstAmount: cart.gstAmount,
-      discountCode: cart.discountCode,
-      discountAmount: cart.discountAmount,
-      gstBreakdown,
-      total: cart.total,
-      items: cartItemsData.map((item) => {
-        const metadata = item.metadata as {
-          type?: "variant" | "bundle";
-          bundleId?: string;
-          selections?: UserBundleSelection;
-        };
-        return {
-          id: item.id,
-          type: (metadata?.type || "variant") as "variant" | "bundle",
-          productVariantId: item.productVariantId,
-          bundleId: metadata?.bundleId,
-          selections: metadata?.selections,
-          quantity: item.quantity,
-          price: item.price,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-        };
-      }),
+      subtotal: enrichedCart.priceSummary.subtotal,
+      gstAmount: enrichedCart.priceSummary.gstAmount,
+      discountCode: enrichedCart.discountCode,
+      discountAmount: enrichedCart.priceSummary.couponDiscount,
+      gstBreakdown: enrichedCart.priceSummary.gstBreakdown,
+      total: enrichedCart.priceSummary.total,
+      items: enrichedCart.items,
       paymentIntentId: sessionData.paymentIntentId,
       customerEmail,
       createdAt: cart.createdAt,

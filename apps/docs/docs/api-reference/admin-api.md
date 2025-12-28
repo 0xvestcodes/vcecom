@@ -488,32 +488,46 @@ Authorization: Bearer <token>
 
 ## System Management
 
-### Health Check
+### Health Checks
+
+The system provides multiple health check endpoints for monitoring. All health endpoints are publicly accessible (no authentication required).
+
+#### Database Health
 ```http
-GET /api/v1/admin/health
-Authorization: Bearer <token>
+GET /_health/database
 ```
 
-**Response:**
-```json
-{
-  "status": "healthy",
-  "timestamp": "2024-01-15T10:30:00Z",
-  "services": {
-    "database": "healthy",
-    "redis": "healthy",
-    "external": {
-      "razorpay": "healthy",
-      "email": "healthy"
-    }
-  },
-  "metrics": {
-    "uptime": "5d 2h 30m",
-    "memory": "256MB / 512MB",
-    "activeConnections": 45
-  }
-}
+Returns database connection pool status and connectivity test.
+
+#### Redis Health
+```http
+GET /_health/redis
 ```
+
+Returns Redis connection status, memory usage, client counts, and keyspace statistics.
+
+#### Jobs Health
+```http
+GET /_health/jobs
+```
+
+Returns status of all background jobs including last execution time, success/failure counts, and overall health.
+
+#### Logging Health
+```http
+GET /_health/logging
+```
+
+Returns logging system status.
+
+#### Tracing Health
+```http
+GET /_health/tracing
+```
+
+Returns OpenTelemetry tracing system status.
+
+For detailed health check documentation, see [Health Checks](../observability/health-checks.md).
 
 ### Cache Management
 ```http

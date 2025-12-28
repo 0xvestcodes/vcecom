@@ -5,7 +5,7 @@ interface RedocApiProps {
   title?: string;
 }
 
-export default function RedocApi({ specUrl, title }: RedocApiProps) {
+export default function RedocApi({ specUrl, title: _title }: RedocApiProps) {
   return (
     <RedocStandalone
       specUrl={specUrl}

@@ -8,6 +8,8 @@ export const endpoints = {
     list: "/store/products",
     detail: (id: string) => `/store/products/${id}`,
     variants: (id: string) => `/store/products/${id}/variants`,
+    variantInventory: (variantId: string) =>
+      `/store/products/variants/${variantId}/inventory`,
     reviews: (id: string) => `/store/products/${id}/reviews`,
     reviewAggregate: (variantId: string) =>
       `/store/products/${variantId}/reviews/aggregate`,
@@ -45,6 +47,7 @@ export const endpoints = {
     reset: "/store/cart/reset",
     applyCoupon: "/store/cart/coupon",
     removeCoupon: "/store/cart/coupon",
+    heartbeat: "/store/cart/heartbeat",
   },
   checkout: {
     start: "/store/checkout/start",

@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,6 +9,7 @@ import {
   Param,
   Post,
   Put,
+  Query,
   Request,
 } from "@nestjs/common";
 import {
@@ -19,6 +21,7 @@ import {
   ApiOkResponse,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
   ApiTooManyRequestsResponse,
@@ -33,6 +36,7 @@ import {
 } from "../../common/dto/error-response.dto";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { extractSessionId } from "../../common/utils/session.utils";
+import { HeartbeatStore } from "../redis-store/stores/heartbeat-store";
 import { CartsService } from "./carts.service";
 import { AddItemDto } from "./dto/add-item.dto";
 import { ApplyDiscountDto } from "./dto/apply-discount.dto";
@@ -42,28 +46,43 @@ import { UpdateItemDto } from "./dto/update-item.dto";
 @ApiTags("store")
 @Controller("store/cart")
 export class CartsController {
-  constructor(private readonly cartsService: CartsService) {}
+  constructor(
+    private readonly cartsService: CartsService,
+    private readonly heartbeatStore: HeartbeatStore,
+  ) {}
 
   @Get()
   @Public()
   @ApiOperation({
-    summary: "Get cart",
+    summary: "Get cart with enriched product data and resolved pricing",
     description:
-      "Get cart for authenticated customer or guest session. Creates cart if it doesn't exist.",
+      "Returns cart with complete product details (titles, images, SKUs), " +
+      "resolved pricing (sale prices, price lists), detailed breakdowns, " +
+      "and inventory status. Optionally includes checkout session data (shipping cost, payment fee) " +
+      "when checkoutSessionId is provided. Creates cart if it doesn't exist.",
   })
   @ApiHeader({
     name: "X-Session-Id",
     description: "Session ID for guest carts (optional if authenticated)",
     required: false,
   })
+  @ApiQuery({
+    name: "checkoutSessionId",
+    description: "Checkout session ID to include shipping cost and payment fee",
+    required: false,
+    type: String,
+  })
   @ApiOkResponse({
-    description: "Cart retrieved successfully",
+    description: "Cart retrieved successfully with enriched data",
     type: CartResponseDto,
   })
-  async getCart(@Request() req): Promise<CartResponseDto> {
+  async getCart(
+    @Request() req,
+    @Query("checkoutSessionId") checkoutSessionId?: string,
+  ): Promise<CartResponseDto> {
     const userId = req.user?.id || null;
     const sessionId = extractSessionId(req);
-    return this.cartsService.getCart(userId, sessionId);
+    return this.cartsService.getCart(userId, sessionId, checkoutSessionId);
   }
 
   @Post("items")
@@ -319,5 +338,42 @@ export class CartsController {
     const userId = req.user?.id || null;
     const sessionId = extractSessionId(req);
     return this.cartsService.removeDiscount(userId, sessionId);
+  }
+
+  @Post("heartbeat")
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @RateLimit(RATE_LIMIT_PRESETS.CART_HEARTBEAT)
+  @ApiOperation({
+    summary: "Send cart heartbeat",
+    description:
+      "Send heartbeat signal to keep cart reservations alive. Should be called every 30 seconds while cart is active.",
+  })
+  @ApiHeader({
+    name: "X-Session-Id",
+    description: "Session ID for guest carts (optional if authenticated)",
+    required: false,
+  })
+  @ApiOkResponse({
+    description: "Heartbeat recorded successfully",
+  })
+  @ApiBadRequestResponse({
+    description: "Cart not found",
+    type: BadRequestErrorDto,
+  })
+  async heartbeat(@Request() req): Promise<{ success: boolean }> {
+    const userId = req.user?.id || null;
+    const sessionId = extractSessionId(req);
+
+    // Get cart to ensure it exists
+    const cart = await this.cartsService.getCart(userId, sessionId);
+    if (!cart) {
+      throw new BadRequestException("Cart not found");
+    }
+
+    // Record heartbeat
+    await this.heartbeatStore.recordHeartbeat(cart.id);
+
+    return { success: true };
   }
 }

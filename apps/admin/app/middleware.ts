@@ -1,12 +1,51 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getRequiredRolesForRoute } from "@/lib/route-permissions";
 
-export function middleware(request: NextRequest) {
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+async function getUserSession(request: NextRequest): Promise<{
+  role: string;
+  roleId?: string | null;
+} | null> {
+  try {
+    // Get cookies from request
+    const cookieHeader = request.cookies
+      .getAll()
+      .map((c) => `${c.name}=${c.value}`)
+      .join("; ");
+
+    // Fetch session from backend
+    const response = await fetch(`${API_URL}/admin/auth/me`, {
+      method: "GET",
+      headers: {
+        Cookie: cookieHeader,
+      },
+      credentials: "include",
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const data = await response.json();
+    return {
+      role: data.role,
+      roleId: data.roleId ?? null,
+    };
+  } catch (error) {
+    console.error("Middleware session fetch error:", error);
+    return null;
+  }
+}
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Allow public routes - don't check auth for these
   if (
     pathname === "/login" ||
+    pathname === "/403" ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
@@ -26,6 +65,41 @@ export function middleware(request: NextRequest) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       return NextResponse.redirect(loginUrl);
+    }
+    return NextResponse.next();
+  }
+
+  // Check route permissions
+  const requiredRoles = getRequiredRolesForRoute(pathname);
+
+  // If route has role restrictions, check user permissions
+  if (requiredRoles && requiredRoles.length > 0) {
+    const session = await getUserSession(request);
+
+    // If session fetch failed, redirect to login
+    if (!session) {
+      const loginUrl = new URL("/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Legacy admin role has all permissions
+    if (session.role === "admin") {
+      const response = NextResponse.next();
+      if (accessToken) {
+        response.headers.set("x-admin-session", "true");
+      }
+      return response;
+    }
+
+    // Check if user has required role
+    if (
+      !requiredRoles.includes(session.role as (typeof requiredRoles)[number])
+    ) {
+      // User doesn't have required role - redirect to 403
+      const forbiddenUrl = new URL("/403", request.url);
+      forbiddenUrl.searchParams.set("from", pathname);
+      return NextResponse.redirect(forbiddenUrl);
     }
   }
 

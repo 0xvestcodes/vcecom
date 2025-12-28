@@ -74,9 +74,11 @@ export class BundlesController {
 
   @Get()
   @ApiOperation({
-    summary: "Get all bundles",
+    summary: "Get all bundles with enriched product data",
     description:
-      "Retrieve a paginated list of all bundles. Admin-only endpoint.",
+      "Retrieve a paginated list of all bundles with complete product details " +
+      "(product IDs, titles, images, SKUs, attributes, pricing) for all variants in bundle sets. " +
+      "Admin-only endpoint.",
   })
   @ApiQuery({
     name: "page",
@@ -108,9 +110,11 @@ export class BundlesController {
 
   @Get(":id")
   @ApiOperation({
-    summary: "Get a single bundle",
+    summary: "Get a single bundle with enriched product data",
     description:
-      "Retrieve a single bundle with all sets and items. Admin-only endpoint.",
+      "Retrieve a single bundle with all sets and items, including complete product details " +
+      "(product IDs, titles, images, SKUs, attributes, pricing) for all variants. " +
+      "No additional API calls needed for display. Admin-only endpoint.",
   })
   @ApiParam({
     name: "id",

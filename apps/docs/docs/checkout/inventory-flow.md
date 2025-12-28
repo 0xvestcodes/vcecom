@@ -30,8 +30,10 @@ stateDiagram-v2
 ### When Reservations Happen
 
 Inventory is reserved when:
-1. **Checkout Started**: Cart is locked, inventory reserved
-2. **Items Added to Cart**: Inventory reserved immediately (optional, configurable)
+1. **Items Added to Cart**: Inventory reserved immediately using atomic Lua script
+2. **Checkout Started**: Cart is locked, inventory reservations confirmed
+
+**Important**: All inventory reservations use atomic Lua scripts to prevent race conditions and ensure consistency. Pre-checks are not performed - the Lua script handles all validation atomically.
 
 ### Reservation Flow
 

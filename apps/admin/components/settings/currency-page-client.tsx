@@ -30,34 +30,38 @@ export function CurrencyPageClient() {
       title="Currency Settings"
       description="Manage store currencies and exchange rates"
     >
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
+      <div className="space-y-4">
+        <Card className="rounded-xl border-border/50 bg-card/50">
+          <CardHeader className="p-4">
             <div className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5" />
-              <CardTitle>Active Currencies</CardTitle>
+              <DollarSign className="h-4 w-4" />
+              <CardTitle className="text-sm">Active Currencies</CardTitle>
             </div>
-            <CardDescription>
+            <CardDescription className="text-xs">
               Currencies available for your store
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4">
             <div className="space-y-3">
               {currencies.map((currency) => (
                 <div
                   key={currency.code}
-                  className="flex items-center justify-between rounded-lg border p-4"
+                  className="flex items-center justify-between rounded-lg border border-border/50 bg-card/30 p-3 transition-all duration-200"
                 >
                   <div className="flex items-center gap-3">
-                    <Globe className="h-5 w-5 text-muted-foreground" />
+                    <Globe className="h-4 w-4 text-muted-foreground" />
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold">{currency.code}</span>
+                        <span className="font-semibold text-xs">
+                          {currency.code}
+                        </span>
                         {currency.isDefault && (
-                          <Badge variant="default">Default</Badge>
+                          <Badge variant="default" className="text-xs">
+                            Default
+                          </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-xs text-muted-foreground">
                         {currency.name} ({currency.symbol})
                       </p>
                     </div>
@@ -68,8 +72,8 @@ export function CurrencyPageClient() {
           </CardContent>
         </Card>
 
-        <div className="rounded-md bg-muted/50 p-4">
-          <p className="text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border/50 bg-card/30 p-3">
+          <p className="text-xs text-muted-foreground">
             <strong>Note:</strong> Currently only INR (Indian Rupee) is
             supported. Multi-currency support will be available in a future
             update.

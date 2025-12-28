@@ -1,12 +1,13 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Edit, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { Edit, MoreHorizontal, Plus, Tag, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { PaginationControls } from "@/components/common/pagination-controls";
+import { ProtectedButton } from "@/components/common/protected-button";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { DateTime } from "@/components/orders/date-time";
 import { Money } from "@/components/orders/money";
@@ -101,12 +102,14 @@ export function DiscountsPageClient() {
       title="Discounts"
       description="Manage discount codes"
       actions={
-        <Button asChild>
-          <Link href="/discounts/create">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Discount
-          </Link>
-        </Button>
+        <ProtectedButton requiredRoles={["admin", "marketing"]}>
+          <Button asChild>
+            <Link href="/discounts/create">
+              <Plus className="mr-2 h-4 w-4" />
+              Create Discount
+            </Link>
+          </Button>
+        </ProtectedButton>
       }
       pagination={
         <PaginationControls
@@ -141,7 +144,7 @@ export function DiscountsPageClient() {
       )}
 
       {isLoading ? (
-        <div className="rounded-md border">
+        <div className="rounded-lg border border-border/50 overflow-hidden transition-opacity duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -157,31 +160,36 @@ export function DiscountsPageClient() {
             <TableBody>
               {Array.from({ length: 5 }, (_, i) => (
                 <TableRow key={`skeleton-row-${String(i)}`}>
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
-                  <TableCell className="h-12 animate-pulse bg-muted" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
+                  <TableCell className="h-10 animate-pulse bg-muted/30" />
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       ) : data && data.data.length === 0 ? (
-        <div className="text-center py-8 text-muted-foreground">
-          <p className="text-lg font-medium mb-2">No discounts found</p>
-          <p className="text-sm mb-4">Create your first discount code</p>
-          <Button asChild>
-            <Link href="/discounts/create">
-              <Plus className="mr-2 h-4 w-4" />
-              Create Discount
-            </Link>
-          </Button>
+        <div className="text-center py-12 text-muted-foreground rounded-lg border border-border/50 bg-card/30">
+          <Tag className="h-12 w-12 mx-auto mb-3 opacity-50" />
+          <p className="text-sm font-medium mb-1">No discounts found</p>
+          <p className="text-xs mb-4">
+            Create your first discount code to get started
+          </p>
+          <ProtectedButton requiredRoles={["admin", "marketing"]}>
+            <Button asChild size="sm">
+              <Link href="/discounts/create">
+                <Plus className="mr-2 h-3.5 w-3.5" />
+                Create Discount
+              </Link>
+            </Button>
+          </ProtectedButton>
         </div>
       ) : (
-        <div className="rounded-md border">
+        <div className="rounded-lg border border-border/50 overflow-hidden transition-all duration-200">
           <Table>
             <TableHeader>
               <TableRow>
@@ -196,10 +204,12 @@ export function DiscountsPageClient() {
             </TableHeader>
             <TableBody>
               {data?.data.map((discount) => (
-                <TableRow key={discount.id}>
+                <TableRow key={discount.id} className="group">
                   <TableCell className="font-medium">{discount.code}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{discount.type}</Badge>
+                    <Badge variant="outline" className="text-xs">
+                      {discount.type}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     {discount.valueType === "PERCENTAGE" ? (
@@ -211,6 +221,7 @@ export function DiscountsPageClient() {
                   <TableCell>
                     <Badge
                       variant={discount.isActive ? "default" : "secondary"}
+                      className="text-xs"
                     >
                       {discount.isActive ? "Active" : "Inactive"}
                     </Badge>
@@ -226,14 +237,18 @@ export function DiscountsPageClient() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        >
+                          <MoreHorizontal className="h-3.5 w-3.5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
+                      <DropdownMenuContent align="end" className="text-xs">
                         <DropdownMenuItem asChild>
                           <Link href={`/discounts/${discount.id}`}>
-                            <Edit className="mr-2 h-4 w-4" />
+                            <Edit className="mr-2 h-3.5 w-3.5" />
                             Edit
                           </Link>
                         </DropdownMenuItem>
@@ -241,7 +256,7 @@ export function DiscountsPageClient() {
                           onClick={() => handleDeleteClick(discount.id)}
                           className="text-destructive"
                         >
-                          <Trash2 className="mr-2 h-4 w-4" />
+                          <Trash2 className="mr-2 h-3.5 w-3.5" />
                           Delete
                         </DropdownMenuItem>
                       </DropdownMenuContent>

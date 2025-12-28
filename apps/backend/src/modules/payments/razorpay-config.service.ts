@@ -43,8 +43,10 @@ export class RazorpayConfigService {
 
     // Type assertion needed because Razorpay TypeScript definitions don't include timeout
     // but it's supported at runtime by the SDK (see Razorpay SDK documentation)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.razorpayInstance = new Razorpay(razorpayConfig as any);
+    // Using unknown as intermediate type for safer type assertion
+    this.razorpayInstance = new Razorpay(
+      razorpayConfig as unknown as ConstructorParameters<typeof Razorpay>[0],
+    );
 
     return this.razorpayInstance;
   }

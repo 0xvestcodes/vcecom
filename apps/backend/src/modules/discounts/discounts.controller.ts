@@ -137,8 +137,15 @@ export class DiscountsController {
     description: "Too many requests - Rate limit exceeded",
     type: TooManyRequestsErrorDto,
   })
-  async findAll(@Query("page") page?: number, @Query("limit") limit?: number) {
-    return this.discountsService.findAll(page || 1, limit || 10);
+  async findAll(
+    @Query("page") page?: string | number,
+    @Query("limit") limit?: string | number,
+  ) {
+    const pageNum = page ? Math.max(1, Number(page) || 1) : 1;
+    const limitNum = limit
+      ? Math.min(100, Math.max(1, Number(limit) || 10))
+      : 10;
+    return this.discountsService.findAll(pageNum, limitNum);
   }
 
   @Get(":id")

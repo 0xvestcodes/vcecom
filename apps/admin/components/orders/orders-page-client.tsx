@@ -145,7 +145,7 @@ export function OrdersPageClient() {
     [],
   );
 
-  const handleSortChange = useCallback(
+  const _handleSortChange = useCallback(
     (sortBy: OrderSortBy, sortOrder: OrderSortOrder) => {
       setOrderFilters((prev) => ({
         ...prev,
@@ -185,8 +185,9 @@ export function OrdersPageClient() {
           paymentMethod={
             orderFilters.paymentMethod || ("all" as "COD" | "prepaid" | "all")
           }
-          sortBy={orderFilters.sortBy || "createdAt"}
-          sortOrder={orderFilters.sortOrder || "desc"}
+          // Note: Sort functionality temporarily disabled as backend doesn't support it yet
+          // sortBy={orderFilters.sortBy || "createdAt"}
+          // sortOrder={orderFilters.sortOrder || "desc"}
           onStatusChange={handleStatusChange}
           onPaymentStatusChange={handlePaymentStatusChange}
           onFulfillmentStatusChange={handleFulfillmentStatusChange}
@@ -194,7 +195,7 @@ export function OrdersPageClient() {
           onDateRangeChange={handleDateRangeChange}
           onPriceRangeChange={handlePriceRangeChange}
           onPaymentMethodChange={handlePaymentMethodChange}
-          onSortChange={handleSortChange}
+          // onSortChange={handleSortChange}
           onClear={handleClearFilters}
         />
       }
@@ -253,8 +254,9 @@ function parseFiltersFromSearchParams(
     })(),
     paymentMethod:
       (searchParams.get("paymentMethod") as "COD" | "prepaid") || undefined,
-    sortBy: (searchParams.get("sortBy") as OrderSortBy) || undefined,
-    sortOrder: (searchParams.get("sortOrder") as OrderSortOrder) || undefined,
+    // Note: sortBy and sortOrder are removed as backend doesn't support them yet
+    // sortBy: (searchParams.get("sortBy") as OrderSortBy) || undefined,
+    // sortOrder: (searchParams.get("sortOrder") as OrderSortOrder) || undefined,
   };
 }
 
@@ -289,8 +291,9 @@ function useSyncFiltersToUrl(
       urlParams.set("maxValue", filters.maxValue.toString());
     if (filters.paymentMethod)
       urlParams.set("paymentMethod", filters.paymentMethod);
-    if (filters.sortBy) urlParams.set("sortBy", filters.sortBy);
-    if (filters.sortOrder) urlParams.set("sortOrder", filters.sortOrder);
+    // Note: sortBy and sortOrder are removed as backend doesn't support them yet
+    // if (filters.sortBy) urlParams.set("sortBy", filters.sortBy);
+    // if (filters.sortOrder) urlParams.set("sortOrder", filters.sortOrder);
 
     router.replace(`/orders?${urlParams.toString()}`, { scroll: false });
   }, [filters, router]);

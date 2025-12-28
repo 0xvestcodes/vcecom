@@ -37,6 +37,7 @@
     "changelog:unreleased": "git-cliff --unreleased",
     "changelog:ai": "tsx scripts/generate-changelog-ai.ts",
     "commit-history": "bash scripts/generate-commit-history.sh",
+    "seed:ecom": "tsx scripts/seed-ecom.ts",
     "semantic-release": "semantic-release",
     "semantic-release:beta": "semantic-release --config .releaserc.beta.js",
     "semantic-release:prod": "semantic-release --config .releaserc.prod.js",

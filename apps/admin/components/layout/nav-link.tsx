@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useSidebar } from "./admin-shell";
 
 interface NavLinkProps {
   href: string;
@@ -22,38 +23,43 @@ export function NavLink({
   isChild = false,
 }: NavLinkProps) {
   const pathname = usePathname();
+  const sidebar = useSidebar();
 
-  // Only match exact paths or direct children (one level deep)
-  // This prevents multiple sidebar items from being highlighted
-  let isActive = false;
+  // Only match exact paths - no parent/child matching to prevent multiple highlights
+  // This ensures only the exact matching link is highlighted
+  const isActive = pathname === href;
 
-  if (pathname === href) {
-    // Exact match
-    isActive = true;
-  } else if (href !== "/" && pathname.startsWith(`${href}/`)) {
-    // Check if it's a direct child (only one level deeper)
-    // e.g., /orders matches /orders/123 but not /orders/123/details
-    const pathAfterHref = pathname.slice(href.length + 1);
-    const segments = pathAfterHref.split("/").filter(Boolean);
-    // Only match if there's exactly one segment (direct child)
-    isActive = segments.length === 1;
-  }
+  const handleClick = () => {
+    // Close mobile sidebar when a link is clicked
+    if (sidebar && window.innerWidth < 1024) {
+      sidebar.setIsMobileOpen(false);
+    }
+  };
 
   return (
     <Link
       href={href}
+      onClick={handleClick}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-        isChild && "ml-6",
+        "group relative flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all duration-200",
+        isChild && "ml-0",
         isActive
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          ? "bg-accent/60 text-foreground shadow-sm"
+          : "text-muted-foreground hover:bg-accent/30 hover:text-foreground",
       )}
     >
-      <Icon className="h-4 w-4" />
-      <span className="flex-1">{label}</span>
+      {isActive && (
+        <span className="absolute left-0 top-1/2 h-4 w-0.5 -translate-y-1/2 rounded-r-full bg-primary" />
+      )}
+      <Icon
+        className={cn("h-3.5 w-3.5 shrink-0", isActive && "text-primary")}
+      />
+      <span className="flex-1 truncate">{label}</span>
       {badge !== undefined && (
-        <Badge variant="secondary" className="ml-auto">
+        <Badge
+          variant="secondary"
+          className="ml-auto h-5 px-1.5 text-[10px] font-medium"
+        >
           {badge}
         </Badge>
       )}

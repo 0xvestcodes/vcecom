@@ -15,6 +15,7 @@ export interface ExtendedRequest extends Request {
     customerId?: string;
   };
   rateLimitState?: RateLimitState;
+  fingerprint?: string;
 }
 
 /**
@@ -34,6 +35,7 @@ export interface ErrorResponse {
   requestId: string;
   message?: string;
   error?: string;
+  data?: unknown; // Structured error data (e.g., inventory failures)
 }
 
 /**

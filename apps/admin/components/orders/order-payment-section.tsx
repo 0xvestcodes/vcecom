@@ -3,6 +3,7 @@
 import { Copy, RefreshCw } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ProtectedButton } from "@/components/common/protected-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -224,17 +225,23 @@ export function OrderPaymentSection({ order }: OrderPaymentSectionProps) {
           )}
 
           {canMarkPaid && (
-            <Button
-              className="w-full"
-              variant="default"
-              onClick={handleMarkPaid}
-              disabled={markPaidMutation.isPending}
-            >
-              {markPaidMutation.isPending ? "Marking..." : "Mark COD as Paid"}
-            </Button>
+            <ProtectedButton requiredRoles={["admin", "support"]}>
+              <Button
+                className="w-full"
+                variant="default"
+                onClick={handleMarkPaid}
+                disabled={markPaidMutation.isPending}
+              >
+                {markPaidMutation.isPending ? "Marking..." : "Mark COD as Paid"}
+              </Button>
+            </ProtectedButton>
           )}
 
-          {canRefund && <RefundDialog order={order} />}
+          {canRefund && (
+            <ProtectedButton requiredRoles={["admin", "support"]}>
+              <RefundDialog order={order} />
+            </ProtectedButton>
+          )}
         </div>
       </CardContent>
     </Card>

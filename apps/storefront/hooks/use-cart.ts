@@ -44,7 +44,13 @@ export function useAddToCart() {
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["cart"], data);
-      toast.success("Item added to cart");
+      // Show warning if present
+      if (data.warnings && data.warnings.length > 0) {
+        const warningMessages = data.warnings.map((w) => w.message).join(" ");
+        toast.warning(warningMessages, { duration: 5000 });
+      } else {
+        toast.success("Item added to cart");
+      }
     },
     onError: (error: Error) => {
       toast.error(error.message || "Failed to add item to cart");

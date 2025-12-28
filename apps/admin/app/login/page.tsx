@@ -2,6 +2,8 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
+import { Shield } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -132,12 +134,19 @@ function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Admin Login</CardTitle>
-          <CardDescription>
-            Enter your credentials to access the admin panel
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader className="space-y-3 text-center">
+          <div className="flex justify-center">
+            <div className="rounded-lg bg-muted/50 p-3">
+              <Shield className="h-8 w-8 text-foreground/80" />
+            </div>
+          </div>
+          <CardTitle className="text-xl font-semibold tracking-tight">
+            Welcome To Admin Panel
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground">
+            Sign in to access the account area
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -148,15 +157,16 @@ function LoginForm() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel className="text-xs">Email</FormLabel>
                     <FormControl>
                       <Input
                         type="email"
-                        placeholder="admin@example.com"
+                        placeholder="Email"
+                        className="bg-muted/30 border-border/50 text-sm"
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs" />
                   </FormItem>
                 )}
               />
@@ -166,28 +176,43 @@ function LoginForm() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel className="text-xs">Password</FormLabel>
                     <FormControl>
-                      <Input type="password" {...field} />
+                      <Input
+                        type="password"
+                        placeholder="Password"
+                        className="bg-muted/30 border-border/50 text-sm"
+                        {...field}
+                      />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-xs" />
                   </FormItem>
                 )}
               />
 
               {error && (
-                <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+                <div className="rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive">
                   {error}
                 </div>
               )}
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full text-sm"
                 disabled={mutation.isPending}
               >
-                {mutation.isPending ? "Logging in..." : "Login"}
+                {mutation.isPending ? "Logging in..." : "Continue with Email"}
               </Button>
+
+              <div className="text-center text-xs text-muted-foreground">
+                Forgot password? -{" "}
+                <Link
+                  href="/reset"
+                  className="text-primary hover:underline transition-colors"
+                >
+                  Reset
+                </Link>
+              </div>
             </form>
           </Form>
         </CardContent>

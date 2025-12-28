@@ -4,6 +4,7 @@
 
 import { getGuestSessionId, getToken } from "../utils/storage";
 import { endpoints } from "./endpoints";
+import { ApiError } from "./errors";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -48,15 +49,20 @@ export async function apiClient<T>(
 
   if (!response.ok) {
     let errorMessage = `API Error: ${response.status} ${response.statusText}`;
+    let errorData: unknown;
 
     try {
-      const errorData = await response.json();
-      errorMessage = errorData.message || errorData.error || errorMessage;
+      errorData = await response.json();
+      errorMessage =
+        (errorData as { message?: string; error?: string }).message ||
+        (errorData as { message?: string; error?: string }).error ||
+        errorMessage;
     } catch {
       // If response is not JSON, use default error message
+      errorData = undefined;
     }
 
-    throw new Error(errorMessage);
+    throw new ApiError(errorMessage, response.status, errorData);
   }
 
   // Handle empty responses

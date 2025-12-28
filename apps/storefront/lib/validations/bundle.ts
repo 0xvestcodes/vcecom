@@ -7,6 +7,15 @@ import { z } from "zod";
 export const bundleSetItemSchema = z.object({
   id: z.string().uuid(),
   variantId: z.string().uuid(),
+  productId: z.string().uuid(),
+  productTitle: z.string(),
+  productSlug: z.string(),
+  variantTitle: z.string().nullable(),
+  sku: z.string(),
+  attributes: z.record(z.string(), z.string()),
+  thumbnail: z.string().url().nullable(),
+  basePrice: z.number(),
+  compareAtPrice: z.number().nullable(),
   createdAt: z.string().datetime().or(z.date()),
 });
 
