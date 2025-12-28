@@ -96,21 +96,21 @@ export class OrderCancelService {
               );
 
             for (const vq of variantQuantities) {
-              await this.inventoryStore.incrementInventory(
+              await this.inventoryStore.incrementInventoryInDatabase(
                 vq.variantId,
                 vq.quantity, // Positive value to add back to inventory
               );
             }
           } else {
             // Regular variant item
-            await this.inventoryStore.incrementInventory(
+            await this.inventoryStore.incrementInventoryInDatabase(
               item.productVariantId,
               item.quantity, // Positive value to add back to inventory
             );
           }
         } else {
           // Regular variant item (no metadata)
-          await this.inventoryStore.incrementInventory(
+          await this.inventoryStore.incrementInventoryInDatabase(
             item.productVariantId,
             item.quantity, // Positive value to add back to inventory
           );

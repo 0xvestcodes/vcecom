@@ -72,6 +72,7 @@ import {
   ProductVariantOptionTypeResponseDto,
   VariantOptionTypeResponseDto,
 } from "./dto/variant-option-types/variant-option-type-response.dto";
+import { VariantInventoryResponseDto } from "./dto/variant-inventory.dto";
 import { VariantResponseDto } from "./dto/variant-response.dto";
 import { ProductsService } from "./products.service";
 import { VariantsService } from "./variants.service";
@@ -257,6 +258,32 @@ export class ProductsController {
     @Param("id") productId: string,
   ): Promise<VariantResponseDto[]> {
     return this.variantsService.findByProductId(productId);
+  }
+
+  @Public()
+  @Get("variants/:variantId/inventory")
+  @RateLimit(RATE_LIMIT_PRESETS.STOREFRONT_GET)
+  @ApiOperation({
+    summary: "Get variant inventory (live polling)",
+    description:
+      "Get real-time inventory data for a variant. Returns available, reserved, and total inventory from Redis. Public endpoint for live inventory updates.",
+  })
+  @ApiParam({
+    name: "variantId",
+    description: "Variant ID",
+    example: "123e4567-e89b-12d3-a456-426614174000",
+  })
+  @ApiOkResponse({
+    description: "Variant inventory retrieved successfully",
+    type: VariantInventoryResponseDto,
+  })
+  @ApiNotFoundResponse({
+    description: "Variant not found",
+  })
+  async getVariantInventory(
+    @Param("variantId") variantId: string,
+  ): Promise<VariantInventoryResponseDto> {
+    return this.variantsService.getVariantInventory(variantId);
   }
 
   @Public()

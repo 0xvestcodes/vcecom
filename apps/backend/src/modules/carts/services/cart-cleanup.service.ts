@@ -1,6 +1,15 @@
 import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
-import { cartItems, carts, eq, lt } from "@vcecom/db";
+import {
+  and,
+  cartItems,
+  carts,
+  eq,
+  inArray,
+  isNull,
+  lt,
+  sql,
+} from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
 import {
@@ -18,6 +27,7 @@ import { InventoryStore } from "../../redis-store/stores/inventory-store";
 @Injectable()
 export class CartCleanupService implements OnModuleInit {
   private readonly CART_EXPIRY_HOURS = 24; // Carts expire after 24 hours of inactivity
+  private readonly COMMITTED_ARCHIVE_DAYS = 30; // Archive committed items after 30 days
 
   constructor(
     private readonly inventoryStore: InventoryStore,
@@ -134,6 +144,92 @@ export class CartCleanupService implements OnModuleInit {
           error,
         ),
         "Failed to run expired reservation cleanup",
+      );
+      // Don't throw - cleanup failures shouldn't break the app
+    }
+  }
+
+  /**
+   * Archive committed cart items after 30 days
+   * Runs daily at 2 AM to archive cart items that were committed more than 30 days ago
+   * Committed items are tied to orders, so archiving them helps keep the cart_items table clean
+   */
+  @Cron("0 2 * * *") // Daily at 2 AM
+  async archiveCommittedCartItems() {
+    this.logger.debug(
+      createLogContext(this.contextService, "archiveCommittedCartItems", {}),
+      "Starting committed cart items archive",
+    );
+
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - this.COMMITTED_ARCHIVE_DAYS);
+
+      // Find committed cart items that haven't been archived yet
+      // Use updatedAt to determine when they were committed (state changes update this field)
+      const itemsToArchive = await this.db
+        .select({ id: cartItems.id })
+        .from(cartItems)
+        .where(
+          and(
+            eq(cartItems.state, "committed"),
+            lt(cartItems.updatedAt, cutoffDate),
+            isNull(cartItems.archivedAt),
+          ),
+        );
+
+      let archivedCount = 0;
+
+      // Archive items in batches to avoid overwhelming the database
+      const batchSize = 100;
+      for (let i = 0; i < itemsToArchive.length; i += batchSize) {
+        const batch = itemsToArchive.slice(i, i + batchSize);
+        const batchIds = batch.map((item) => item.id);
+
+        try {
+          await this.db
+            .update(cartItems)
+            .set({
+              archivedAt: sql`NOW()`,
+            })
+            .where(
+              and(
+                inArray(cartItems.id, batchIds),
+                isNull(cartItems.archivedAt), // Double-check to avoid race conditions
+              ),
+            );
+
+          archivedCount += batch.length;
+        } catch (error) {
+          this.logger.error(
+            createErrorContext(
+              this.contextService,
+              "archiveCommittedCartItems",
+              error,
+              { batchSize: batch.length, batchIndex: i },
+            ),
+            "Failed to archive batch of committed cart items",
+          );
+          // Continue with next batch even if one fails
+        }
+      }
+
+      this.logger.info(
+        createLogContext(this.contextService, "archiveCommittedCartItems", {
+          archivedCount,
+          totalFound: itemsToArchive.length,
+          cutoffDate: cutoffDate.toISOString(),
+        }),
+        "Committed cart items archive completed",
+      );
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "archiveCommittedCartItems",
+          error,
+        ),
+        "Failed to run committed cart items archive",
       );
       // Don't throw - cleanup failures shouldn't break the app
     }

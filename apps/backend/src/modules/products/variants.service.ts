@@ -344,6 +344,45 @@ export class VariantsService {
   }
 
   /**
+   * Get variant inventory (for live polling)
+   * Returns real-time inventory data from Redis
+   */
+  async getVariantInventory(variantId: string): Promise<{
+    variantId: string;
+    available: number;
+    reserved: number;
+    total: number;
+  }> {
+    // Get variant from DB
+    const [variant] = await this.db
+      .select({
+        id: productVariants.id,
+        inventory: productVariants.inventory,
+      })
+      .from(productVariants)
+      .where(eq(productVariants.id, variantId))
+      .limit(1);
+
+    if (!variant) {
+      throw new NotFoundException(`Variant with ID ${variantId} not found`);
+    }
+
+    // Get Redis data
+    const redisInventory =
+      await this.inventoryStore.getAvailableInventory(variantId);
+    const reserved = await this.inventoryStore.getReservedInventory(variantId);
+    const total = redisInventory !== null ? redisInventory : variant.inventory;
+    const available = Math.max(0, total - (reserved || 0));
+
+    return {
+      variantId: variant.id,
+      available,
+      reserved: reserved || 0,
+      total,
+    };
+  }
+
+  /**
    * Ensure SKU is unique
    */
   private async ensureUniqueSku(

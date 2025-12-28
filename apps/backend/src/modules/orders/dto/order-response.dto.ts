@@ -1,5 +1,125 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { EnrichedOrderItemDto } from "./enriched-order-item.dto";
 import { OrderItemResponseDto } from "./order-item-response.dto";
+
+/**
+ * Address DTO for order responses
+ */
+export class AddressDto {
+  @ApiProperty({ description: "Address ID" })
+  id: string;
+
+  @ApiProperty({ description: "Full name", example: "John Doe" })
+  fullName: string;
+
+  @ApiProperty({ description: "Address line 1", example: "123 Main St" })
+  addressLine1: string;
+
+  @ApiPropertyOptional({
+    description: "Address line 2",
+    nullable: true,
+  })
+  addressLine2: string | null;
+
+  @ApiProperty({ description: "City", example: "Mumbai" })
+  city: string;
+
+  @ApiProperty({ description: "State", example: "Maharashtra" })
+  state: string;
+
+  @ApiProperty({ description: "Postal code", example: "400001" })
+  postalCode: string;
+
+  @ApiProperty({ description: "Country", example: "India" })
+  country: string;
+
+  @ApiProperty({ description: "Phone", example: "+919876543210" })
+  phone: string;
+}
+
+/**
+ * Payment details DTO
+ */
+export class PaymentDetailsDto {
+  @ApiProperty({ description: "Payment method", example: "razorpay" })
+  method: string;
+
+  @ApiProperty({
+    description: "Payment status",
+    enum: ["pending", "paid", "failed", "refunded"],
+    example: "paid",
+  })
+  status: string;
+
+  @ApiPropertyOptional({
+    description: "Transaction ID",
+    nullable: true,
+  })
+  transactionId: string | null;
+
+  @ApiPropertyOptional({
+    description: "Payment timestamp",
+    nullable: true,
+  })
+  paidAt: Date | null;
+
+  @ApiProperty({
+    description: "Fee breakdown",
+    type: Object,
+  })
+  feeBreakdown: {
+    chargeType: string;
+    amount: number;
+    percentage?: number;
+  };
+}
+
+/**
+ * Shipping details DTO
+ */
+export class ShippingDetailsDto {
+  @ApiPropertyOptional({
+    description: "Shipping provider",
+    nullable: true,
+  })
+  provider: string | null;
+
+  @ApiPropertyOptional({
+    description: "Shipping method",
+    nullable: true,
+  })
+  method: string | null;
+
+  @ApiPropertyOptional({
+    description: "Tracking number",
+    nullable: true,
+  })
+  trackingNumber: string | null;
+
+  @ApiPropertyOptional({
+    description: "Tracking URL",
+    nullable: true,
+  })
+  trackingUrl: string | null;
+
+  @ApiPropertyOptional({
+    description: "Estimated delivery date",
+    nullable: true,
+  })
+  estimatedDelivery: Date | null;
+
+  @ApiPropertyOptional({
+    description: "Shipped timestamp",
+    nullable: true,
+  })
+  shippedAt: Date | null;
+
+  @ApiPropertyOptional({
+    description: "Delivered timestamp",
+    nullable: true,
+  })
+  deliveredAt: Date | null;
+}
 
 export class OrderResponseDto {
   @ApiProperty({
@@ -146,10 +266,34 @@ export class OrderResponseDto {
   billingAddressId: string;
 
   @ApiProperty({
-    description: "Order items",
-    type: [OrderItemResponseDto],
+    description: "Order items with enriched product data",
+    type: [EnrichedOrderItemDto],
   })
-  items: OrderItemResponseDto[];
+  items: EnrichedOrderItemDto[] | OrderItemResponseDto[];
+
+  @ApiPropertyOptional({
+    description: "Complete shipping address details",
+    type: AddressDto,
+  })
+  shippingAddress?: AddressDto;
+
+  @ApiPropertyOptional({
+    description: "Complete billing address details",
+    type: AddressDto,
+  })
+  billingAddress?: AddressDto;
+
+  @ApiPropertyOptional({
+    description: "Payment details",
+    type: PaymentDetailsDto,
+  })
+  paymentDetails?: PaymentDetailsDto;
+
+  @ApiPropertyOptional({
+    description: "Shipping details",
+    type: ShippingDetailsDto,
+  })
+  shippingDetails?: ShippingDetailsDto;
 
   @ApiProperty({
     description: "Creation timestamp",

@@ -15,6 +15,7 @@ import {
 } from "@vcecom/db";
 import { DB_TOKEN } from "../../../modules/database/database.module";
 import type { Database } from "../../../modules/database/db";
+import { ProductEnrichmentService } from "../../products/services/product-enrichment.service";
 import { BundleCacheStore } from "../../redis-store/stores/bundle-cache-store";
 import { BundleResponseDto } from "../dto/bundle-response.dto";
 import { CreateBundleDto } from "../dto/create-bundle.dto";
@@ -24,6 +25,7 @@ import { UpdateBundleDto } from "../dto/update-bundle.dto";
 export class BundleDefinitionService {
   constructor(
     private readonly bundleCacheStore: BundleCacheStore,
+    private readonly productEnrichmentService: ProductEnrichmentService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
   /**
@@ -336,31 +338,64 @@ export class BundleDefinitionService {
       .where(eq(bundleSets.bundleId, bundleId))
       .orderBy(asc(bundleSets.sortOrder), asc(bundleSets.createdAt));
 
-    // Get items for each set
-    const setsWithItems = await Promise.all(
-      sets.map(async (set) => {
-        const items = await this.db
-          .select()
-          .from(bundleSetItems)
-          .where(eq(bundleSetItems.setId, set.id));
+    // Collect all variant IDs for enrichment
+    const allVariantIds: string[] = [];
+    const setItemsMap = new Map<string, Array<{ id: string; variantId: string; createdAt: Date }>>();
 
-        return {
-          id: set.id,
-          title: set.title,
-          description: set.description || undefined,
-          minQuantity: set.minQuantity,
-          maxQuantity: set.maxQuantity,
-          sortOrder: set.sortOrder,
-          items: items.map((item) => ({
+    // Get items for each set
+    for (const set of sets) {
+      const items = await this.db
+        .select()
+        .from(bundleSetItems)
+        .where(eq(bundleSetItems.setId, set.id));
+      
+      setItemsMap.set(set.id, items);
+      items.forEach((item) => {
+        if (!allVariantIds.includes(item.variantId)) {
+          allVariantIds.push(item.variantId);
+        }
+      });
+    }
+
+    // Enrich all variants with product data
+    const enrichedVariants = await this.productEnrichmentService.enrichVariants(
+      allVariantIds,
+    );
+    const enrichedVariantsMap = new Map(
+      enrichedVariants.map((v) => [v.variantId, v]),
+    );
+
+    // Build sets with enriched items
+    const setsWithItems = sets.map((set) => {
+      const items = setItemsMap.get(set.id) || [];
+      return {
+        id: set.id,
+        title: set.title,
+        description: set.description || undefined,
+        minQuantity: set.minQuantity,
+        maxQuantity: set.maxQuantity,
+        sortOrder: set.sortOrder,
+        items: items.map((item) => {
+          const enrichedVariant = enrichedVariantsMap.get(item.variantId);
+          return {
             id: item.id,
             variantId: item.variantId,
+            productId: enrichedVariant?.productId || "",
+            productTitle: enrichedVariant?.productTitle || "Product",
+            productSlug: enrichedVariant?.productSlug || "",
+            variantTitle: enrichedVariant?.variantTitle || null,
+            sku: enrichedVariant?.sku || "",
+            attributes: enrichedVariant?.attributes || {},
+            thumbnail: enrichedVariant?.thumbnail || null,
+            basePrice: enrichedVariant?.basePrice || 0,
+            compareAtPrice: enrichedVariant?.compareAtPrice || null,
             createdAt: item.createdAt,
-          })),
-          createdAt: set.createdAt,
-          updatedAt: set.updatedAt,
-        };
-      }),
-    );
+          };
+        }),
+        createdAt: set.createdAt,
+        updatedAt: set.updatedAt,
+      };
+    });
 
     return {
       id: bundle.id,

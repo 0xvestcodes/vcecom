@@ -124,13 +124,20 @@ export function ProductDetail({ productId }: ProductDetailProps) {
           {/* Stock Status */}
           {selectedVariant && (
             <div className="mb-6">
-              <p
-                className={`text-sm ${selectedVariant.inventory > 0 ? "text-green-600" : "text-red-600"}`}
-              >
-                {selectedVariant.inventory > 0
-                  ? `In Stock (${selectedVariant.inventory} available)`
-                  : "Out of Stock"}
-              </p>
+              {selectedVariant.inventory === 0 ? (
+                <p className="text-sm text-red-600 font-medium">Out of Stock</p>
+              ) : selectedVariant.inventory <= 10 ? (
+                <div className="p-3 bg-yellow-50 dark:bg-yellow-950 rounded-md border border-yellow-200 dark:border-yellow-800">
+                  <p className="text-sm text-yellow-800 dark:text-yellow-200 font-medium">
+                    ⚠️ Low Stock - Only {selectedVariant.inventory} available!
+                    Complete checkout quickly.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-green-600">
+                  In Stock ({selectedVariant.inventory} available)
+                </p>
+              )}
             </div>
           )}
 

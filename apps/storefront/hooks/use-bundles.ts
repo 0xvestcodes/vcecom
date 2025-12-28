@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { endpoints, get } from "@/lib/api/client";
 import { bundleSchema, paginatedBundlesSchema } from "@/lib/validations/bundle";
+import { variantSchema } from "@/lib/validations/product";
 
 /**
  * Get bundles list
@@ -42,6 +43,27 @@ export function useBundle(id: string) {
       return bundleSchema.parse(data);
     },
     enabled: !!id,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Get variant details by variant ID
+ * This is used to fetch variant information for bundle items
+ */
+export function useVariant(variantId: string) {
+  return useQuery({
+    queryKey: ["variants", variantId],
+    queryFn: async () => {
+      // We need to find the product first, then get variants
+      // For now, we'll use a workaround by fetching from products endpoint
+      // In a real scenario, you'd have a dedicated variant endpoint
+      // For bundles, we'll fetch variant info when needed in the detail page
+      throw new Error(
+        "Direct variant fetch not implemented - use product variants endpoint",
+      );
+    },
+    enabled: false, // Disabled by default
     staleTime: 5 * 60 * 1000,
   });
 }

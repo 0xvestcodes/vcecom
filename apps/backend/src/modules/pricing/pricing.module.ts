@@ -1,4 +1,4 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
 import { BundlesModule } from "../bundles/bundles.module";
 import { RedisStoreModule } from "../redis-store/redis-store.module";
@@ -9,6 +9,7 @@ import { BundlePricingService } from "./services/bundle-pricing.service";
 import { CustomerGroupService } from "./services/customer-group.service";
 import { PriceListService } from "./services/price-list.service";
 import { PriceListChangeTracker } from "./services/price-list-change-tracker.service";
+import { PriceResolutionService } from "./services/price-resolution.service";
 import { PricingAuditService } from "./services/pricing-audit.service";
 import { PricingBundleService } from "./services/pricing-bundle.service";
 import { PricingCacheHydrationService } from "./services/pricing-cache-hydration.service";
@@ -22,7 +23,7 @@ import { VariantPricingService } from "./services/variant-pricing.service";
 import { StorefrontPriceListsController } from "./storefront-price-lists.controller";
 
 @Module({
-  imports: [RedisStoreModule, ScheduleModule, BundlesModule],
+  imports: [RedisStoreModule, ScheduleModule, forwardRef(() => BundlesModule)],
   controllers: [
     PriceListsController,
     CustomerGroupsController,
@@ -32,6 +33,7 @@ import { StorefrontPriceListsController } from "./storefront-price-lists.control
     PriceListService,
     VariantPricingService,
     CustomerGroupService,
+    PriceResolutionService,
     PricingVersionManager,
     PricingBundleService,
     BundlePricingService,
@@ -49,6 +51,7 @@ import { StorefrontPriceListsController } from "./storefront-price-lists.control
     PriceListService,
     VariantPricingService,
     CustomerGroupService,
+    PriceResolutionService,
     BundlePricingService,
     PricingHotReloadWatcher,
     PricingRebuilder,

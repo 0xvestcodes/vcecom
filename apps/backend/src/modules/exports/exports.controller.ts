@@ -9,6 +9,7 @@ import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
+import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import {
   ExportCustomersDto,
   ExportInventoryDto,
@@ -27,7 +28,7 @@ export class ExportsController {
   constructor(private readonly exportsService: ExportsService) {}
 
   @Post("orders")
-  @RateLimit({ limit: 5, window: 60, keyType: "userId" }) // 5 per minute
+  @RateLimit(RATE_LIMIT_PRESETS.EXPORT)
   @ApiOperation({
     summary: "Export orders (admin)",
     description:
@@ -55,7 +56,7 @@ export class ExportsController {
   }
 
   @Post("products")
-  @RateLimit({ limit: 5, window: 60, keyType: "userId" })
+  @RateLimit(RATE_LIMIT_PRESETS.EXPORT)
   @ApiOperation({
     summary: "Export products (admin)",
     description: "Export products in CSV, PDF, or ZIP format.",
@@ -72,7 +73,7 @@ export class ExportsController {
   }
 
   @Post("customers")
-  @RateLimit({ limit: 5, window: 60, keyType: "userId" })
+  @RateLimit(RATE_LIMIT_PRESETS.EXPORT)
   @ApiOperation({
     summary: "Export customers (admin)",
     description: "Export customers in CSV, PDF, or ZIP format.",
@@ -89,7 +90,7 @@ export class ExportsController {
   }
 
   @Post("inventory")
-  @RateLimit({ limit: 5, window: 60, keyType: "userId" })
+  @RateLimit(RATE_LIMIT_PRESETS.EXPORT)
   @ApiOperation({
     summary: "Export inventory (admin)",
     description: "Export inventory in CSV, PDF, or ZIP format.",

@@ -9,10 +9,14 @@ import { serverApiClient } from "./utils";
 
 /**
  * Get cart
+ * @param checkoutSessionId - Optional checkout session ID to include shipping cost and payment fee
  */
-export async function getCart() {
+export async function getCart(checkoutSessionId?: string) {
   try {
-    const data = await serverApiClient<unknown>("/store/cart");
+    const url = checkoutSessionId
+      ? `/store/cart?checkoutSessionId=${checkoutSessionId}`
+      : "/store/cart";
+    const data = await serverApiClient<unknown>(url);
     return cartSchema.parse(data);
   } catch (error) {
     console.error("Failed to fetch cart:", error);

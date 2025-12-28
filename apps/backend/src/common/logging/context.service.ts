@@ -11,6 +11,7 @@ export interface RequestContext {
   cartId?: string;
   orderId?: string;
   checkoutId?: string;
+  fingerprint?: string;
 }
 
 /**

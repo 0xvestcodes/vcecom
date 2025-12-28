@@ -72,10 +72,10 @@ export function CheckoutConfirmClient({
             {cart.items.map((item) => (
               <div key={item.id} className="flex justify-between text-sm">
                 <span>
-                  {item.quantity}x Product Variant{" "}
-                  {item.productVariantId.slice(0, 8)}
+                  {item.quantity}x {item.productTitle}
+                  {item.variantTitle && ` - ${item.variantTitle}`}
                 </span>
-                <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+                <span>₹{item.pricing.lineTotal.toFixed(2)}</span>
               </div>
             ))}
           </div>
@@ -98,9 +98,29 @@ export function CheckoutConfirmClient({
               <span>₹{cart.gstAmount.toFixed(2)}</span>
             </div>
 
+            {cart.shippingCost && cart.shippingCost > 0 && (
+              <div className="flex justify-between">
+                <span>Shipping</span>
+                <span>₹{cart.shippingCost.toFixed(2)}</span>
+              </div>
+            )}
+
+            {cart.paymentFee && cart.paymentFee > 0 && (
+              <div className="flex justify-between">
+                <span>Payment Fee</span>
+                <span>₹{(cart.paymentFee / 100).toFixed(2)}</span>
+              </div>
+            )}
+
             <div className="border-t pt-4 flex justify-between font-bold text-lg">
               <span>Total</span>
-              <span>₹{cart.total.toFixed(2)}</span>
+              <span>
+                ₹{(
+                  cart.total +
+                  (cart.shippingCost || 0) +
+                  ((cart.paymentFee || 0) / 100)
+                ).toFixed(2)}
+              </span>
             </div>
           </div>
 

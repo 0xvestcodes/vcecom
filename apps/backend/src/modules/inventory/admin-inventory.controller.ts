@@ -37,6 +37,7 @@ import {
   InventoryLogsQueryDto,
   PaginatedInventoryLogsResponseDto,
 } from "./dto/inventory-logs.dto";
+import { CartStateMetricsDto } from "./dto/cart-state-metrics.dto";
 import { InventoryMetricsDto } from "./dto/inventory-metrics.dto";
 import {
   InventoryReservationsResponseDto,
@@ -113,7 +114,32 @@ export class AdminInventoryController {
     description: "Forbidden - Admin access required",
   })
   async getMetrics(): Promise<InventoryMetricsDto> {
-    return this.inventoryService.getMetrics();
+    return this.adminInventoryService.getMetrics();
+  }
+
+  @Get("cart-state-metrics")
+  @Roles("admin")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_GET)
+  @ApiOperation({
+    summary: "Get cart state metrics",
+    description:
+      "Returns counts of cart items in each state (fresh, stale, reacquired, committed) and stale recovery rate. Admin access required.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Cart state metrics retrieved successfully",
+    type: CartStateMetricsDto,
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized",
+  })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - Admin access required",
+  })
+  async getCartStateMetrics(): Promise<CartStateMetricsDto> {
+    return this.adminInventoryService.getCartStateMetrics();
   }
 
   @Get("health")
