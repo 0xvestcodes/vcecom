@@ -20,8 +20,13 @@ import {
   productVariants,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import {
+  DECIMAL_ROUNDING_MULTIPLIER,
+  PERCENTAGE_MULTIPLIER,
+} from "../../common/constants/currency.constants";
 import { ReservationMode } from "../../common/constants/inventory.constants";
 import { ContextService } from "../../common/logging/context.service";
+import { CART_EXPIRY_DAYS } from "./carts.constants";
 import {
   createErrorContext,
   createLogContext,
@@ -73,7 +78,6 @@ export class CartsService {
     private readonly contextService: ContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
-  private readonly CART_EXPIRY_DAYS = 30; // Cart expires after 30 days
 
   /**
    * Get or create cart for customer or session
@@ -107,7 +111,7 @@ export class CartsService {
 
       if (!cart) {
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + this.CART_EXPIRY_DAYS);
+        expiresAt.setDate(expiresAt.getDate() + CART_EXPIRY_DAYS);
 
         try {
           const cartResult = await this.db
@@ -158,7 +162,7 @@ export class CartsService {
 
       if (!cart) {
         const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + this.CART_EXPIRY_DAYS);
+        expiresAt.setDate(expiresAt.getDate() + CART_EXPIRY_DAYS);
 
         try {
           const cartResult = await this.db
@@ -1032,7 +1036,7 @@ export class CartsService {
           Number(updatedCart.subtotal) - itemDiscounts;
         const percentageSaved =
           subtotalAfterItemDiscounts > 0
-            ? (discountAmount / subtotalAfterItemDiscounts) * 100
+            ? (discountAmount / subtotalAfterItemDiscounts) * PERCENTAGE_MULTIPLIER
             : 0;
 
         // Map discount type to simpler format
@@ -1050,7 +1054,7 @@ export class CartsService {
           type: mappedType,
           description: discount.description || discount.name || discount.code,
           amountSaved: discountAmount,
-          percentageSaved: Math.round(percentageSaved * 100) / 100,
+          percentageSaved: Math.round(percentageSaved * DECIMAL_ROUNDING_MULTIPLIER) / DECIMAL_ROUNDING_MULTIPLIER,
           appliedTo: discount.appliesTo === "SUBTOTAL" ? "cart" : "items",
           // TODO: Calculate eligible items based on discount scope
         };

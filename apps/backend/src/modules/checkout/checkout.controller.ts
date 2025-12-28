@@ -24,6 +24,7 @@ import {
   NotFoundErrorDto,
   TooManyRequestsErrorDto,
 } from "../../common/dto/error-response.dto";
+import { PAISE_PER_RUPEE } from "../../common/constants/currency.constants";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { extractSessionId } from "../../common/utils/session.utils";
 import type { Database } from "../../modules/database/db";
@@ -328,7 +329,7 @@ export class CheckoutController {
     }
 
     // Calculate cart total in paise (convert from INR)
-    const cartTotalInPaise = Math.round(cart.total * 100);
+    const cartTotalInPaise = Math.round(cart.total * PAISE_PER_RUPEE);
 
     // Convert cart items to format expected by payment charge service
     const cartItems = cart.items.map((item) => ({
@@ -460,7 +461,7 @@ export class CheckoutController {
     }
 
     // Calculate cart total in paise
-    const cartTotalInPaise = Math.round(cart.total * 100);
+    const cartTotalInPaise = Math.round(cart.total * PAISE_PER_RUPEE);
 
     // Calculate fee for selected method
     const { fee, breakdown } = await this.paymentChargeService.calculateFee(
@@ -500,15 +501,15 @@ export class CheckoutController {
     // Return fee in rupees for API response
     return {
       success: true,
-      fee: fee / 100, // Convert from paise to rupees
+      fee: fee / PAISE_PER_RUPEE, // Convert from paise to rupees
       breakdown: {
         ...breakdown,
         flatAmount: breakdown.flatAmount
-          ? breakdown.flatAmount / 100
+          ? breakdown.flatAmount / PAISE_PER_RUPEE
           : undefined,
-        calculatedFee: breakdown.calculatedFee / 100,
-        mixMin: breakdown.mixMin ? breakdown.mixMin / 100 : undefined,
-        mixCap: breakdown.mixCap ? breakdown.mixCap / 100 : undefined,
+        calculatedFee: breakdown.calculatedFee / PAISE_PER_RUPEE,
+        mixMin: breakdown.mixMin ? breakdown.mixMin / PAISE_PER_RUPEE : undefined,
+        mixCap: breakdown.mixCap ? breakdown.mixCap / PAISE_PER_RUPEE : undefined,
       },
     };
   }

@@ -19,6 +19,10 @@ import {
 import { DB_TOKEN } from "../../../modules/database/database.module";
 import type { Database } from "../../../modules/database/db";
 import { InventoryStore } from "../../redis-store/stores/inventory-store";
+import {
+  CART_EXPIRY_HOURS,
+  COMMITTED_ARCHIVE_DAYS,
+} from "../carts.constants";
 
 /**
  * Cart Cleanup Service
@@ -26,8 +30,6 @@ import { InventoryStore } from "../../redis-store/stores/inventory-store";
  */
 @Injectable()
 export class CartCleanupService implements OnModuleInit {
-  private readonly CART_EXPIRY_HOURS = 24; // Carts expire after 24 hours of inactivity
-  private readonly COMMITTED_ARCHIVE_DAYS = 30; // Archive committed items after 30 days
 
   constructor(
     private readonly inventoryStore: InventoryStore,
@@ -56,7 +58,7 @@ export class CartCleanupService implements OnModuleInit {
 
     try {
       const cutoffDate = new Date();
-      cutoffDate.setHours(cutoffDate.getHours() - this.CART_EXPIRY_HOURS);
+      cutoffDate.setHours(cutoffDate.getHours() - CART_EXPIRY_HOURS);
 
       // Find abandoned carts (no updates in last 24 hours)
       const abandonedCarts = await this.db
@@ -163,7 +165,7 @@ export class CartCleanupService implements OnModuleInit {
 
     try {
       const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - this.COMMITTED_ARCHIVE_DAYS);
+      cutoffDate.setDate(cutoffDate.getDate() - COMMITTED_ARCHIVE_DAYS);
 
       // Find committed cart items that haven't been archived yet
       // Use updatedAt to determine when they were committed (state changes update this field)

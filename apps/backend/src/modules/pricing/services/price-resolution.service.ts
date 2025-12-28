@@ -1,6 +1,10 @@
 import { Inject, Injectable } from "@nestjs/common";
 import { customers, eq, products, productVariants } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import {
+  DECIMAL_ROUNDING_MULTIPLIER,
+  PERCENTAGE_MULTIPLIER,
+} from "../../../common/constants/currency.constants";
 import { ContextService } from "../../../common/logging/context.service";
 import {
   createErrorContext,
@@ -372,7 +376,7 @@ export class PriceResolutionService {
     const finalPrice = variantResult.effectivePrice;
     const totalSavings = basePrice - finalPrice;
     const savingsPercentage =
-      basePrice > 0 ? (totalSavings / basePrice) * 100 : 0;
+      basePrice > 0 ? (totalSavings / basePrice) * PERCENTAGE_MULTIPLIER : 0;
 
     // Check if sale is active
     const isSaleActive =
@@ -412,7 +416,7 @@ export class PriceResolutionService {
           priceAfterOverride = bestOverride.overrideValue;
         } else if (bestOverride.overrideType === "PERCENTAGE") {
           priceAfterOverride =
-            basePrice * (1 - bestOverride.overrideValue / 100);
+            basePrice * (1 - bestOverride.overrideValue / PERCENTAGE_MULTIPLIER);
         }
 
         // If sale is active, sale price wins, so discount is from base to sale
@@ -440,7 +444,7 @@ export class PriceResolutionService {
       priceListDiscount: priceListDiscountInfo,
       customerGroupDiscount: null, // Not directly calculated, included in price list
       totalSavings,
-      savingsPercentage: Math.round(savingsPercentage * 100) / 100, // Round to 2 decimals
+      savingsPercentage: Math.round(savingsPercentage * DECIMAL_ROUNDING_MULTIPLIER) / DECIMAL_ROUNDING_MULTIPLIER, // Round to 2 decimals
     };
   }
 

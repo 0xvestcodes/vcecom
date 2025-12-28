@@ -26,10 +26,12 @@ import {
 import { PinoLogger } from "nestjs-pino";
 import { ReservationMode } from "../../common/constants/inventory.constants";
 // Internal modules - Common
+import { PAISE_PER_RUPEE } from "../../common/constants/currency.constants";
 import {
   COD_PAYMENT_METHOD,
   isCodPayment,
 } from "../../common/constants/orders.constants";
+import { RETRY_DELAY_MS } from "../../common/constants/timeout.constants";
 import { ContextService } from "../../common/logging/context.service";
 import {
   createErrorContext,
@@ -1119,14 +1121,14 @@ export class OrdersService {
         subtotalAfterDiscount +
         totalGstAmount +
         shippingCost +
-        paymentFee / 100;
+        paymentFee / PAISE_PER_RUPEE;
 
       // Verify payment intent amount calculation includes fee
-      const expectedAmountInPaise = Math.round(total * 100);
+      const expectedAmountInPaise = Math.round(total * PAISE_PER_RUPEE);
       const expectedComponents = {
-        subtotalAfterDiscount: Math.round(subtotalAfterDiscount * 100),
-        totalGstAmount: Math.round(totalGstAmount * 100),
-        shippingCost: Math.round(shippingCost * 100),
+        subtotalAfterDiscount: Math.round(subtotalAfterDiscount * PAISE_PER_RUPEE),
+        totalGstAmount: Math.round(totalGstAmount * PAISE_PER_RUPEE),
+        shippingCost: Math.round(shippingCost * PAISE_PER_RUPEE),
         paymentFee,
         total: expectedAmountInPaise,
       };
@@ -1205,12 +1207,12 @@ export class OrdersService {
         // Create payment intent idempotently
         // Amount is in rupees, convert to paise for Razorpay
         // CRITICAL: Amount MUST include payment fee (already included in total calculation above)
-        const amountInPaise = Math.round(total * 100);
+        const amountInPaise = Math.round(total * PAISE_PER_RUPEE);
 
         // Verify amount includes fee before creating payment intent
         const expectedAmount =
           Math.round(
-            (subtotalAfterDiscount + totalGstAmount + shippingCost) * 100,
+            (subtotalAfterDiscount + totalGstAmount + shippingCost) * PAISE_PER_RUPEE,
           ) + paymentFee;
         if (amountInPaise !== expectedAmount) {
           this.logger.error(
@@ -1271,7 +1273,7 @@ export class OrdersService {
             `Payment intent returned with empty paymentIntentId (placeholder) for checkoutSessionId=${checkoutSessionId}, retrying after delay`,
           );
           // Wait a bit longer for concurrent creation to complete
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
           // Try to get the payment intent again
           const retryPaymentIntent =
             await this.checkoutStore.getPaymentIntent(checkoutSessionId);
@@ -1310,9 +1312,9 @@ export class OrdersService {
             paymentFee,
             paymentMethod,
             components: {
-              subtotal: Math.round(subtotalAfterDiscount * 100),
-              gst: Math.round(totalGstAmount * 100),
-              shipping: Math.round(shippingCost * 100),
+              subtotal: Math.round(subtotalAfterDiscount * PAISE_PER_RUPEE),
+              gst: Math.round(totalGstAmount * PAISE_PER_RUPEE),
+              shipping: Math.round(shippingCost * PAISE_PER_RUPEE),
               fee: paymentFee,
               total: amountInPaise,
             },
@@ -1325,7 +1327,7 @@ export class OrdersService {
           await this.driftDetector.detectPaymentIntentDrift(
             checkoutSessionId,
             total,
-            amountInPaise / 100, // Convert from paise to rupees
+            amountInPaise / PAISE_PER_RUPEE, // Convert from paise to rupees
             discountSnapshot,
           );
 
@@ -1355,7 +1357,7 @@ export class OrdersService {
             await this.pricingDriftDetector.detectPaymentIntentDrift(
               checkoutSessionId,
               effectiveSubtotal,
-              amountInPaise / 100, // Convert from paise to rupees (total includes GST + shipping)
+              amountInPaise / PAISE_PER_RUPEE, // Convert from paise to rupees (total includes GST + shipping)
               pricingSnapshot,
             );
           } catch (error) {
@@ -1368,7 +1370,7 @@ export class OrdersService {
                 {
                   checkoutSessionId,
                   effectiveSubtotal,
-                  total: amountInPaise / 100,
+                  total: amountInPaise / PAISE_PER_RUPEE,
                 },
               ),
               "Pricing drift detected",
@@ -1729,7 +1731,7 @@ export class OrdersService {
 
     // Include payment fee in total (convert from paise to rupees)
     const total =
-      subtotalAfterDiscount + totalGstAmount + shippingCost + paymentFee / 100;
+      subtotalAfterDiscount + totalGstAmount + shippingCost + paymentFee / PAISE_PER_RUPEE;
 
     // Generate order number
     const orderNumber = await this.generateOrderNumber();
@@ -1831,7 +1833,7 @@ export class OrdersService {
           const effectivePrice = variantPrice.effectivePrice;
           const savings = basePrice - effectivePrice;
           const _savingsPercentage =
-            basePrice > 0 ? (savings / basePrice) * 100 : 0;
+            basePrice > 0 ? (savings / basePrice) * PAISE_PER_RUPEE : 0;
 
           pricingSnapshot = {
             basePrice,
@@ -2632,7 +2634,7 @@ export class OrdersService {
     } else if (metadata.paymentMethod) {
       // Payment method selected but fee not calculated - calculate it now
       const cartTotalInPaise = Math.round(
-        (subtotalAfterDiscount + totalGstAmount + shippingCost) * 100,
+        (subtotalAfterDiscount + totalGstAmount + shippingCost) * PAISE_PER_RUPEE,
       );
       const { fee, breakdown } = await this.paymentChargeService.calculateFee(
         metadata.paymentMethod,
@@ -2646,7 +2648,7 @@ export class OrdersService {
 
     // Include payment fee in total (convert from paise to rupees)
     const total =
-      subtotalAfterDiscount + totalGstAmount + shippingCost + paymentFee / 100;
+      subtotalAfterDiscount + totalGstAmount + shippingCost + paymentFee / PAISE_PER_RUPEE;
 
     // Generate order number
     const orderNumber = await this.generateOrderNumber();
@@ -3649,7 +3651,7 @@ export class OrdersService {
         paidAt: null,
         feeBreakdown: {
           chargeType: paymentFeeBreakdown?.chargeType || "NONE",
-          amount: order.paymentFee ? Number(order.paymentFee) / 100 : 0,
+          amount: order.paymentFee ? Number(order.paymentFee) / PAISE_PER_RUPEE : 0,
           percentage: paymentFeeBreakdown?.percentage,
         },
       };

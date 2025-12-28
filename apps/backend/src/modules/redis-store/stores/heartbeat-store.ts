@@ -6,6 +6,7 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
+import { SCRIPT_LOAD_TIMEOUT_MS } from "../../../common/constants/timeout.constants";
 import { RedisStoreService } from "../redis-store.service";
 import { loadLuaScript } from "./inventory-store";
 
@@ -28,7 +29,7 @@ export class HeartbeatStore implements OnModuleInit {
       this.updateHeartbeatScriptSha = (await Promise.race([
         this.client.script("LOAD", script),
         new Promise<string>((_, reject) =>
-          setTimeout(() => reject(new Error("Script load timeout")), 2000),
+          setTimeout(() => reject(new Error("Script load timeout")), SCRIPT_LOAD_TIMEOUT_MS),
         ),
       ])) as string;
 

@@ -6,6 +6,7 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../common/logging/logging.helper";
+import { SCRIPT_LOAD_TIMEOUT_MS } from "../../common/constants/timeout.constants";
 
 @Injectable()
 export class RedisStoreService implements OnModuleInit, OnModuleDestroy {
@@ -186,7 +187,7 @@ export class RedisStoreService implements OnModuleInit, OnModuleDestroy {
       Promise.race([
         this.client.ping(),
         new Promise<string>((_, reject) =>
-          setTimeout(() => reject(new Error("Redis ping timeout")), 3000),
+          setTimeout(() => reject(new Error("Redis ping timeout")), SCRIPT_LOAD_TIMEOUT_MS + 1000), // Slightly longer than script load timeout
         ),
       ])
         .then(() => {

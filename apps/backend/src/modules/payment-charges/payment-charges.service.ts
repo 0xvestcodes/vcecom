@@ -11,6 +11,7 @@ import {
   paymentMethodCharges,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { PAISE_PER_RUPEE } from "../../common/constants/currency.constants";
 import { DB_TOKEN } from "../../modules/database/database.module";
 import type { Database } from "../../modules/database/db";
 import { PaymentChargeService } from "../payments/services/payment-charge.service";
@@ -36,10 +37,10 @@ export class PaymentChargesService {
     // Convert paise to rupees for response
     return charges.map((charge) => ({
       ...charge,
-      flatAmount: charge.flatAmount / 100,
-      mixCap: charge.mixCap ? charge.mixCap / 100 : null,
-      mixMin: charge.mixMin ? charge.mixMin / 100 : null,
-      codMaxAmount: charge.codMaxAmount ? charge.codMaxAmount / 100 : null,
+      flatAmount: charge.flatAmount / PAISE_PER_RUPEE,
+      mixCap: charge.mixCap ? charge.mixCap / PAISE_PER_RUPEE : null,
+      mixMin: charge.mixMin ? charge.mixMin / PAISE_PER_RUPEE : null,
+      codMaxAmount: charge.codMaxAmount ? charge.codMaxAmount / PAISE_PER_RUPEE : null,
     }));
   }
 
@@ -57,10 +58,10 @@ export class PaymentChargesService {
     // Convert paise to rupees for response
     return {
       ...charge,
-      flatAmount: charge.flatAmount / 100,
-      mixCap: charge.mixCap ? charge.mixCap / 100 : null,
-      mixMin: charge.mixMin ? charge.mixMin / 100 : null,
-      codMaxAmount: charge.codMaxAmount ? charge.codMaxAmount / 100 : null,
+      flatAmount: charge.flatAmount / PAISE_PER_RUPEE,
+      mixCap: charge.mixCap ? charge.mixCap / PAISE_PER_RUPEE : null,
+      mixMin: charge.mixMin ? charge.mixMin / PAISE_PER_RUPEE : null,
+      codMaxAmount: charge.codMaxAmount ? charge.codMaxAmount / PAISE_PER_RUPEE : null,
     };
   }
 
@@ -69,14 +70,14 @@ export class PaymentChargesService {
     this.validateChargeType(dto);
 
     // Convert rupees to paise for storage (database stores in paise)
-    const flatAmountInPaise = Math.round(dto.flatAmount * 100);
+    const flatAmountInPaise = Math.round(dto.flatAmount * PAISE_PER_RUPEE);
     const mixCapInPaise =
-      dto.mixCap !== undefined ? Math.round(dto.mixCap * 100) : null;
+      dto.mixCap !== undefined ? Math.round(dto.mixCap * PAISE_PER_RUPEE) : null;
     const mixMinInPaise =
-      dto.mixMin !== undefined ? Math.round(dto.mixMin * 100) : null;
+      dto.mixMin !== undefined ? Math.round(dto.mixMin * PAISE_PER_RUPEE) : null;
     const codMaxAmountInPaise =
       dto.codMaxAmount !== undefined
-        ? Math.round(dto.codMaxAmount * 100)
+        ? Math.round(dto.codMaxAmount * PAISE_PER_RUPEE)
         : null;
 
     const [charge] = await this.db
@@ -106,10 +107,10 @@ export class PaymentChargesService {
     // Return charge with amounts converted back to rupees
     return {
       ...charge,
-      flatAmount: charge.flatAmount / 100,
-      mixCap: charge.mixCap ? charge.mixCap / 100 : null,
-      mixMin: charge.mixMin ? charge.mixMin / 100 : null,
-      codMaxAmount: charge.codMaxAmount ? charge.codMaxAmount / 100 : null,
+      flatAmount: charge.flatAmount / PAISE_PER_RUPEE,
+      mixCap: charge.mixCap ? charge.mixCap / PAISE_PER_RUPEE : null,
+      mixMin: charge.mixMin ? charge.mixMin / PAISE_PER_RUPEE : null,
+      codMaxAmount: charge.codMaxAmount ? charge.codMaxAmount / PAISE_PER_RUPEE : null,
     };
   }
 
@@ -128,11 +129,11 @@ export class PaymentChargesService {
     // Convert existing to rupees for validation
     const existing = {
       ...existingDb,
-      flatAmount: existingDb.flatAmount / 100,
-      mixCap: existingDb.mixCap ? existingDb.mixCap / 100 : null,
-      mixMin: existingDb.mixMin ? existingDb.mixMin / 100 : null,
+      flatAmount: existingDb.flatAmount / PAISE_PER_RUPEE,
+      mixCap: existingDb.mixCap ? existingDb.mixCap / PAISE_PER_RUPEE : null,
+      mixMin: existingDb.mixMin ? existingDb.mixMin / PAISE_PER_RUPEE : null,
       codMaxAmount: existingDb.codMaxAmount
-        ? existingDb.codMaxAmount / 100
+        ? existingDb.codMaxAmount / PAISE_PER_RUPEE
         : null,
     };
 
@@ -153,20 +154,20 @@ export class PaymentChargesService {
         chargeType: dto.chargeType as unknown as ChargeType,
       }),
       ...(dto.flatAmount !== undefined && {
-        flatAmount: Math.round(dto.flatAmount * 100),
+        flatAmount: Math.round(dto.flatAmount * PAISE_PER_RUPEE),
       }),
       ...(dto.percentage !== undefined && { percentage: dto.percentage }),
       ...(dto.mixCap !== undefined && {
-        mixCap: dto.mixCap !== null ? Math.round(dto.mixCap * 100) : null,
+        mixCap: dto.mixCap !== null ? Math.round(dto.mixCap * PAISE_PER_RUPEE) : null,
       }),
       ...(dto.mixMin !== undefined && {
-        mixMin: dto.mixMin !== null ? Math.round(dto.mixMin * 100) : null,
+        mixMin: dto.mixMin !== null ? Math.round(dto.mixMin * PAISE_PER_RUPEE) : null,
       }),
       ...(dto.isTaxable !== undefined && { isTaxable: dto.isTaxable }),
       ...(dto.currency && { currency: dto.currency }),
       ...(dto.codMaxAmount !== undefined && {
         codMaxAmount:
-          dto.codMaxAmount !== null ? Math.round(dto.codMaxAmount * 100) : null,
+          dto.codMaxAmount !== null ? Math.round(dto.codMaxAmount * PAISE_PER_RUPEE) : null,
       }),
       ...(dto.codDisallowHighValue !== undefined && {
         codDisallowHighValue: dto.codDisallowHighValue,
@@ -195,10 +196,10 @@ export class PaymentChargesService {
     // Return charge with amounts converted back to rupees
     return {
       ...updated,
-      flatAmount: updated.flatAmount / 100,
-      mixCap: updated.mixCap ? updated.mixCap / 100 : null,
-      mixMin: updated.mixMin ? updated.mixMin / 100 : null,
-      codMaxAmount: updated.codMaxAmount ? updated.codMaxAmount / 100 : null,
+      flatAmount: updated.flatAmount / PAISE_PER_RUPEE,
+      mixCap: updated.mixCap ? updated.mixCap / PAISE_PER_RUPEE : null,
+      mixMin: updated.mixMin ? updated.mixMin / PAISE_PER_RUPEE : null,
+      codMaxAmount: updated.codMaxAmount ? updated.codMaxAmount / PAISE_PER_RUPEE : null,
     };
   }
 
