@@ -3,12 +3,12 @@ import { Cron, Interval } from "@nestjs/schedule";
 import { and, cartItems, eq } from "@vcecom/db";
 import Redis from "ioredis";
 import { PinoLogger } from "nestjs-pino";
+import { CLEANUP_INTERVAL_MS } from "../../../common/constants/timeout.constants";
 import { ContextService } from "../../../common/logging/context.service";
 import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
-import { CLEANUP_INTERVAL_MS } from "../../../common/constants/timeout.constants";
 import { DB_TOKEN } from "../../../modules/database/database.constants";
 import type { Database } from "../../../modules/database/db";
 import { KEY_PATTERNS } from "../constants/key-patterns";

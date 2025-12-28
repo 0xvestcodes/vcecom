@@ -416,7 +416,8 @@ export class PriceResolutionService {
           priceAfterOverride = bestOverride.overrideValue;
         } else if (bestOverride.overrideType === "PERCENTAGE") {
           priceAfterOverride =
-            basePrice * (1 - bestOverride.overrideValue / PERCENTAGE_MULTIPLIER);
+            basePrice *
+            (1 - bestOverride.overrideValue / PERCENTAGE_MULTIPLIER);
         }
 
         // If sale is active, sale price wins, so discount is from base to sale
@@ -444,7 +445,9 @@ export class PriceResolutionService {
       priceListDiscount: priceListDiscountInfo,
       customerGroupDiscount: null, // Not directly calculated, included in price list
       totalSavings,
-      savingsPercentage: Math.round(savingsPercentage * DECIMAL_ROUNDING_MULTIPLIER) / DECIMAL_ROUNDING_MULTIPLIER, // Round to 2 decimals
+      savingsPercentage:
+        Math.round(savingsPercentage * DECIMAL_ROUNDING_MULTIPLIER) /
+        DECIMAL_ROUNDING_MULTIPLIER, // Round to 2 decimals
     };
   }
 

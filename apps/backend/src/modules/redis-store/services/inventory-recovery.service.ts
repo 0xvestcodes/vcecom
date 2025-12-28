@@ -1,12 +1,12 @@
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { Cron, Interval } from "@nestjs/schedule";
 import { PinoLogger } from "nestjs-pino";
+import { CLEANUP_INTERVAL_MS } from "../../../common/constants/timeout.constants";
 import { ContextService } from "../../../common/logging/context.service";
 import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
-import { CLEANUP_INTERVAL_MS } from "../../../common/constants/timeout.constants";
 import { TracingService } from "../../../common/tracing/tracing.service";
 import { RedisStoreService } from "../redis-store.service";
 import { InventoryStore } from "../stores/inventory-store";

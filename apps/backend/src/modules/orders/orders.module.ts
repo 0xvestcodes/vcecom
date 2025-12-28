@@ -15,13 +15,19 @@ import { ReconciliationService } from "./reconciliation.service";
 import { OrderAddressService } from "./services/order-address.service";
 import { OrderArchiveService } from "./services/order-archive.service";
 import { OrderCancelService } from "./services/order-cancel.service";
+import { OrderCreationService } from "./services/order-creation.service";
+import { OrderDiscountService } from "./services/order-discount.service";
 import { OrderDuplicateService } from "./services/order-duplicate.service";
+import { OrderEnrichmentService } from "./services/order-enrichment.service";
 import { OrderGstService } from "./services/order-gst.service";
+import { OrderInventoryService } from "./services/order-inventory.service";
 import { OrderNotesService } from "./services/order-notes.service";
 import { OrderPaymentService } from "./services/order-payment.service";
 import { OrderPricingService } from "./services/order-pricing.service";
+import { OrderQueryService } from "./services/order-query.service";
 import { OrderStatusService } from "./services/order-status.service";
 import { OrderTimelineService } from "./services/order-timeline.service";
+import { OrderTrackingService } from "./services/order-tracking.service";
 import { OrderValidationService } from "./services/order-validation.service";
 import { RefundsService } from "./services/refunds.service";
 
@@ -46,7 +52,13 @@ import { RefundsService } from "./services/refunds.service";
     OrderPricingService,
     OrderStatusService,
     OrderGstService,
+    OrderInventoryService,
+    OrderDiscountService,
+    OrderEnrichmentService,
+    OrderQueryService,
+    OrderCreationService,
     OrderTimelineService,
+    OrderTrackingService,
     OrderNotesService,
     RefundsService,
     OrderPaymentService,
@@ -62,7 +74,13 @@ import { RefundsService } from "./services/refunds.service";
     OrderPricingService,
     OrderStatusService,
     OrderGstService,
+    OrderInventoryService,
+    OrderDiscountService,
+    OrderEnrichmentService,
+    OrderQueryService,
+    OrderCreationService,
     OrderTimelineService,
+    OrderTrackingService,
     OrderNotesService,
     RefundsService,
     OrderPaymentService,

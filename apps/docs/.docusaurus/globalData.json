@@ -40,6 +40,11 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "architecture/monorepo",
+              "path": "/docs/architecture/monorepo",
+              "sidebar": "docsSidebar"
+            },
+            {
               "id": "architecture/overview",
               "path": "/docs/architecture/overview",
               "sidebar": "docsSidebar"

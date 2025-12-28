@@ -17,39 +17,61 @@ VCEcom is a full-featured ecommerce backend that provides:
 
 ## Architecture Overview
 
-VCEcom is built using a modern, modular architecture:
+VCEcom is built as a **Turborepo monorepo** using **pnpm workspaces**, enabling efficient code sharing and parallel development. The architecture consists of multiple applications and shared packages:
 
 ```mermaid
 graph TB
-    A[Next.js Storefront] --> B[NestJS Backend API]
-    C[Admin Dashboard] --> B
-    B --> D[PostgreSQL Database]
-    B --> E[Redis Cache]
-    B --> F[Razorpay Payments]
-    B --> G[Email/SMS Services]
+    subgraph "Monorepo Workspace"
+        A[Next.js Storefront] --> B[NestJS Backend API]
+        C[Admin Dashboard] --> B
+        D[Documentation] 
+        
+        subgraph "Shared Packages"
+            E[@vcecom/db<br/>Database Schema]
+            F[@vcecom/typescript-config<br/>TypeScript Configs]
+        end
+        
+        B --> E
+        A --> E
+        C --> E
+    end
+    
+    B --> G[PostgreSQL Database]
+    B --> H[Redis Cache]
+    B --> I[Razorpay Payments]
+    B --> J[Email/SMS Services]
 
     subgraph "Backend Modules"
-        H[Authentication]
-        I[Products]
-        J[Pricing]
-        K[Discounts]
-        L[Bundles]
-        M[Checkout]
-        N[Orders]
-        O[Reviews]
-        P[Observability]
+        K[Authentication]
+        L[Products]
+        M[Pricing]
+        N[Discounts]
+        O[Bundles]
+        P[Checkout]
+        Q[Orders]
+        R[Reviews]
+        S[Observability]
     end
 
-    B --> H
-    B --> I
-    B --> J
     B --> K
     B --> L
     B --> M
     B --> N
     B --> O
     B --> P
+    B --> Q
+    B --> R
+    B --> S
 ```
+
+**Monorepo Benefits**:
+- **Shared Database Schema**: Single source of truth via `@vcecom/db` package
+- **Type Safety**: Consistent types across frontend and backend
+- **Fast Builds**: Turborepo caching and parallel execution
+- **Code Reuse**: Shared utilities and configurations
+- **Independent Deployment**: Each app deployed separately
+
+For detailed information about the monorepo structure, see [Monorepo Architecture](../architecture/monorepo.md).
 
 ## Core Technologies
 
@@ -128,28 +150,62 @@ graph TB
 git clone https://github.com/Vestcodes/vcecom.git
 cd vcecom
 
-# Install dependencies
+# Install dependencies (installs for all workspaces)
 pnpm install
 
 # Set up environment
 cp .env.example .env
 # Configure your database and Redis connections
 
-# Run database migrations
-pnpm db:migrate
+# Run database migrations (from packages/db)
+pnpm --filter @vcecom/db db:migrate
 
-# Start the backend
-pnpm dev:backend
+# Start all apps in development mode (parallel)
+pnpm dev
 
-# Start the docs (in another terminal)
-cd apps/docs && pnpm start
+# Or start specific apps:
+# Backend only
+pnpm --filter @vestcodes/vcecom-backend dev
+
+# Admin dashboard only
+pnpm --filter @vestcodes/vcecom-admin dev
+
+# Storefront only
+pnpm --filter @vestcodes/vcecom-storefront dev
+
+# Documentation only
+pnpm --filter @vestcodes/vcecom-docs dev
 ```
 
 ### Development Workflow
-1. **Backend Development**: NestJS with hot reload
-2. **Database Changes**: Drizzle migrations for schema updates
-3. **Testing**: Jest with full test coverage
-4. **Documentation**: Docusaurus for comprehensive docs
+
+**Monorepo Commands**:
+```bash
+# Run tasks across all workspaces
+turbo run build          # Build all apps and packages
+turbo run check-types    # Type-check all workspaces
+turbo run lint           # Lint all workspaces
+
+# Run tasks for specific workspace
+turbo run build --filter=admin
+turbo run build --filter=backend
+
+# Run tasks for workspace and dependencies
+turbo run build --filter=admin^...
+```
+
+**Workflow Steps**:
+1. **Database Changes**: Update schema in `packages/db`, generate migrations
+2. **Backend Development**: NestJS with hot reload, uses `@vcecom/db` package
+3. **Frontend Development**: Next.js apps with hot reload, consume backend API
+4. **Testing**: Jest with full test coverage, run per workspace
+5. **Documentation**: Docusaurus for comprehensive docs, auto-updates on changes
+
+**Key Principles**:
+- **Shared Packages**: Database schema and types shared via `@vcecom/db`
+- **Workspace Dependencies**: Use `workspace:*` protocol for internal packages
+- **Parallel Execution**: Turborepo runs independent tasks in parallel
+- **Intelligent Caching**: Build outputs cached for faster rebuilds
 
 ## API Architecture
 

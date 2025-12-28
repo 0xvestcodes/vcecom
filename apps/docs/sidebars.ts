@@ -8,6 +8,7 @@ const sidebars: SidebarsConfig = {
       label: "System Architecture",
       items: [
         "architecture/overview",
+        "architecture/monorepo",
         "architecture/modules",
         "architecture/dependencies",
       ],
