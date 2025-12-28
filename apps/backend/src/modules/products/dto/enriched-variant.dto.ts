@@ -86,7 +86,8 @@ export class EnrichedVariantDto {
   thumbnail: string | null;
 
   @ApiProperty({
-    description: "All images for this variant (variant-specific + product images)",
+    description:
+      "All images for this variant (variant-specific + product images)",
     type: [String],
     example: [
       "https://cdn.example.com/images/tshirt-blue-1.jpg",
@@ -137,4 +138,3 @@ export class EnrichedVariantDto {
   })
   isPreorder: boolean;
 }
-

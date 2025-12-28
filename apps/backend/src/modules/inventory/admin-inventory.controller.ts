@@ -31,13 +31,13 @@ import {
   BulkAdjustInventoryDto,
   BulkAdjustInventoryResponseDto,
 } from "./dto/bulk-adjust.dto";
+import { CartStateMetricsDto } from "./dto/cart-state-metrics.dto";
 import { InventoryHealthResponseDto } from "./dto/inventory-health.dto";
 import { InventoryItemResponseDto } from "./dto/inventory-item.dto";
 import {
   InventoryLogsQueryDto,
   PaginatedInventoryLogsResponseDto,
 } from "./dto/inventory-logs.dto";
-import { CartStateMetricsDto } from "./dto/cart-state-metrics.dto";
 import { InventoryMetricsDto } from "./dto/inventory-metrics.dto";
 import {
   InventoryReservationsResponseDto,
@@ -61,7 +61,7 @@ import { InventoryService } from "./inventory.service";
 export class AdminInventoryController {
   constructor(
     private readonly adminInventoryService: AdminInventoryService,
-    private readonly inventoryService: InventoryService,
+    readonly _inventoryService: InventoryService,
   ) {}
 
   // IMPORTANT: Specific routes must come BEFORE parameterized routes

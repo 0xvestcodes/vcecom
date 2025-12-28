@@ -52,7 +52,8 @@ export class BundleSetItemResponseDto {
   attributes: Record<string, string>;
 
   @ApiPropertyOptional({
-    description: "Product/variant thumbnail URL (variant-specific or product fallback)",
+    description:
+      "Product/variant thumbnail URL (variant-specific or product fallback)",
     example: "https://cdn.example.com/images/tshirt-blue-thumb.jpg",
     nullable: true,
   })

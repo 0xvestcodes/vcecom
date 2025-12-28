@@ -132,7 +132,11 @@ export class StaleMarkerStore implements OnModuleInit {
         // Extract variantId from key pattern: stale:item:{cartId}:{variantId}
         for (const key of keys) {
           const parts = key.split(":");
-          if (parts.length === 4 && parts[0] === "stale" && parts[1] === "item") {
+          if (
+            parts.length === 4 &&
+            parts[0] === "stale" &&
+            parts[1] === "item"
+          ) {
             const variantId = parts[3];
             if (variantId) {
               staleVariantIds.push(variantId);
@@ -153,4 +157,3 @@ export class StaleMarkerStore implements OnModuleInit {
     }
   }
 }
-

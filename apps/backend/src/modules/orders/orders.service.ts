@@ -45,8 +45,6 @@ import { AddressesService } from "../customers/addresses.service";
 import { CustomersService } from "../customers/customers.service";
 import { DB_TOKEN } from "../database/database.module";
 import { DiscountsService } from "../discounts/discounts.service";
-import { ProductEnrichmentService } from "../products/services/product-enrichment.service";
-import { EnrichedOrderItemDto, PricingSnapshotDto } from "./dto/enriched-order-item.dto";
 import { runDiscountEngine } from "../discounts/engine/discount-engine";
 import {
   DiscountEngineInput,
@@ -84,6 +82,7 @@ import { PricingAuditService } from "../pricing/services/pricing-audit.service";
 import { PricingDriftDetectorService } from "../pricing/services/pricing-drift-detector.service";
 import { PricingHotReloadWatcher } from "../pricing/services/pricing-hot-reload-watcher.service";
 import { PricingSnapshotValidator } from "../pricing/services/pricing-snapshot-validator.service";
+import { ProductEnrichmentService } from "../products/services/product-enrichment.service";
 import { CheckoutState } from "../redis-store/constants/checkout-states";
 import { CheckoutMetadata } from "../redis-store/dto/checkout-metadata.dto";
 import {
@@ -95,6 +94,7 @@ import { CheckoutStore } from "../redis-store/stores/checkout-store";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
 // Relative imports - DTOs
 import { CreateOrderDto } from "./dto/create-order.dto";
+import { PricingSnapshotDto } from "./dto/enriched-order-item.dto";
 import { OrderResponseDto } from "./dto/order-response.dto";
 import { OrderTimelineDto } from "./dto/order-timeline.dto";
 import { OrderTrackingDto } from "./dto/order-tracking.dto";
@@ -1817,30 +1817,37 @@ export class OrdersService {
       // Use effective price from pricing snapshot if available, otherwise use cart price
       let itemPrice = item.price;
       let pricingSnapshot: PricingSnapshotDto | undefined;
-      
+
       if (metadata.pricingSnapshot) {
         const variantPrice = metadata.pricingSnapshot.variantPrices.find(
           (vp) => vp.variantId === item.productVariantId,
         );
         if (variantPrice) {
           itemPrice = variantPrice.effectivePrice;
-          
+
           // Store detailed pricing snapshot in order item metadata
           const basePrice = variantPrice.basePrice;
           const compareAtPrice = variantPrice.compareAtPrice;
           const effectivePrice = variantPrice.effectivePrice;
           const savings = basePrice - effectivePrice;
-          const savingsPercentage = basePrice > 0 ? (savings / basePrice) * 100 : 0;
-          
+          const _savingsPercentage =
+            basePrice > 0 ? (savings / basePrice) * 100 : 0;
+
           pricingSnapshot = {
             basePrice,
             compareAtPrice: compareAtPrice || null,
-            appliedSale: variantPrice.isOnSale && variantPrice.salePrice
-              ? { amount: variantPrice.salePrice, label: "Sale Price" }
-              : undefined,
-            appliedPriceList: variantPrice.appliedPriceListId && variantPrice.appliedPriceListName
-              ? { name: variantPrice.appliedPriceListName, amount: basePrice - effectivePrice }
-              : undefined,
+            appliedSale:
+              variantPrice.isOnSale && variantPrice.salePrice
+                ? { amount: variantPrice.salePrice, label: "Sale Price" }
+                : undefined,
+            appliedPriceList:
+              variantPrice.appliedPriceListId &&
+              variantPrice.appliedPriceListName
+                ? {
+                    name: variantPrice.appliedPriceListName,
+                    amount: basePrice - effectivePrice,
+                  }
+                : undefined,
             savings,
           };
         }
@@ -2033,7 +2040,9 @@ export class OrdersService {
 
         // Sync Redis inventory value to database
         try {
-          await this.inventoryStore.syncInventoryToDatabase(item.productVariantId);
+          await this.inventoryStore.syncInventoryToDatabase(
+            item.productVariantId,
+          );
         } catch (error) {
           this.logger.warn(
             createErrorContext(
@@ -2121,18 +2130,13 @@ export class OrdersService {
       // Order is already created, but inventory wasn't decremented
       // Log as critical error for manual reconciliation
       this.logger.error(
-        createErrorContext(
-          this.contextService,
-          "commitInventory",
-          error,
-          {
-            orderId,
-            cartId: cart.id,
-            variantItemsCount: cartItemsWithVariants.length,
-            bundleItemsCount: bundleCartItems.length,
-            critical: true,
-          },
-        ),
+        createErrorContext(this.contextService, "commitInventory", error, {
+          orderId,
+          cartId: cart.id,
+          variantItemsCount: cartItemsWithVariants.length,
+          bundleItemsCount: bundleCartItems.length,
+          critical: true,
+        }),
         "CRITICAL: Failed to commit inventory for COD order - manual reconciliation required",
       );
       // Don't throw - order is already created, payment is confirmed (COD)
@@ -3087,7 +3091,9 @@ export class OrdersService {
 
         // Sync Redis inventory value to database
         try {
-          await this.inventoryStore.syncInventoryToDatabase(item.productVariantId);
+          await this.inventoryStore.syncInventoryToDatabase(
+            item.productVariantId,
+          );
         } catch (error) {
           this.logger.warn(
             createErrorContext(
@@ -3418,9 +3424,8 @@ export class OrdersService {
 
       // Enrich items with product data
       const variantIds = items.map((item) => item.productVariantId);
-      const enrichedVariants = await this.productEnrichmentService.enrichVariants(
-        variantIds,
-      );
+      const enrichedVariants =
+        await this.productEnrichmentService.enrichVariants(variantIds);
       const enrichedVariantsMap = new Map(
         enrichedVariants.map((v) => [v.variantId, v]),
       );
@@ -3575,8 +3580,15 @@ export class OrdersService {
 
         // Read pricing snapshot from item metadata if available
         let pricingSnapshot: PricingSnapshotDto | undefined;
-        const itemMetadata = item.metadata as { pricingSnapshot?: PricingSnapshotDto } | null | undefined;
-        if (itemMetadata && typeof itemMetadata === "object" && "pricingSnapshot" in itemMetadata) {
+        const itemMetadata = item.metadata as
+          | { pricingSnapshot?: PricingSnapshotDto }
+          | null
+          | undefined;
+        if (
+          itemMetadata &&
+          typeof itemMetadata === "object" &&
+          "pricingSnapshot" in itemMetadata
+        ) {
           const storedSnapshot = itemMetadata.pricingSnapshot;
           if (storedSnapshot) {
             pricingSnapshot = storedSnapshot;
@@ -3620,7 +3632,7 @@ export class OrdersService {
       });
 
       // Get payment details
-      let paymentDetails: {
+      const paymentDetails: {
         method: string;
         status: string;
         transactionId: string | null;
@@ -3654,9 +3666,7 @@ export class OrdersService {
             paymentDetails.transactionId = payment[0].razorpayPaymentId || null;
             // paidAt not in payments table - use updatedAt if status is captured
             paymentDetails.paidAt =
-              payment[0].status === "captured"
-                ? payment[0].updatedAt
-                : null;
+              payment[0].status === "captured" ? payment[0].updatedAt : null;
           }
         } catch (error) {
           this.logger.warn(

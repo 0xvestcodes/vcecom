@@ -76,8 +76,6 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
   private releaseInventoryScriptSha: string | null = null;
   private commitReservationScriptSha: string | null = null;
   private validateInventoryScriptSha: string | null = null;
-  private setCheckoutLockScriptSha: string | null = null;
-  private updateHeartbeatScriptSha: string | null = null;
   private reacquireInventoryScriptSha: string | null = null;
 
   constructor(
@@ -104,26 +102,29 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
           { name: "validate-inventory.lua", sha: "validateInventoryScriptSha" },
           { name: "set-checkout-lock.lua", sha: "setCheckoutLockScriptSha" },
           { name: "update-heartbeat.lua", sha: "updateHeartbeatScriptSha" },
-          { name: "reacquire-inventory.lua", sha: "reacquireInventoryScriptSha" },
+          {
+            name: "reacquire-inventory.lua",
+            sha: "reacquireInventoryScriptSha",
+          },
         ];
 
         for (const scriptInfo of scripts) {
           const script = loadLuaScript(scriptInfo.name, __dirname);
           const sha = (await Promise.race([
-          this.client.script("LOAD", script),
-          new Promise<string>((_, reject) =>
-            setTimeout(() => reject(new Error("Script load timeout")), 2000),
-          ),
-        ])) as string;
+            this.client.script("LOAD", script),
+            new Promise<string>((_, reject) =>
+              setTimeout(() => reject(new Error("Script load timeout")), 2000),
+            ),
+          ])) as string;
 
           (this as unknown as Record<string, string | null>)[scriptInfo.sha] =
             sha;
-        this.logger.info(
-          createLogContext(this.contextService, "onModuleInit", {
+          this.logger.info(
+            createLogContext(this.contextService, "onModuleInit", {
               scriptName: scriptInfo.name,
-          }),
+            }),
             `Lua script ${scriptInfo.name} loaded successfully`,
-        );
+          );
         }
       })();
 
@@ -353,8 +354,7 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
       return { canAdd: false, totalInventory: 0, isLowStock: true };
     }
 
-    const isLowStock =
-      available <= INVENTORY_THRESHOLDS.LOW_STOCK_THRESHOLD;
+    const isLowStock = available <= INVENTORY_THRESHOLDS.LOW_STOCK_THRESHOLD;
     return {
       canAdd: true,
       totalInventory: available,
@@ -1229,31 +1229,42 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
     }
 
     const inventoryKey = KEY_PATTERNS.INVENTORY_VARIANT(variantId);
-    
+
     // Ensure inventory exists in Redis before running Lua script
     // This prevents false "out of stock" errors when Redis cache is missing the key
     const inventoryExists = await this.client.exists(inventoryKey);
-    
+
     // ENHANCED LOGGING: Log current Redis state
     const currentInventory = await this.client.get(inventoryKey);
     const reservedKey = KEY_PATTERNS.INVENTORY_RESERVED(variantId);
     const currentReserved = await this.client.get(reservedKey);
-    const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(cartId, variantId);
+    const reservationKey = KEY_PATTERNS.INVENTORY_RESERVATION(
+      cartId,
+      variantId,
+    );
     const currentReservation = await this.client.get(reservationKey);
-    
+
     this.logger.info(
-      createLogContext(this.contextService, "reacquireInventoryAtomic.preCheck", {
-        cartId,
-        variantId,
-        requestedQuantity,
-        inventoryExists,
-        currentInventory: currentInventory ? parseInt(currentInventory) : null,
-        currentReserved: currentReserved ? parseInt(currentReserved) : 0,
-        currentReservation: currentReservation ? parseInt(currentReservation) : 0,
-      }),
+      createLogContext(
+        this.contextService,
+        "reacquireInventoryAtomic.preCheck",
+        {
+          cartId,
+          variantId,
+          requestedQuantity,
+          inventoryExists,
+          currentInventory: currentInventory
+            ? parseInt(currentInventory, 10)
+            : null,
+          currentReserved: currentReserved ? parseInt(currentReserved, 10) : 0,
+          currentReservation: currentReservation
+            ? parseInt(currentReservation, 10)
+            : 0,
+        },
+      ),
       `Pre-check: variantId=${variantId}, inventory=${currentInventory}, reserved=${currentReserved}, cartReservation=${currentReservation}, requested=${requestedQuantity}`,
     );
-    
+
     if (inventoryExists === 0) {
       this.logger.warn(
         createLogContext(this.contextService, "reacquireInventoryAtomic", {
@@ -1263,10 +1274,10 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
         }),
         `Inventory key missing for variant ${variantId}, syncing from database`,
       );
-      
+
       // Sync from database
       await this.syncInventoryFromDatabase(variantId);
-      
+
       // Verify sync worked
       const syncedValue = await this.client.get(inventoryKey);
       if (syncedValue === null) {
@@ -1286,7 +1297,7 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
           reason: "INVENTORY_SYNC_FAILED",
         };
       }
-      
+
       this.logger.info(
         createLogContext(this.contextService, "reacquireInventoryAtomic", {
           cartId,
@@ -1296,7 +1307,7 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
         `Successfully synced inventory for variant ${variantId}: ${syncedValue} units`,
       );
     }
-    
+
     const reservedKeyFinal = KEY_PATTERNS.INVENTORY_RESERVED(variantId);
     const reservationKeyFinal = KEY_PATTERNS.INVENTORY_RESERVATION(
       cartId,
@@ -1346,14 +1357,18 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
         const reserved = result[3] as number;
 
         this.logger.info(
-          createLogContext(this.contextService, "reacquireInventoryAtomic.SUCCESS", {
-            cartId,
-            variantId,
-            requestedQuantity,
-            reacquired,
-            available,
-            reserved,
-          }),
+          createLogContext(
+            this.contextService,
+            "reacquireInventoryAtomic.SUCCESS",
+            {
+              cartId,
+              variantId,
+              requestedQuantity,
+              reacquired,
+              available,
+              reserved,
+            },
+          ),
           `Reacquired ${reacquired} units for cart ${cartId}, variant ${variantId}. Available: ${available}, Reserved: ${reserved}`,
         );
 
@@ -1369,13 +1384,17 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
         const requested = result[2] as number;
 
         this.logger.warn(
-          createLogContext(this.contextService, "reacquireInventoryAtomic.FAILED", {
-            cartId,
-            variantId,
-            requestedQuantity,
-            available,
-            requested,
-          }),
+          createLogContext(
+            this.contextService,
+            "reacquireInventoryAtomic.FAILED",
+            {
+              cartId,
+              variantId,
+              requestedQuantity,
+              available,
+              requested,
+            },
+          ),
           `CHECKOUT BLOCKED: Reacquisition failed for cart ${cartId}, variant ${variantId}. Available: ${available}, Requested: ${requested}`,
         );
 
@@ -1460,7 +1479,11 @@ export class InventoryStore implements IInventoryStore, OnModuleInit {
           `Committed ${quantity} units atomically for cart ${cartId}, variant ${variantId}. New inventory: ${newInventory}, Reserved: ${reserved}`,
         );
         return newInventory;
-      } else if (Array.isArray(result) && result.length >= 2 && result[0] === "err") {
+      } else if (
+        Array.isArray(result) &&
+        result.length >= 2 &&
+        result[0] === "err"
+      ) {
         const errorType = result[1] as string;
         const errorDetails = result.length > 2 ? result[2] : undefined;
         this.logger.error(

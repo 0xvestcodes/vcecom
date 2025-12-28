@@ -340,7 +340,10 @@ export class BundleDefinitionService {
 
     // Collect all variant IDs for enrichment
     const allVariantIds: string[] = [];
-    const setItemsMap = new Map<string, Array<{ id: string; variantId: string; createdAt: Date }>>();
+    const setItemsMap = new Map<
+      string,
+      Array<{ id: string; variantId: string; createdAt: Date }>
+    >();
 
     // Get items for each set
     for (const set of sets) {
@@ -348,7 +351,7 @@ export class BundleDefinitionService {
         .select()
         .from(bundleSetItems)
         .where(eq(bundleSetItems.setId, set.id));
-      
+
       setItemsMap.set(set.id, items);
       items.forEach((item) => {
         if (!allVariantIds.includes(item.variantId)) {
@@ -358,9 +361,8 @@ export class BundleDefinitionService {
     }
 
     // Enrich all variants with product data
-    const enrichedVariants = await this.productEnrichmentService.enrichVariants(
-      allVariantIds,
-    );
+    const enrichedVariants =
+      await this.productEnrichmentService.enrichVariants(allVariantIds);
     const enrichedVariantsMap = new Map(
       enrichedVariants.map((v) => [v.variantId, v]),
     );

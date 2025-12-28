@@ -234,4 +234,3 @@ export class EnrichedCartItemDto {
   @ApiProperty({ description: "Updated timestamp" })
   updatedAt: Date;
 }
-

@@ -115,10 +115,11 @@ export function CheckoutConfirmClient({
             <div className="border-t pt-4 flex justify-between font-bold text-lg">
               <span>Total</span>
               <span>
-                ₹{(
+                ₹
+                {(
                   cart.total +
                   (cart.shippingCost || 0) +
-                  ((cart.paymentFee || 0) / 100)
+                  (cart.paymentFee || 0) / 100
                 ).toFixed(2)}
               </span>
             </div>

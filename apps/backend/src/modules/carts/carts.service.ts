@@ -309,11 +309,12 @@ export class CartsService {
     const variantItemsWithResolvedPrices = await Promise.all(
       variantItemsWithProducts.map(async (item) => {
         try {
-          const resolvedPrice = await this.priceResolutionService.resolveVariantPrice({
-            variantId: item.productVariantId,
-            customerId: customerId || undefined,
-            date: new Date(),
-          });
+          const resolvedPrice =
+            await this.priceResolutionService.resolveVariantPrice({
+              variantId: item.productVariantId,
+              customerId: customerId || undefined,
+              date: new Date(),
+            });
           return {
             ...item,
             price: resolvedPrice.finalPrice, // Use resolved price instead of stored price
@@ -912,22 +913,27 @@ export class CartsService {
     const variantIds = items.map((item) => item.productVariantId);
 
     // Enrich all variants with product data
-    const enrichedVariants = await this.productEnrichmentService.enrichVariants(
-      variantIds,
-    );
+    const enrichedVariants =
+      await this.productEnrichmentService.enrichVariants(variantIds);
     const enrichedVariantsMap = new Map(
       enrichedVariants.map((v) => [v.variantId, v]),
     );
 
     // Resolve prices for all variants
-    const resolvedPricesMap = new Map<string, Awaited<ReturnType<typeof this.priceResolutionService.resolveVariantPrice>>>();
+    const resolvedPricesMap = new Map<
+      string,
+      Awaited<
+        ReturnType<typeof this.priceResolutionService.resolveVariantPrice>
+      >
+    >();
     for (const variantId of variantIds) {
       try {
-        const resolvedPrice = await this.priceResolutionService.resolveVariantPrice({
-          variantId,
-          customerId: effectiveCustomerId || undefined,
-          date: new Date(),
-        });
+        const resolvedPrice =
+          await this.priceResolutionService.resolveVariantPrice({
+            variantId,
+            customerId: effectiveCustomerId || undefined,
+            date: new Date(),
+          });
         resolvedPricesMap.set(variantId, resolvedPrice);
       } catch (error) {
         this.logger.warn(
@@ -1004,15 +1010,17 @@ export class CartsService {
     }, 0);
 
     // Get discount details if discount code exists
-    let discountDetails: {
-      code: string;
-      type: string;
-      description: string;
-      amountSaved: number;
-      percentageSaved: number;
-      appliedTo: string;
-      eligibleItems?: string[];
-    } | undefined;
+    let discountDetails:
+      | {
+          code: string;
+          type: string;
+          description: string;
+          amountSaved: number;
+          percentageSaved: number;
+          appliedTo: string;
+          eligibleItems?: string[];
+        }
+      | undefined;
 
     if (updatedCart.discountCode) {
       try {
@@ -1043,8 +1051,7 @@ export class CartsService {
           description: discount.description || discount.name || discount.code,
           amountSaved: discountAmount,
           percentageSaved: Math.round(percentageSaved * 100) / 100,
-          appliedTo:
-            discount.appliesTo === "SUBTOTAL" ? "cart" : "items",
+          appliedTo: discount.appliesTo === "SUBTOTAL" ? "cart" : "items",
           // TODO: Calculate eligible items based on discount scope
         };
       } catch (error) {
@@ -1075,9 +1082,8 @@ export class CartsService {
 
     if (checkoutSessionId) {
       try {
-        const metadata = await this.checkoutStore.getCheckoutMetadata(
-          checkoutSessionId,
-        );
+        const metadata =
+          await this.checkoutStore.getCheckoutMetadata(checkoutSessionId);
         if (metadata) {
           shippingCost = metadata.shippingCost;
           // paymentFee is stored in paise, keep it as-is for consistency
@@ -1146,12 +1152,16 @@ export class CartsService {
       createdAt: Date;
       updatedAt: Date;
     },
-    enrichedVariant: Awaited<
-      ReturnType<typeof this.productEnrichmentService.enrichVariants>
-    >[0] | undefined,
-    resolvedPrice: Awaited<
-      ReturnType<typeof this.priceResolutionService.resolveVariantPrice>
-    > | undefined,
+    enrichedVariant:
+      | Awaited<
+          ReturnType<typeof this.productEnrichmentService.enrichVariants>
+        >[0]
+      | undefined,
+    resolvedPrice:
+      | Awaited<
+          ReturnType<typeof this.priceResolutionService.resolveVariantPrice>
+        >
+      | undefined,
     isStale: boolean,
   ) {
     // Fallback to cart item price if enrichment/resolution failed
@@ -1224,12 +1234,16 @@ export class CartsService {
     },
     metadata: BundleCartItemMetadata,
     customerId: string | null,
-    enrichedVariant: Awaited<
-      ReturnType<typeof this.productEnrichmentService.enrichVariants>
-    >[0] | undefined,
-    resolvedPrice: Awaited<
-      ReturnType<typeof this.priceResolutionService.resolveVariantPrice>
-    > | undefined,
+    enrichedVariant:
+      | Awaited<
+          ReturnType<typeof this.productEnrichmentService.enrichVariants>
+        >[0]
+      | undefined,
+    resolvedPrice:
+      | Awaited<
+          ReturnType<typeof this.priceResolutionService.resolveVariantPrice>
+        >
+      | undefined,
     isStale: boolean,
   ) {
     const bundle = await this.bundleEligibilityService.getBundle(
@@ -1307,65 +1321,6 @@ export class CartsService {
       })),
       state: item.state || "fresh",
       isStale,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-    };
-  }
-
-  /**
-   * Hydrate bundle cart item with full bundle structure
-   */
-  private async hydrateBundleItem(
-    item: {
-      id: string;
-      productVariantId: string;
-      quantity: number;
-      price: number;
-      metadata: unknown;
-      createdAt: Date;
-      updatedAt: Date;
-    },
-    customerId: string | null,
-  ) {
-    const metadata = item.metadata as BundleCartItemMetadata;
-    const bundle = await this.bundleEligibilityService.getBundle(
-      metadata.bundleId,
-    );
-
-    if (!bundle) {
-      throw new NotFoundException(`Bundle ${metadata.bundleId} not found`);
-    }
-
-    // Validate bundle is still active
-    if (!bundle.isActive) {
-      throw new BadRequestException(
-        `Bundle ${metadata.bundleId} is no longer active`,
-      );
-    }
-
-    // Get bundle variant breakdown
-    const variantBreakdown =
-      await this.bundlePricingService.getBundleVariantBreakdown(
-        metadata.bundleId,
-        metadata.selections,
-        item.quantity,
-        customerId,
-      );
-
-    return {
-      id: item.id,
-      type: "bundle" as const,
-      productVariantId: item.productVariantId,
-      bundleId: metadata.bundleId,
-      selections: metadata.selections,
-      quantity: item.quantity,
-      price: Number(item.price),
-      unitBundlePrice: Number(item.price),
-      bundleVariantBreakdown: variantBreakdown.map((vb) => ({
-        variantId: vb.variantId,
-        unitPrice: vb.unitPrice,
-        quantity: vb.quantity,
-      })),
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
     };

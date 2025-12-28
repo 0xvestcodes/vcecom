@@ -6,9 +6,9 @@ import {
   inArray,
   isNull,
   productImages,
-  productVariants,
-  productVariantOptionTypes,
   products,
+  productVariantOptionTypes,
+  productVariants,
   sql,
   variantOptionValueAssignments,
   variantOptionValues,
@@ -238,8 +238,10 @@ export class ProductEnrichmentService {
         if (!attributesMap.has(assignment.variantId)) {
           attributesMap.set(assignment.variantId, {});
         }
-        const attrs = attributesMap.get(assignment.variantId)!;
-        attrs[assignment.optionTypeName] = assignment.optionValue;
+        const attrs = attributesMap.get(assignment.variantId);
+        if (attrs) {
+          attrs[assignment.optionTypeName] = assignment.optionValue;
+        }
       }
 
       return attributesMap;
@@ -306,12 +308,17 @@ export class ProductEnrichmentService {
         .orderBy(asc(productImages.order));
 
       // Group product images by product ID
-      const productImagesMap = new Map<string, Array<{ url: string; order: number }>>();
+      const productImagesMap = new Map<
+        string,
+        Array<{ url: string; order: number }>
+      >();
       for (const img of productImagesData) {
         if (!productImagesMap.has(img.productId)) {
           productImagesMap.set(img.productId, []);
         }
-        productImagesMap.get(img.productId)!.push({ url: img.url, order: img.order });
+        productImagesMap
+          .get(img.productId)
+          ?.push({ url: img.url, order: img.order });
       }
 
       // Resolve S3 keys to URLs and build result map
@@ -357,7 +364,8 @@ export class ProductEnrichmentService {
                   "ProductEnrichmentService.resolveImageUrl",
                   {
                     url: img.url,
-                    error: error instanceof Error ? error.message : String(error),
+                    error:
+                      error instanceof Error ? error.message : String(error),
                   },
                 ),
                 "Failed to resolve image URL, skipping",
@@ -394,7 +402,7 @@ export class ProductEnrichmentService {
     if (this.isS3Key(url)) {
       try {
         return await this.storageService.getUrl(url);
-      } catch (error) {
+      } catch (_error) {
         // If resolution fails, return original URL
         return url;
       }
@@ -447,4 +455,3 @@ export class ProductEnrichmentService {
     return values || null;
   }
 }
-

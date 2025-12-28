@@ -94,7 +94,13 @@ async function OrderConfirmationContent({ orderId }: { orderId: string }) {
                       {item.quantity}x {item.productTitle}
                       {item.variantTitle && ` - ${item.variantTitle}`}
                     </span>
-                    <span>₹{(item.price * item.quantity).toFixed(2)}</span>
+                    <span>
+                      ₹
+                      {("lineTotal" in item
+                        ? item.lineTotal
+                        : item.price * item.quantity
+                      ).toFixed(2)}
+                    </span>
                   </div>
                 ))}
               </div>

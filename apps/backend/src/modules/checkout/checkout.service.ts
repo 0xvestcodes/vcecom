@@ -1,6 +1,5 @@
 import {
   BadRequestException,
-  ConflictException,
   Inject,
   Injectable,
   NotFoundException,
@@ -124,14 +123,14 @@ export class CheckoutService {
       createLogContext(this.contextService, "startCheckout.preReacquisition", {
         cartId: cart.id,
         itemCount: cart.items.length,
-        items: itemsForReacquisition.map(i => ({
+        items: itemsForReacquisition.map((i) => ({
           type: i.type,
           variantId: i.variantId,
           quantity: i.quantity,
-          hasBundleBreakdown: !!i.bundleVariantBreakdown
-        }))
+          hasBundleBreakdown: !!i.bundleVariantBreakdown,
+        })),
       }),
-      `Starting inventory reacquisition for cart ${cart.id} with ${cart.items.length} items`
+      `Starting inventory reacquisition for cart ${cart.id} with ${cart.items.length} items`,
     );
 
     const reacquisitionResults = await this.reacquireAllCartItems(
@@ -144,9 +143,9 @@ export class CheckoutService {
         cartId: cart.id,
         allValid: reacquisitionResults.allValid,
         failureCount: reacquisitionResults.failures.length,
-        failures: reacquisitionResults.failures
+        failures: reacquisitionResults.failures,
       }),
-      `Reacquisition completed: allValid=${reacquisitionResults.allValid}, failures=${reacquisitionResults.failures.length}`
+      `Reacquisition completed: allValid=${reacquisitionResults.allValid}, failures=${reacquisitionResults.failures.length}`,
     );
 
     if (!reacquisitionResults.allValid) {
@@ -306,9 +305,12 @@ export class CheckoutService {
    */
   private async adjustCartForFailedReacquisition(
     cartId: string,
-    failures: Array<{ variantId: string; requested: number; available: number }>,
+    failures: Array<{
+      variantId: string;
+      requested: number;
+      available: number;
+    }>,
   ): Promise<void> {
-
     for (const failure of failures) {
       // Find cart item for this variant
       const [item] = await this.db
@@ -338,10 +340,7 @@ export class CheckoutService {
           .where(eq(cartItems.id, item.id));
 
         // Clear stale marker
-        await this.staleMarkerStore.clearStaleMarker(
-          cartId,
-          failure.variantId,
-        );
+        await this.staleMarkerStore.clearStaleMarker(cartId, failure.variantId);
       } else {
         // No inventory available - remove item from cart
         await this.db.delete(cartItems).where(eq(cartItems.id, item.id));
@@ -364,7 +363,6 @@ export class CheckoutService {
       bundleVariantBreakdown?: Array<{ variantId: string; quantity: number }>;
     }>,
   ): Promise<void> {
-
     // Collect all variant IDs (from both variant items and bundle breakdowns)
     const variantIds: string[] = [];
     for (const item of items) {

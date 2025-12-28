@@ -1,12 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
-import {
-  and,
-  customers,
-  eq,
-  inArray,
-  productVariants,
-  products,
-} from "@vcecom/db";
+import { customers, eq, products, productVariants } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../common/logging/context.service";
 import {
@@ -15,9 +8,12 @@ import {
 } from "../../../common/logging/logging.helper";
 import { DB_TOKEN } from "../../../modules/database/database.module";
 import type { Database } from "../../../modules/database/db";
-import { runPricingEngine } from "../engine/pricing-engine";
-import type { PriceList, VariantPricingInput } from "../engine/pricing-engine.types";
 import { ResolvedPriceDto } from "../dto/resolved-price.dto";
+import { runPricingEngine } from "../engine/pricing-engine";
+import type {
+  PriceList,
+  VariantPricingInput,
+} from "../engine/pricing-engine.types";
 import { CustomerGroupService } from "./customer-group.service";
 import { PriceListService } from "./price-list.service";
 
@@ -60,7 +56,9 @@ export class PriceResolutionService {
     quantity?: number;
     date?: Date;
   }): string {
-    const dateKey = params.date ? params.date.toISOString().split("T")[0] : "today";
+    const dateKey = params.date
+      ? params.date.toISOString().split("T")[0]
+      : "today";
     return `price:${params.variantId}:${params.customerId || "guest"}:${params.customerGroupId || "none"}:${params.quantity || 1}:${dateKey}`;
   }
 
@@ -91,7 +89,6 @@ export class PriceResolutionService {
       variantId,
       customerId,
       customerGroupId: providedCustomerGroupId,
-      quantity = 1,
       date = new Date(),
     } = params;
 
@@ -318,7 +315,9 @@ export class PriceResolutionService {
    * Convert price list DTOs to engine format
    */
   private convertPriceListsForEngine(
-    priceLists: Array<Awaited<ReturnType<typeof this.priceListService.findOne>>>,
+    priceLists: Array<
+      Awaited<ReturnType<typeof this.priceListService.findOne>>
+    >,
   ): PriceList[] {
     return priceLists.map((list) => ({
       id: list.id,
@@ -364,7 +363,9 @@ export class PriceResolutionService {
         overrideValue: number;
       }>;
     },
-    priceLists: Array<Awaited<ReturnType<typeof this.priceListService.findOne>>>,
+    priceLists: Array<
+      Awaited<ReturnType<typeof this.priceListService.findOne>>
+    >,
     date: Date,
   ): ResolvedPriceDto["breakdown"] {
     const basePrice = variantData.basePrice;
@@ -377,7 +378,8 @@ export class PriceResolutionService {
     const isSaleActive =
       variantData.salePrice !== null &&
       variantData.salePrice !== undefined &&
-      (!variantData.saleStartDate || new Date(variantData.saleStartDate) <= date) &&
+      (!variantData.saleStartDate ||
+        new Date(variantData.saleStartDate) <= date) &&
       (!variantData.saleEndDate || new Date(variantData.saleEndDate) >= date);
 
     // Sale price info
@@ -394,7 +396,10 @@ export class PriceResolutionService {
     // Price list discount info
     let priceListDiscountInfo: ResolvedPriceDto["breakdown"]["priceListDiscount"] =
       null;
-    if (variantResult.appliedPriceListId && variantResult.priceListOverrides.length > 0) {
+    if (
+      variantResult.appliedPriceListId &&
+      variantResult.priceListOverrides.length > 0
+    ) {
       const bestOverride = variantResult.priceListOverrides[0];
       const priceList = priceLists.find(
         (pl) => pl.id === variantResult.appliedPriceListId,
@@ -406,14 +411,16 @@ export class PriceResolutionService {
         if (bestOverride.overrideType === "FIXED") {
           priceAfterOverride = bestOverride.overrideValue;
         } else if (bestOverride.overrideType === "PERCENTAGE") {
-          priceAfterOverride = basePrice * (1 - bestOverride.overrideValue / 100);
+          priceAfterOverride =
+            basePrice * (1 - bestOverride.overrideValue / 100);
         }
 
         // If sale is active, sale price wins, so discount is from base to sale
         // Otherwise, discount is from base to price list price
-        const discountedPrice = isSaleActive
-          ? variantData.salePrice!
-          : priceAfterOverride;
+        const discountedPrice =
+          isSaleActive && variantData.salePrice !== null
+            ? variantData.salePrice
+            : priceAfterOverride;
         const discountAmount = basePrice - discountedPrice;
 
         priceListDiscountInfo = {
@@ -459,4 +466,3 @@ export class PriceResolutionService {
     }
   }
 }
-

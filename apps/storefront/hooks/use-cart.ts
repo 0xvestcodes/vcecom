@@ -49,7 +49,7 @@ export function useAddToCart() {
         const warningMessages = data.warnings.map((w) => w.message).join(" ");
         toast.warning(warningMessages, { duration: 5000 });
       } else {
-      toast.success("Item added to cart");
+        toast.success("Item added to cart");
       }
     },
     onError: (error: Error) => {

@@ -65,6 +65,7 @@ import {
 import { QueryProductsDto } from "./dto/query-products.dto";
 import { SearchProductsDto, SearchResponseDto } from "./dto/search.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
+import { VariantInventoryResponseDto } from "./dto/variant-inventory.dto";
 import { CreateProductVariantOptionTypeDto } from "./dto/variant-option-types/create-product-variant-option-type.dto";
 import { CreateVariantOptionTypeDto } from "./dto/variant-option-types/create-variant-option-type.dto";
 import { CreateVariantOptionValueDto } from "./dto/variant-option-types/create-variant-option-value.dto";
@@ -72,7 +73,6 @@ import {
   ProductVariantOptionTypeResponseDto,
   VariantOptionTypeResponseDto,
 } from "./dto/variant-option-types/variant-option-type-response.dto";
-import { VariantInventoryResponseDto } from "./dto/variant-inventory.dto";
 import { VariantResponseDto } from "./dto/variant-response.dto";
 import { ProductsService } from "./products.service";
 import { VariantsService } from "./variants.service";

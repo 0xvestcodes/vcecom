@@ -119,7 +119,7 @@ export function InventoryHealthPageClient() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {Array.from({ length: 4 }, (_, i) => (
               <Card
-                key={`skeleton-${i}`}
+                key={`skeleton-${i.toString()}`}
                 className="rounded-xl border-border/50 bg-card/50"
               >
                 <CardHeader className="p-4">

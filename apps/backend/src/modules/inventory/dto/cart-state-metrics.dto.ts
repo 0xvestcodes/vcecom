@@ -14,7 +14,8 @@ export class CartStateMetricsDto {
   stale: number;
 
   @ApiProperty({
-    description: "Count of cart items in 'reacquired' state (checkout in progress)",
+    description:
+      "Count of cart items in 'reacquired' state (checkout in progress)",
     example: 10,
   })
   reacquired: number;
@@ -32,10 +33,10 @@ export class CartStateMetricsDto {
   total: number;
 
   @ApiProperty({
-    description: "Percentage of stale items that were successfully reacquired during checkout",
+    description:
+      "Percentage of stale items that were successfully reacquired during checkout",
     example: 75.5,
     required: false,
   })
   stale_recovery_rate?: number;
 }
-

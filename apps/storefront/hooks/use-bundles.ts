@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { endpoints, get } from "@/lib/api/client";
 import { bundleSchema, paginatedBundlesSchema } from "@/lib/validations/bundle";
-import { variantSchema } from "@/lib/validations/product";
 
 /**
  * Get bundles list

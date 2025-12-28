@@ -1,7 +1,7 @@
 import { Global, MiddlewareConsumer, Module, NestModule } from "@nestjs/common";
+import { FingerprintMiddleware } from "../middleware/fingerprint.middleware";
 import { ContextMiddleware } from "./context.middleware";
 import { ContextService } from "./context.service";
-import { FingerprintMiddleware } from "../middleware/fingerprint.middleware";
 
 @Global() // Make ContextModule global so ContextService is available everywhere
 @Module({

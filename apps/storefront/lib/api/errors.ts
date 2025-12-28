@@ -127,4 +127,3 @@ export function extractCheckoutInventoryError(
 
   return null;
 }
-

@@ -51,6 +51,7 @@ import {
   BulkAdjustInventoryResponseDto,
   BulkAdjustmentResultDto,
 } from "./dto/bulk-adjust.dto";
+import { CartStateMetricsDto } from "./dto/cart-state-metrics.dto";
 import { InventoryHealthResponseDto } from "./dto/inventory-health.dto";
 import { InventoryItemResponseDto } from "./dto/inventory-item.dto";
 import {
@@ -58,7 +59,6 @@ import {
   InventoryLogsQueryDto,
   PaginatedInventoryLogsResponseDto,
 } from "./dto/inventory-logs.dto";
-import { CartStateMetricsDto } from "./dto/cart-state-metrics.dto";
 import { InventoryMetricsDto } from "./dto/inventory-metrics.dto";
 import {
   InventoryReservationsResponseDto,

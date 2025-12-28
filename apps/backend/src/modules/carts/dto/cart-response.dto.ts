@@ -184,7 +184,7 @@ export class PriceSummaryDto {
 
   @ApiProperty({
     description: "GST amount",
-    example: 291.60,
+    example: 291.6,
     type: Number,
   })
   gstAmount: number;

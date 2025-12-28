@@ -3,8 +3,8 @@
  */
 
 import { getGuestSessionId, getToken } from "../utils/storage";
-import { ApiError } from "./errors";
 import { endpoints } from "./endpoints";
+import { ApiError } from "./errors";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 

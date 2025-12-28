@@ -6,7 +6,6 @@ import {
 import {
   addresses,
   and,
-  cartItems,
   carts,
   customers,
   desc,
@@ -29,7 +28,6 @@ import {
 } from "../../common/logging/logging.helper";
 import { calculateGstBreakdown } from "../../common/utils/gst.utils";
 import type { Database } from "../../modules/database/db";
-import { UserBundleSelection } from "../bundles/services/bundle-eligibility.service";
 import { CartsService } from "../carts/carts.service";
 import { DB_TOKEN } from "../database/database.module";
 import { OrderResponseDto } from "../orders/dto/order-response.dto";

@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { endpoints, get } from "@/lib/api/client";
 import { z } from "zod";
+import { endpoints, get } from "@/lib/api/client";
 
 /**
  * Schema for variant inventory response
@@ -117,4 +117,3 @@ export function useMultipleVariantInventory(
     gcTime: 10000, // Keep in cache for 10 seconds after unmount
   });
 }
-

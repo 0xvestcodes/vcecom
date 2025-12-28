@@ -1,13 +1,14 @@
 "use client";
 
+import { AlertCircle } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { ReservationTimer } from "@/components/cart/reservation-timer";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
 import {
   useApplyCoupon,
   useCart,
@@ -88,7 +89,10 @@ export default function CartPage() {
         <div className="md:col-span-2 space-y-4">
           {/* Stale Items Warning */}
           {cart.warnings?.some((w) => w.type === "STALE_ITEMS") && (
-            <Alert variant="default" className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+            <Alert
+              variant="default"
+              className="border-yellow-500 bg-yellow-50 dark:bg-yellow-950"
+            >
               <AlertCircle className="h-4 w-4 text-yellow-600" />
               <AlertTitle className="text-yellow-800 dark:text-yellow-200">
                 Items Need Revalidation
@@ -111,7 +115,7 @@ export default function CartPage() {
                   {cart.warnings
                     .filter((w) => w.type === "LOW_STOCK")
                     .map((warning, idx) => (
-                      <li key={idx}>{warning.message}</li>
+                      <li key={idx.toString()}>{warning.message}</li>
                     ))}
                 </ul>
               </CardContent>
@@ -126,15 +130,14 @@ export default function CartPage() {
             return (
               <Card
                 key={item.id}
-                className={
-                  itemWarning || isStale ? "border-yellow-500" : ""
-                }
+                className={itemWarning || isStale ? "border-yellow-500" : ""}
               >
                 <CardContent className="p-6">
                   {isStale && (
                     <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-950 rounded-md border border-orange-200 dark:border-orange-800">
                       <p className="text-sm text-orange-800 dark:text-orange-200 font-medium">
-                        ⏱️ Reservation expired. Availability will be checked at checkout.
+                        ⏱️ Reservation expired. Availability will be checked at
+                        checkout.
                       </p>
                     </div>
                   )}
@@ -149,9 +152,11 @@ export default function CartPage() {
                     {/* Product Image */}
                     {item.thumbnail ? (
                       <Link href={`/products/${item.productSlug}`}>
-                        <img
+                        <Image
                           src={item.thumbnail}
                           alt={item.productTitle}
+                          width={96}
+                          height={96}
                           className="w-24 h-24 object-cover rounded-lg"
                         />
                       </Link>
@@ -181,14 +186,16 @@ export default function CartPage() {
                       {/* Attributes */}
                       {Object.keys(item.attributes).length > 0 && (
                         <div className="flex gap-2 mb-2 flex-wrap">
-                          {Object.entries(item.attributes).map(([key, value]) => (
-                            <span
-                              key={key}
-                              className="text-xs bg-muted px-2 py-1 rounded"
-                            >
-                              {key}: {value}
-                            </span>
-                          ))}
+                          {Object.entries(item.attributes).map(
+                            ([key, value]) => (
+                              <span
+                                key={key}
+                                className="text-xs bg-muted px-2 py-1 rounded"
+                              >
+                                {key}: {value}
+                              </span>
+                            ),
+                          )}
                         </div>
                       )}
 
@@ -225,9 +232,12 @@ export default function CartPage() {
 
                           {item.pricing.breakdown.savings > 0 && (
                             <span className="text-sm text-green-600 font-semibold">
-                              Save ₹{item.pricing.breakdown.savings.toFixed(2)} (
-                              {item.pricing.breakdown.savingsPercentage.toFixed(0)}%
-                              off)
+                              Save ₹{item.pricing.breakdown.savings.toFixed(2)}{" "}
+                              (
+                              {item.pricing.breakdown.savingsPercentage.toFixed(
+                                0,
+                              )}
+                              % off)
                             </span>
                           )}
                         </div>
@@ -376,8 +386,8 @@ export default function CartPage() {
                   <span>₹{cart.priceSummary.total.toFixed(2)}</span>
                 </div>
 
-                {(cart.priceSummary.itemDiscounts +
-                  cart.priceSummary.couponDiscount) >
+                {cart.priceSummary.itemDiscounts +
+                  cart.priceSummary.couponDiscount >
                   0 && (
                   <p className="text-sm text-green-600 text-right mt-2">
                     You saved ₹
