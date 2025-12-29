@@ -14,15 +14,15 @@ export default [
   },
   {
     path: '/docs',
-    component: ComponentCreator('/docs', '255'),
+    component: ComponentCreator('/docs', 'b7e'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', 'a32'),
+        component: ComponentCreator('/docs', '672'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', '31c'),
+            component: ComponentCreator('/docs', '73c'),
             routes: [
               {
                 path: '/docs/admin/pagination',
@@ -49,7 +49,7 @@ export default [
               },
               {
                 path: '/docs/architecture/dependencies',
-                component: ComponentCreator('/docs/architecture/dependencies', 'ccf'),
+                component: ComponentCreator('/docs/architecture/dependencies', 'c60'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
@@ -61,13 +61,13 @@ export default [
               },
               {
                 path: '/docs/architecture/monorepo',
-                component: ComponentCreator('/docs/architecture/monorepo', 'ad4'),
+                component: ComponentCreator('/docs/architecture/monorepo', '2b1'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
                 path: '/docs/architecture/overview',
-                component: ComponentCreator('/docs/architecture/overview', 'd82'),
+                component: ComponentCreator('/docs/architecture/overview', 'cf3'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
@@ -121,7 +121,7 @@ export default [
               },
               {
                 path: '/docs/catalog/inventory',
-                component: ComponentCreator('/docs/catalog/inventory', '8e5'),
+                component: ComponentCreator('/docs/catalog/inventory', '7cf'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
@@ -253,7 +253,7 @@ export default [
               },
               {
                 path: '/docs/introduction',
-                component: ComponentCreator('/docs/introduction', 'c2c'),
+                component: ComponentCreator('/docs/introduction', '5e5'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
