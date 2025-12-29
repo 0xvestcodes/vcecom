@@ -11,8 +11,8 @@ import { DB_TOKEN } from "../../../modules/database/database.module";
 import type { Database } from "../../../modules/database/db";
 import { OrderResponseDto } from "../dto/order-response.dto";
 import { OrderStatus } from "../dto/update-order-status.dto";
-import { OrderEnrichmentService } from "./order-enrichment.service";
-import { OrderGstService } from "./order-gst.service";
+import { OrderGstService } from "./gst/order-gst.service";
+import { OrderEnrichmentService } from "./query/order-enrichment.service";
 import { OrderValidationService } from "./validation/order-validation.service";
 
 /**

@@ -83,10 +83,10 @@ import {
   isGuestCheckout,
   validateAuthenticatedCheckoutRequirements,
   validateGuestCheckoutRequirements,
-} from "./order-creation.helper";
-import { OrderDiscountService } from "./order-discount.service";
-import { OrderInventoryService } from "./order-inventory.service";
-import { OrderPricingService } from "./order-pricing.service";
+} from "./creation/order-creation.helper";
+import { OrderDiscountService } from "./discount/order-discount.service";
+import { OrderInventoryService } from "./inventory/order-inventory.service";
+import { OrderPricingService } from "./pricing/order-pricing.service";
 import { OrderValidationService } from "./validation/order-validation.service";
 
 /**

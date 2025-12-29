@@ -62,7 +62,7 @@ export class OrdersService {
     sessionId: string | null,
   ): Promise<OrderResponseDto> {
     return this.codFlowService.createCodOrder(
-            checkoutSessionId,
+      checkoutSessionId,
       userId,
       createOrderDto,
       sessionId,
@@ -81,10 +81,10 @@ export class OrdersService {
     provider: string = "razorpay",
   ): Promise<OrderResponseDto> {
     return this.creationService.finalizeOrderFromPayment(
-          checkoutSessionId,
-        paymentIntentId,
-          provider,
-        );
+      checkoutSessionId,
+      paymentIntentId,
+      provider,
+    );
   }
 
   // ============================================================================
