@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../../common/logging/context.service";
 import {
@@ -6,7 +7,6 @@ import {
   createLogContext,
 } from "../../../../common/logging/logging.helper";
 import { calculateGstBreakdown } from "../../../../common/utils/gst.utils";
-import { orders } from "@vcecom/db";
 import { OrderResponseDto } from "../../dto/order-response.dto";
 import { OrderStatus } from "../../dto/update-order-status.dto";
 import { OrderGstService } from "../gst/order-gst.service";
@@ -272,8 +272,10 @@ export class OrderQueryService {
       const customerId = await this.validationService.getCustomerId(userId);
 
       // Fetch orders
-      const ordersList =
-        await this.repositoryService.fetchOrdersByCustomer(customerId, status);
+      const ordersList = await this.repositoryService.fetchOrdersByCustomer(
+        customerId,
+        status,
+      );
 
       // Process each order with items and enrichment
       const ordersWithItems = await Promise.all(

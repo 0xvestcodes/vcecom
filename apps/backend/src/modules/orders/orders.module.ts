@@ -42,6 +42,7 @@ import { OrderDuplicateService } from "./services/operations/order-duplicate.ser
 import { OrderNotesService } from "./services/operations/order-notes.service";
 import { OrderPaymentService } from "./services/payment/order-payment.service";
 import { OrderPaymentIntentService } from "./services/payment/order-payment-intent.service";
+import { RefundsService } from "./services/payment/refunds.service";
 import { OrderPersistenceService } from "./services/persistence/order-persistence.service";
 import { OrderPricingService } from "./services/pricing/order-pricing.service";
 import { OrderPricingDriftService } from "./services/pricing/order-pricing-drift.service";
@@ -50,7 +51,6 @@ import { OrderEnrichmentService } from "./services/query/order-enrichment.servic
 import { OrderQueryService } from "./services/query/order-query.service";
 import { OrderQueryRepositoryService } from "./services/query/order-query-repository.service";
 import { OrderResponseBuilderService } from "./services/query/order-response-builder.service";
-import { RefundsService } from "./services/payment/refunds.service";
 import { OrderPricingSnapshotService } from "./services/snapshot/order-pricing-snapshot.service";
 import { OrderSnapshotAuditService } from "./services/snapshot/order-snapshot-audit.service";
 import { OrderSnapshotValidationService } from "./services/snapshot/order-snapshot-validation.service";
