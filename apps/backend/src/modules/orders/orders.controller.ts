@@ -43,9 +43,9 @@ import {
 } from "./dto/update-order-status.dto";
 import { OrdersService } from "./orders.service";
 import { ReconciliationService } from "./reconciliation.service";
-import { OrderArchiveService } from "./services/order-archive.service";
-import { OrderCancelService } from "./services/order-cancel.service";
-import { OrderDuplicateService } from "./services/order-duplicate.service";
+import { OrderArchiveService } from "./services/operations/order-archive.service";
+import { OrderCancelService } from "./services/operations/order-cancel.service";
+import { OrderDuplicateService } from "./services/operations/order-duplicate.service";
 
 interface AuthenticatedRequest extends Request {
   user: {

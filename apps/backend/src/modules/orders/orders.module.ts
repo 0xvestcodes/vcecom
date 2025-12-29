@@ -35,11 +35,11 @@ import { OrderGstService } from "./services/gst/order-gst.service";
 import { OrderIdempotencyService } from "./services/idempotency/order-idempotency.service";
 import { OrderInventoryService } from "./services/inventory/order-inventory.service";
 import { OrderNotificationService } from "./services/notifications/order-notification.service";
-import { OrderAddressService } from "./services/order-address.service";
-import { OrderArchiveService } from "./services/order-archive.service";
-import { OrderCancelService } from "./services/order-cancel.service";
-import { OrderDuplicateService } from "./services/order-duplicate.service";
-import { OrderNotesService } from "./services/order-notes.service";
+import { OrderAddressService } from "./services/operations/order-address.service";
+import { OrderArchiveService } from "./services/operations/order-archive.service";
+import { OrderCancelService } from "./services/operations/order-cancel.service";
+import { OrderDuplicateService } from "./services/operations/order-duplicate.service";
+import { OrderNotesService } from "./services/operations/order-notes.service";
 import { OrderPaymentService } from "./services/payment/order-payment.service";
 import { OrderPaymentIntentService } from "./services/payment/order-payment-intent.service";
 import { OrderPersistenceService } from "./services/persistence/order-persistence.service";
@@ -48,8 +48,9 @@ import { OrderPricingDriftService } from "./services/pricing/order-pricing-drift
 import { OrderPricingEngineService } from "./services/pricing/order-pricing-engine.service";
 import { OrderEnrichmentService } from "./services/query/order-enrichment.service";
 import { OrderQueryService } from "./services/query/order-query.service";
+import { OrderQueryRepositoryService } from "./services/query/order-query-repository.service";
 import { OrderResponseBuilderService } from "./services/query/order-response-builder.service";
-import { RefundsService } from "./services/refunds.service";
+import { RefundsService } from "./services/payment/refunds.service";
 import { OrderPricingSnapshotService } from "./services/snapshot/order-pricing-snapshot.service";
 import { OrderSnapshotAuditService } from "./services/snapshot/order-snapshot-audit.service";
 import { OrderSnapshotValidationService } from "./services/snapshot/order-snapshot-validation.service";
@@ -84,6 +85,7 @@ import { OrderValidationService } from "./services/validation/order-validation.s
     OrderDiscountService,
     OrderEnrichmentService,
     OrderQueryService,
+    OrderQueryRepositoryService,
     OrderCreationService,
     OrderCodFlowService,
     OrderPaymentFinalizationService,
@@ -134,6 +136,7 @@ import { OrderValidationService } from "./services/validation/order-validation.s
     OrderDiscountService,
     OrderEnrichmentService,
     OrderQueryService,
+    OrderQueryRepositoryService,
     OrderCreationService,
     OrderCodFlowService,
     OrderPaymentFinalizationService,

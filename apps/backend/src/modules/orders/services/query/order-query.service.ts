@@ -1,5 +1,4 @@
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
-import { and, desc, eq, orderItems, orders } from "@vcecom/db";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../../common/logging/context.service";
 import {
@@ -7,13 +6,13 @@ import {
   createLogContext,
 } from "../../../../common/logging/logging.helper";
 import { calculateGstBreakdown } from "../../../../common/utils/gst.utils";
-import { DB_TOKEN } from "../../../../modules/database/database.module";
-import type { Database } from "../../../../modules/database/db";
+import { orders } from "@vcecom/db";
 import { OrderResponseDto } from "../../dto/order-response.dto";
 import { OrderStatus } from "../../dto/update-order-status.dto";
 import { OrderGstService } from "../gst/order-gst.service";
 import { OrderValidationService } from "../validation/order-validation.service";
 import { OrderEnrichmentService } from "./order-enrichment.service";
+import { OrderQueryRepositoryService } from "./order-query-repository.service";
 
 /**
  * Service responsible for querying orders
@@ -26,8 +25,8 @@ export class OrderQueryService {
     private readonly contextService: ContextService,
     private readonly validationService: OrderValidationService,
     private readonly enrichmentService: OrderEnrichmentService,
+    private readonly repositoryService: OrderQueryRepositoryService,
     readonly _gstService: OrderGstService,
-    @Inject(DB_TOKEN) private readonly db: Database,
   ) {}
 
   /**
@@ -41,13 +40,16 @@ export class OrderQueryService {
       const customerId = await this.validationService.getCustomerId(userId);
 
       // Fetch order
-      const order = await this.fetchOrderByIdAndCustomer(orderId, customerId);
+      const order = await this.repositoryService.fetchOrderByIdAndCustomer(
+        orderId,
+        customerId,
+      );
       if (!order) {
         throw new NotFoundException("Order not found");
       }
 
       // Fetch order items
-      const items = await this.fetchOrderItems(orderId);
+      const items = await this.repositoryService.fetchOrderItems(orderId);
 
       // Get addresses and calculate GST
       const {
@@ -168,13 +170,16 @@ export class OrderQueryService {
   async findOnePublic(orderId: string): Promise<OrderResponseDto> {
     try {
       // Fetch order
-      const order = await this.fetchOrderById(orderId);
+      const order = await this.repositoryService.fetchOrderById(orderId);
       if (!order) {
         throw new NotFoundException("Order not found");
       }
 
       // Fetch order items
-      const items = await this.fetchOrderItems(orderId, false);
+      const items = await this.repositoryService.fetchOrderItems(
+        orderId,
+        false,
+      );
 
       // Get shipping address for GST calculation
       const shippingAddressState =
@@ -267,14 +272,18 @@ export class OrderQueryService {
       const customerId = await this.validationService.getCustomerId(userId);
 
       // Fetch orders
-      const ordersList = await this.fetchOrdersByCustomer(customerId, status);
+      const ordersList =
+        await this.repositoryService.fetchOrdersByCustomer(customerId, status);
 
       // Process each order with items and enrichment
       const ordersWithItems = await Promise.all(
         ordersList.map(async (order) => {
           try {
             // Fetch order items
-            const items = await this.fetchOrderItems(order.id, false);
+            const items = await this.repositoryService.fetchOrderItems(
+              order.id,
+              false,
+            );
 
             // Get shipping address for GST calculation
             const shippingAddressState =
@@ -398,181 +407,6 @@ export class OrderQueryService {
           },
         ),
         "Failed to get orders",
-      );
-      return [];
-    }
-  }
-
-  /**
-   * Fetch order by ID and customer ID
-   * @private
-   */
-  private async fetchOrderByIdAndCustomer(
-    orderId: string,
-    customerId: string,
-  ): Promise<typeof orders.$inferSelect | undefined> {
-    try {
-      const orderResult = await this.db
-        .select()
-        .from(orders)
-        .where(and(eq(orders.id, orderId), eq(orders.customerId, customerId)))
-        .limit(1);
-      return orderResult[0];
-    } catch (error) {
-      this.logger.error(
-        createErrorContext(
-          this.contextService,
-          "OrderQueryService.fetchOrderByIdAndCustomer",
-          error,
-          { orderId, customerId },
-        ),
-        "Failed to fetch order",
-      );
-      throw new NotFoundException("Order not found");
-    }
-  }
-
-  /**
-   * Fetch order by ID
-   * @private
-   */
-  private async fetchOrderById(
-    orderId: string,
-  ): Promise<typeof orders.$inferSelect | undefined> {
-    try {
-      const orderResult = await this.db
-        .select()
-        .from(orders)
-        .where(eq(orders.id, orderId))
-        .limit(1);
-      return orderResult[0];
-    } catch (error) {
-      this.logger.error(
-        createErrorContext(
-          this.contextService,
-          "OrderQueryService.fetchOrderById",
-          error,
-          { orderId },
-        ),
-        "Failed to fetch order",
-      );
-      throw new NotFoundException("Order not found");
-    }
-  }
-
-  /**
-   * Fetch orders by customer ID
-   * @private
-   */
-  private async fetchOrdersByCustomer(
-    customerId: string,
-    status?: OrderStatus,
-  ): Promise<Array<typeof orders.$inferSelect>> {
-    try {
-      const conditions = [eq(orders.customerId, customerId)];
-      if (status) {
-        conditions.push(eq(orders.status, status));
-      }
-
-      return await this.db
-        .select()
-        .from(orders)
-        .where(and(...conditions))
-        .orderBy(desc(orders.createdAt));
-    } catch (error) {
-      this.logger.error(
-        createErrorContext(
-          this.contextService,
-          "OrderQueryService.fetchOrdersByCustomer",
-          error,
-          { customerId, status },
-        ),
-        "Failed to fetch orders",
-      );
-      return [];
-    }
-  }
-
-  /**
-   * Fetch order items for an order
-   * @private
-   */
-  private async fetchOrderItems(
-    orderId: string,
-    includeMetadata: boolean = true,
-  ): Promise<
-    Array<{
-      id: string;
-      orderId: string;
-      productVariantId: string;
-      quantity: number;
-      price: number;
-      gstRate: number;
-      gstAmount: number;
-      metadata?: unknown;
-      createdAt: Date;
-      updatedAt: Date;
-    }>
-  > {
-    try {
-      const selectFields: {
-        id: typeof orderItems.id;
-        orderId: typeof orderItems.orderId;
-        productVariantId: typeof orderItems.productVariantId;
-        quantity: typeof orderItems.quantity;
-        price: typeof orderItems.price;
-        gstRate: typeof orderItems.gstRate;
-        gstAmount: typeof orderItems.gstAmount;
-        createdAt: typeof orderItems.createdAt;
-        updatedAt: typeof orderItems.updatedAt;
-        metadata?: typeof orderItems.metadata;
-      } = {
-        id: orderItems.id,
-        orderId: orderItems.orderId,
-        productVariantId: orderItems.productVariantId,
-        quantity: orderItems.quantity,
-        price: orderItems.price,
-        gstRate: orderItems.gstRate,
-        gstAmount: orderItems.gstAmount,
-        createdAt: orderItems.createdAt,
-        updatedAt: orderItems.updatedAt,
-      };
-
-      if (includeMetadata) {
-        selectFields.metadata = orderItems.metadata;
-      }
-
-      const items = await this.db
-        .select(selectFields)
-        .from(orderItems)
-        .where(eq(orderItems.orderId, orderId));
-
-      // Ensure metadata is always present (even if undefined)
-      return items.map((item) => ({
-        id: item.id,
-        orderId: item.orderId,
-        productVariantId: item.productVariantId,
-        quantity: item.quantity,
-        price: item.price,
-        gstRate: item.gstRate,
-        gstAmount: item.gstAmount,
-        metadata: includeMetadata
-          ? "metadata" in item
-            ? (item.metadata ?? null)
-            : null
-          : null,
-        createdAt: item.createdAt,
-        updatedAt: item.updatedAt,
-      }));
-    } catch (error) {
-      this.logger.error(
-        createErrorContext(
-          this.contextService,
-          "OrderQueryService.fetchOrderItems",
-          error,
-          { orderId },
-        ),
-        "Failed to fetch order items",
       );
       return [];
     }
