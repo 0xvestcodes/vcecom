@@ -32,7 +32,7 @@ services:
       - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.middlewares=auth"
-      - "traefik.http.middlewares.auth.basicauth.users=admin:$$apr1$$8K8v8K8v$$8K8v8K8v8K8v8K8v" # Change this password!
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_AUTH_USERS:-admin:$$apr1$$8K8v8K8v$$8K8v8K8v8K8v8K8v}" # Set TRAEFIK_AUTH_USERS env var in production
 
   # PostgreSQL Database
   postgres:
@@ -40,9 +40,9 @@ services:
     container_name: vcecom-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: "SNDl5BRY24N5yLCnwT6o1w=="
-      POSTGRES_DB: maindb
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-maindb}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -60,11 +60,11 @@ services:
     image: redis:7-alpine
     container_name: vcecom-redis
     restart: unless-stopped
-    command: redis-server --requirepass SNDl5BRY24N5yLCnwT6o1w== --appendonly yes
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "SNDl5BRY24N5yLCnwT6o1w==", "ping"]
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -79,8 +79,8 @@ services:
     container_name: vcecom-minio
     restart: unless-stopped
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: SNDl5BRY24N5yLCnwT6o1w==
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -116,17 +116,17 @@ services:
     restart: unless-stopped
     environment:
       # Database Configuration
-      DATABASE_URL: postgresql://postgres:SNDl5BRY24N5yLCnwT6o1w%3D%3D@postgres:5432/maindb
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-maindb}}
       # Redis Configuration
-      REDIS_URL: redis://:SNDl5BRY24N5yLCnwT6o1w%3D%3D@redis:6379
+      REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379}
       # Server Configuration
-      PORT: 3001
-      NODE_ENV: production
+      PORT: ${PORT:-3001}
+      NODE_ENV: ${NODE_ENV:-production}
       # Storage Provider Configuration
-      STORAGE_PROVIDER: minio
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: minioadmin
-      MINIO_SECRET_KEY: SNDl5BRY24N5yLCnwT6o1w==
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-minio}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:-minio:9000}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:-${MINIO_ROOT_USER:-minioadmin}}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:-${MINIO_ROOT_PASSWORD}}
       MINIO_USE_SSL: "false"
       MINIO_PUBLIC_URL: https://api.minio-hw-vcecom.vestcodes.co/vcecom
       STORAGE_BUCKET: vcecom

@@ -562,7 +562,21 @@ export class PaymentsService implements OnModuleInit {
         );
       }
 
-      return razorpayOrder as RazorpayOrderResponseDto;
+      return {
+        ...razorpayOrder,
+        amount:
+          typeof razorpayOrder.amount === "string"
+            ? Number(razorpayOrder.amount)
+            : razorpayOrder.amount,
+        amount_paid:
+          typeof razorpayOrder.amount_paid === "string"
+            ? Number(razorpayOrder.amount_paid)
+            : razorpayOrder.amount_paid,
+        amount_due:
+          typeof razorpayOrder.amount_due === "string"
+            ? Number(razorpayOrder.amount_due)
+            : razorpayOrder.amount_due,
+      } as RazorpayOrderResponseDto;
     } catch (error) {
       throw new BadRequestException(
         `Failed to create Razorpay order: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -631,12 +645,28 @@ export class PaymentsService implements OnModuleInit {
    * @returns Order details
    */
   @Trace({ operation: "PaymentsService.getRazorpayOrderDetails" })
-  async getRazorpayOrderDetails(orderId: string) {
+  async getRazorpayOrderDetails(
+    orderId: string,
+  ): Promise<RazorpayOrderResponseDto> {
     const razorpay = this.getRazorpayInstance();
 
     try {
       const razorpayOrder = await razorpay.orders.fetch(orderId);
-      return razorpayOrder;
+      return {
+        ...razorpayOrder,
+        amount:
+          typeof razorpayOrder.amount === "string"
+            ? Number(razorpayOrder.amount)
+            : razorpayOrder.amount,
+        amount_paid:
+          typeof razorpayOrder.amount_paid === "string"
+            ? Number(razorpayOrder.amount_paid)
+            : razorpayOrder.amount_paid,
+        amount_due:
+          typeof razorpayOrder.amount_due === "string"
+            ? Number(razorpayOrder.amount_due)
+            : razorpayOrder.amount_due,
+      } as RazorpayOrderResponseDto;
     } catch (error) {
       throw new NotFoundException(
         `Razorpay order with ID ${orderId} not found: ${error instanceof Error ? error.message : "Unknown error"}`,
@@ -648,12 +678,14 @@ export class PaymentsService implements OnModuleInit {
    * Handle Razorpay webhook event
    * @param webhookEvent - Webhook event from Razorpay
    * @param signature - Webhook signature for verification
+   * @param rawBody - Raw request body for signature verification (Razorpay signs the raw body, not parsed JSON)
    * @returns Processing result
    */
   @Trace({ operation: "PaymentsService.handleWebhook" })
   async handleWebhook(
     webhookEvent: RazorpayWebhookEventDto,
     signature: string,
+    rawBody: string | Buffer,
   ): Promise<{ processed: boolean; message: string }> {
     const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -663,8 +695,9 @@ export class PaymentsService implements OnModuleInit {
       );
     }
 
-    // Verify webhook signature
-    const text = JSON.stringify(webhookEvent);
+    // Verify webhook signature using raw request body
+    // Razorpay signs the raw request body exactly as received, not the parsed JSON
+    const text = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody);
     const generatedSignature = crypto
       .createHmac("sha256", webhookSecret)
       .update(text)

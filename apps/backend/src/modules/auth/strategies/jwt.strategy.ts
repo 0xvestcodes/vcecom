@@ -3,6 +3,7 @@ import { PassportStrategy } from "@nestjs/passport";
 import { adminSessions, eq, users } from "@vcecom/db";
 import { Request } from "express";
 import { ExtractJwt, Strategy } from "passport-jwt";
+import { getValidatedJwtSecret } from "../../../common/config/jwt-secret.validation";
 import type { Database } from "../../../modules/database/db";
 import { AdminSessionsService } from "../../admin-auth/admin-sessions.service";
 import { DB_TOKEN } from "../../database/database.module";
@@ -23,7 +24,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         ExtractJwt.fromAuthHeaderAsBearerToken(),
       ]),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || "change-me-in-production",
+      secretOrKey: getValidatedJwtSecret(),
     });
   }
 

@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
+import { getValidatedJwtSecret } from "../../common/config/jwt-secret.validation";
 import { ContextModule } from "../../common/logging/context.module";
 import { LoggerModule } from "../../common/logging/logger.module";
 import { RedisStoreModule } from "../redis-store/redis-store.module";
@@ -16,7 +17,7 @@ import { AdminLoginRateLimitGuard } from "./guards/rate-limit.guard";
   imports: [
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || "change-me-in-production",
+      secret: getValidatedJwtSecret(),
       signOptions: {
         expiresIn: process.env.ADMIN_ACCESS_TOKEN_EXPIRES_IN || "15m",
       },

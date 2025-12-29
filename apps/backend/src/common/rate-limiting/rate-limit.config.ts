@@ -128,19 +128,19 @@ export const RATE_LIMIT_PRESETS = {
   },
 
   /**
-   * Admin GET endpoints - unlimited for admin UI (temporarily set to infinity)
+   * Admin GET endpoints - high limit for admin UI operations
    */
   ADMIN_GET: {
-    limit: Number.MAX_SAFE_INTEGER, // Effectively unlimited
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 10000, // 10k requests per 5 minutes in production
     window: 300, // 5 minutes
     keyType: "userId" as RateLimitKeyType,
   },
 
   /**
-   * Admin POST/PATCH/DELETE - unlimited (temporarily set to infinity)
+   * Admin POST/PATCH/DELETE - moderate limit for mutations
    */
   ADMIN_MUTATE: {
-    limit: Number.MAX_SAFE_INTEGER, // Effectively unlimited
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 1000, // 1k mutations per 5 minutes in production
     window: 300, // 5 minutes
     keyType: "userId" as RateLimitKeyType,
   },
@@ -161,5 +161,14 @@ export const RATE_LIMIT_PRESETS = {
     limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 5000,
     window: 60, // 1 minute
     keyType: "userId" as RateLimitKeyType,
+  },
+
+  /**
+   * Webhook endpoints - IP-based rate limiting to prevent DoS
+   */
+  WEBHOOK: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 100, // 100 requests per minute in production
+    window: 60, // 1 minute
+    keyType: "ip" as RateLimitKeyType,
   },
 } as const;

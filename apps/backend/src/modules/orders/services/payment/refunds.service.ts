@@ -14,6 +14,7 @@ import {
   MAX_REFUND_AMOUNT_MULTIPLIER,
   MIN_REFUND_AMOUNT_INR,
 } from "../../../../common/constants/orders.constants";
+import { RefundResponseDto } from "../../../admin/dto/refund-response.dto";
 import { DB_TOKEN } from "../../../database/database.module";
 import type { Database } from "../../../database/db";
 import { NotificationsService } from "../../../notifications/notifications.service";
@@ -56,7 +57,7 @@ export class RefundsService implements OnModuleInit {
    * @param orderId - Order ID
    * @returns Array of refunds
    */
-  async findByOrderId(orderId: string) {
+  async findByOrderId(orderId: string): Promise<RefundResponseDto[]> {
     // Verify order exists
     const [order] = await this.db
       .select()
@@ -84,7 +85,11 @@ export class RefundsService implements OnModuleInit {
    * @param reason - Reason for refund
    * @returns Created refund
    */
-  async create(orderId: string, amount: number, reason: string) {
+  async create(
+    orderId: string,
+    amount: number,
+    reason: string,
+  ): Promise<RefundResponseDto> {
     if (amount <= 0) {
       throw new BadRequestException("Refund amount must be greater than 0");
     }

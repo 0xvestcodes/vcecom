@@ -116,7 +116,7 @@ export class AdminAuthController {
     const cookieOptions = {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "lax" as const,
+      sameSite: isProduction ? ("strict" as const) : ("lax" as const), // Strict in production for CSRF protection
       path: "/",
     };
 
@@ -194,7 +194,7 @@ export class AdminAuthController {
     const cookieOptions = {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "lax" as const,
+      sameSite: isProduction ? ("strict" as const) : ("lax" as const), // Strict in production for CSRF protection
       path: "/",
     };
 
@@ -260,7 +260,7 @@ export class AdminAuthController {
     const cookieOptions = {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "lax" as const,
+      sameSite: isProduction ? ("strict" as const) : ("lax" as const), // Strict in production for CSRF protection
       path: "/",
     };
 

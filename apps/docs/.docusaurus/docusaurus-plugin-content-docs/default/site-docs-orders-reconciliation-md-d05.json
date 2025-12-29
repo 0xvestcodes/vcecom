@@ -1,7 +1,7 @@
 {
   "id": "orders/reconciliation",
-  "title": "Order Reconciliation",
-  "description": "Order reconciliation ensures consistency between payment gateway transactions, order records, and inventory. It handles recovery from failures, identifies discrepancies, and maintains data integrity.",
+  "title": "Order Inventory Reconciliation",
+  "description": "Overview",
   "source": "@site/docs/orders/reconciliation.md",
   "sourceDirName": "orders",
   "slug": "/orders/reconciliation",
@@ -11,8 +11,8 @@
   "editUrl": "https://github.com/Vestcodes/vcecom/tree/main/apps/docs/docs/orders/reconciliation.md",
   "tags": [],
   "version": "current",
-  "lastUpdatedBy": "Sarwagya Singh",
-  "lastUpdatedAt": 1766374247000,
+  "lastUpdatedBy": "Author",
+  "lastUpdatedAt": 1539502055000,
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {

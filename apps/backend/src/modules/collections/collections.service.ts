@@ -23,6 +23,7 @@ import {
   tags,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { PaginatedResponseDto } from "../../common/dto/pagination.dto";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
 import {
@@ -32,6 +33,7 @@ import {
 import { DB_TOKEN } from "../../modules/database/database.module";
 import type { Database } from "../../modules/database/db";
 import { AddProductsDto } from "./dto/add-products.dto";
+import { CollectionResponseDto } from "./dto/collection-response.dto";
 import {
   CollectionRuleDto,
   CollectionRuleField,
@@ -110,7 +112,9 @@ export class CollectionsService {
   /**
    * Create a new collection
    */
-  async create(createCollectionDto: CreateCollectionDto) {
+  async create(
+    createCollectionDto: CreateCollectionDto,
+  ): Promise<CollectionResponseDto> {
     // Generate slug if not provided
     const slug = createCollectionDto.slug
       ? await this.ensureUniqueSlug(createCollectionDto.slug)
@@ -200,7 +204,9 @@ export class CollectionsService {
   /**
    * Get all collections with pagination and search
    */
-  async findAll(query: QueryCollectionsDto) {
+  async findAll(
+    query: QueryCollectionsDto,
+  ): Promise<PaginatedResponseDto<CollectionResponseDto>> {
     const { page, limit, offset } = normalizePaginationParams(
       query.page,
       query.limit,
@@ -312,6 +318,10 @@ export class CollectionsService {
     return {
       data: collectionsData.map((c) => ({
         ...c,
+        type: c.type as CollectionType,
+        matchType: c.matchType as CollectionMatchType | null,
+        rules: c.rules as CollectionRuleDto[] | null,
+        position: c.position ?? undefined,
         productCount: Number(c.productCount) || 0,
       })),
       pagination,
@@ -487,7 +497,7 @@ export class CollectionsService {
   /**
    * Delete a collection
    */
-  async remove(id: string) {
+  async remove(id: string): Promise<void> {
     // Check if collection exists
     const [existing] = await this.db
       .select()
@@ -501,8 +511,6 @@ export class CollectionsService {
 
     // Delete collection (cascade will remove product associations)
     await this.db.delete(collections).where(eq(collections.id, id));
-
-    return { message: "Collection deleted successfully" };
   }
 
   /**
@@ -707,7 +715,16 @@ export class CollectionsService {
   /**
    * Get products in a collection (handles both manual and automatic)
    */
-  async getProducts(collectionId: string) {
+  async getProducts(collectionId: string): Promise<
+    Array<{
+      id: string;
+      title: string;
+      price: number;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }>
+  > {
     // Check if collection exists
     const [collection] = await this.db
       .select({
@@ -781,7 +798,7 @@ export class CollectionsService {
   /**
    * Preview automatic collection (get count of matching products)
    */
-  async preview(id: string) {
+  async preview(id: string): Promise<{ count: number }> {
     const [collection] = await this.db
       .select({
         id: collections.id,

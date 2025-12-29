@@ -19,9 +19,11 @@ import {
 } from "@nestjs/swagger";
 import { Request } from "express";
 import { IS_PUBLIC_KEY } from "../../common/decorators/public.decorator";
+import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
+import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import {
   CreateRazorpayOrderDto,
   RazorpayOrderResponseDto,
@@ -182,6 +184,7 @@ export class StorePaymentsController {
 
   @Post("razorpay/webhook")
   @SetMetadata(IS_PUBLIC_KEY, true)
+  @RateLimit(RATE_LIMIT_PRESETS.WEBHOOK)
   @ApiOperation({
     summary: "Handle Razorpay webhook events",
     description:
@@ -222,20 +225,27 @@ export class StorePaymentsController {
       throw new BadRequestException("Missing x-razorpay-signature header");
     }
 
-    // Parse body if it's a buffer or string
-    let webhookEvent: RazorpayWebhookEventDto;
+    // Get raw body for signature verification
+    // Razorpay signs the raw request body, not the parsed JSON
+    let rawBody: string | Buffer;
     if (req.rawBody && Buffer.isBuffer(req.rawBody)) {
-      webhookEvent = JSON.parse(
-        req.rawBody.toString(),
-      ) as RazorpayWebhookEventDto;
+      rawBody = req.rawBody;
     } else if (typeof req.body === "string") {
-      webhookEvent = JSON.parse(req.body) as RazorpayWebhookEventDto;
-    } else if (req.body && typeof req.body === "object") {
-      webhookEvent = req.body as unknown as RazorpayWebhookEventDto;
+      rawBody = req.body;
     } else {
-      throw new BadRequestException("Invalid webhook payload");
+      throw new BadRequestException(
+        "Raw request body is required for webhook signature verification",
+      );
     }
 
-    return this.paymentsService.handleWebhook(webhookEvent, signature);
+    // Parse body for event processing
+    let webhookEvent: RazorpayWebhookEventDto;
+    if (Buffer.isBuffer(rawBody)) {
+      webhookEvent = JSON.parse(rawBody.toString()) as RazorpayWebhookEventDto;
+    } else {
+      webhookEvent = JSON.parse(rawBody) as RazorpayWebhookEventDto;
+    }
+
+    return this.paymentsService.handleWebhook(webhookEvent, signature, rawBody);
   }
 }

@@ -234,6 +234,10 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "orders/error-handling",
+              "path": "/docs/orders/error-handling"
+            },
+            {
               "id": "orders/fulfillment",
               "path": "/docs/orders/fulfillment",
               "sidebar": "docsSidebar"
@@ -257,6 +261,10 @@
               "id": "orders/refunds",
               "path": "/docs/orders/refunds",
               "sidebar": "docsSidebar"
+            },
+            {
+              "id": "orders/troubleshooting",
+              "path": "/docs/orders/troubleshooting"
             },
             {
               "id": "pricing/customer-groups",

@@ -325,15 +325,8 @@ export class AdminOrdersController {
         archived: order.archived || false,
         archivedAt: order.archivedAt || null,
         archivedBy: order.archivedBy || null,
-        ...(order.discountCode !== null && order.discountCode !== undefined
-          ? { discountCode: order.discountCode }
-          : {}),
-        ...(order.discountAmount !== null && order.discountAmount !== undefined
-          ? { discountAmount: order.discountAmount }
-          : {}),
-      } as OrderResponseDto & {
-        discountCode?: string | null;
-        discountAmount?: number;
+        discountCode: order.discountCode ?? undefined,
+        discountAmount: order.discountAmount ?? undefined,
       };
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -467,12 +460,12 @@ export class AdminOrdersController {
     @Request() req: AuthenticatedRequest,
     @Param("id") orderId: string,
   ): Promise<MarkOrderPaidResponseDto> {
-    return (await this.orderPaymentService.markAsPaid(
+    return await this.orderPaymentService.markAsPaid(
       orderId,
       req.user.userId,
       req.user.email.split("@")[0],
       req.user.email,
-    )) as unknown as MarkOrderPaidResponseDto;
+    );
   }
 
   @Post(":id/refund")
@@ -533,9 +526,7 @@ export class AdminOrdersController {
     description: "Order not found",
   })
   async getRefunds(@Param("id") orderId: string): Promise<RefundResponseDto[]> {
-    return (await this.refundsService.findByOrderId(
-      orderId,
-    )) as unknown as RefundResponseDto[];
+    return await this.refundsService.findByOrderId(orderId);
   }
 
   @Get(":id/notes")
@@ -562,9 +553,7 @@ export class AdminOrdersController {
   async getOrderNotes(
     @Param("id") orderId: string,
   ): Promise<OrderNoteResponseDto[]> {
-    return (await this.orderNotesService.findByOrderId(
-      orderId,
-    )) as unknown as OrderNoteResponseDto[];
+    return await this.orderNotesService.findByOrderId(orderId);
   }
 
   @Post(":id/notes")
@@ -597,14 +586,14 @@ export class AdminOrdersController {
     @Param("id") orderId: string,
     @Body() createNoteDto: CreateOrderNoteDto,
   ): Promise<OrderNoteResponseDto> {
-    return (await this.orderNotesService.create(
+    return await this.orderNotesService.create(
       orderId,
       createNoteDto.note,
       createNoteDto.isPublic || false,
       req.user.userId,
       req.user.email.split("@")[0],
       req.user.email,
-    )) as unknown as OrderNoteResponseDto;
+    );
   }
 
   @Patch(":id/addresses")
@@ -637,7 +626,7 @@ export class AdminOrdersController {
     @Param("id") orderId: string,
     @Body() updateAddressDto: UpdateOrderAddressDto,
   ): Promise<MarkOrderPaidResponseDto> {
-    return (await this.orderAddressService.updateAddress(
+    return await this.orderAddressService.updateAddress(
       orderId,
       updateAddressDto.addressType,
       {
@@ -649,7 +638,7 @@ export class AdminOrdersController {
         district: updateAddressDto.district,
       },
       req.user.userId,
-    )) as unknown as MarkOrderPaidResponseDto;
+    );
   }
 
   @Post("reconcile/:paymentIntentId")

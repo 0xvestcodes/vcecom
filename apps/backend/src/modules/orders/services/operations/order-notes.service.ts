@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { desc, eq, orderNotes, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { OrderNoteResponseDto } from "../../../admin/dto/order-note-response.dto";
 import { DB_TOKEN } from "../../../database/database.module";
 import type { Database } from "../../../database/db";
 import { TimelineEventType } from "../../dto/order-timeline.dto";
@@ -24,7 +25,7 @@ export class OrderNotesService {
    * @param orderId - Order ID
    * @returns Array of order notes
    */
-  async findByOrderId(orderId: string) {
+  async findByOrderId(orderId: string): Promise<OrderNoteResponseDto[]> {
     // Verify order exists
     const [order] = await this.db
       .select()
@@ -62,7 +63,7 @@ export class OrderNotesService {
     authorId?: string,
     authorName?: string,
     authorEmail?: string,
-  ) {
+  ): Promise<OrderNoteResponseDto> {
     if (!note || note.trim().length === 0) {
       throw new BadRequestException("Note content cannot be empty");
     }

@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../../common/logging/context.service";
 import {
@@ -10,11 +10,12 @@ import { MetricsService } from "../../../../common/metrics/metrics.service";
 /**
  * Service for tracking inventory commit metrics
  * Integrates with Prometheus metrics for monitoring and alerting
+ * MetricsService is optional - if Prometheus is disabled, metrics won't be recorded
  */
 @Injectable()
 export class OrderInventoryMetricsService {
   constructor(
-    private readonly metricsService: MetricsService,
+    @Optional() private readonly metricsService: MetricsService | null,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
   ) {}
@@ -24,6 +25,11 @@ export class OrderInventoryMetricsService {
    * This should trigger alerts in monitoring systems
    */
   recordInventoryCommitFailure(orderId: string, cartId: string): void {
+    if (!this.metricsService) {
+      // Prometheus is disabled, skip metrics recording
+      return;
+    }
+
     try {
       this.metricsService.inventoryCommitFailedTotal.inc({
         order_id: orderId,
@@ -57,6 +63,11 @@ export class OrderInventoryMetricsService {
    * Useful for health checks and monitoring
    */
   async getInventoryCommitFailureCount(): Promise<number> {
+    if (!this.metricsService) {
+      // Prometheus is disabled, return 0
+      return 0;
+    }
+
     try {
       const metrics = await this.metricsService.getMetrics();
       // Parse the metrics string to extract the failure count

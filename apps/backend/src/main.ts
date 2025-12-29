@@ -20,20 +20,33 @@ import { initializeTracing } from "./common/tracing/tracing.config";
 // Get early logger for use before NestJS bootstrap
 const earlyLogger = getEarlyLogger();
 
-let tracingSdk: ReturnType<typeof initializeTracing>;
-try {
-  tracingSdk = initializeTracing();
-} catch (error) {
-  earlyLogger.error(
-    {
-      ...createBootstrapContext("tracingInit"),
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    },
-    "Failed to initialize OpenTelemetry tracing",
+// Initialize OpenTelemetry tracing only if Zipkin endpoint is configured
+let tracingSdk: ReturnType<typeof initializeTracing> | null = null;
+if (process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT) {
+  try {
+    tracingSdk = initializeTracing();
+    if (tracingSdk) {
+      earlyLogger.info(
+        createBootstrapContext("tracingInit"),
+        "OpenTelemetry tracing initialized",
+      );
+    }
+  } catch (error) {
+    earlyLogger.warn(
+      {
+        ...createBootstrapContext("tracingInit"),
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      },
+      "Failed to initialize OpenTelemetry tracing - continuing without tracing",
+    );
+    tracingSdk = null;
+  }
+} else {
+  earlyLogger.debug(
+    createBootstrapContext("tracingInit"),
+    "OpenTelemetry tracing skipped - OTEL_EXPORTER_ZIPKIN_ENDPOINT not set",
   );
-  // Continue without tracing if initialization fails
-  tracingSdk = null;
 }
 
 import type { Server } from "node:http";
@@ -46,7 +59,13 @@ import {
   SwaggerModule,
 } from "@nestjs/swagger";
 import cookieParser from "cookie-parser";
+import { json, urlencoded } from "express";
+import helmet from "helmet";
 import { AppModule } from "./app.module";
+import {
+  validateEnv,
+  validateStorageProviderEnv,
+} from "./common/config/env.validation";
 import {
   CORS_PREFLIGHT_SUCCESS_STATUS,
   SERVER_HEADERS_TIMEOUT_MS,
@@ -163,6 +182,25 @@ async function bootstrap() {
     createBootstrapContext("bootstrapStart"),
     "Starting application bootstrap",
   );
+
+  // Validate environment variables at startup (fail fast if invalid)
+  try {
+    const env = validateEnv();
+    validateStorageProviderEnv(env);
+    earlyLogger.info(
+      createBootstrapContext("envValidation"),
+      "Environment variables validated successfully",
+    );
+  } catch (error) {
+    earlyLogger.fatal(
+      {
+        ...createBootstrapContext("envValidationError"),
+        error: error instanceof Error ? error.message : String(error),
+      },
+      "Environment variable validation failed - application cannot start",
+    );
+    process.exit(1);
+  }
 
   try {
     // Create a root logger instance for startup logging
@@ -486,10 +524,53 @@ async function bootstrap() {
     // Enable cookie parser
     app.use(cookieParser());
 
+    // Configure request body size limits (10MB) to prevent DoS attacks
+    app.use(json({ limit: "10mb" }));
+    app.use(urlencoded({ limit: "10mb", extended: true }));
+
+    // Configure security headers with Helmet
+    app.use(
+      helmet({
+        contentSecurityPolicy: {
+          directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            scriptSrc: ["'self'"],
+            imgSrc: ["'self'", "data:", "https:"],
+            connectSrc: ["'self'"],
+            fontSrc: ["'self'", "data:"],
+            objectSrc: ["'none'"],
+            mediaSrc: ["'self'"],
+            frameSrc: ["'none'"],
+          },
+        },
+        hsts: {
+          maxAge: 31536000, // 1 year
+          includeSubDomains: true,
+          preload: true,
+        },
+        frameguard: {
+          action: "deny",
+        },
+        noSniff: true,
+        xssFilter: true,
+        referrerPolicy: {
+          policy: "strict-origin-when-cross-origin",
+        },
+      }),
+    );
+
     app.enableCors({
       origin: (origin, callback) => {
-        // Allow requests with no origin (like mobile apps or curl requests)
-        if (!origin) return callback(null, true);
+        // In production, reject requests without origin header for security
+        // In development, allow requests without origin (like mobile apps or curl requests)
+        const isProduction = process.env.NODE_ENV === "production";
+        if (!origin) {
+          if (isProduction) {
+            return callback(new Error("Origin header required in production"));
+          }
+          return callback(null, true);
+        }
         if (allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
@@ -506,6 +587,15 @@ async function bootstrap() {
       ],
       preflightContinue: false,
       optionsSuccessStatus: CORS_PREFLIGHT_SUCCESS_STATUS,
+    });
+
+    // Enable API versioning
+    // This allows routes to be versioned (e.g., /v1/store/orders) while maintaining backward compatibility
+    // Routes with @Version(VERSION_NEUTRAL) are accessible without version prefix
+    app.enableVersioning({
+      type: (await import("@nestjs/common")).VersioningType.URI,
+      defaultVersion: "1", // Default to v1
+      prefix: "v", // Prefix routes with 'v'
     });
 
     // Enable validation globally
