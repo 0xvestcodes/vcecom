@@ -13,6 +13,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "check-types": "cd ../../packages/db && pnpm build && cd ../../apps/backend && node scripts/generate-build-info.js && tsc --noEmit --project tsconfig.build.json",
+    "prebuild": "cd ../../packages/db && pnpm build",
     "predeploy": "node scripts/predeploy.js",
     "predeploy:generate": "node scripts/predeploy.js --skip-migrate",
     "predeploy:migrate": "node scripts/predeploy.js --skip-generate",
