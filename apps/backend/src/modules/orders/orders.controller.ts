@@ -359,9 +359,7 @@ export class OrdersController {
     @Request() req: AuthenticatedRequest,
     @Param("id") id: string,
   ): Promise<PaymentIntentResponseDto> {
-    // This will need to be implemented in OrdersService
-    // For now, return a placeholder
-    throw new Error("Payment retry not yet implemented");
+    return this.ordersService.retryPayment(req.user.userId, id);
   }
 
   @Post(":id/cancel")

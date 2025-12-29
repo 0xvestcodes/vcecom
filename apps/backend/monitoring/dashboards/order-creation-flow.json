@@ -1,0 +1,104 @@
+{
+  "dashboard": {
+    "title": "Order Creation Flow",
+    "tags": ["orders", "creation", "flow"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Order Creation Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(orders_created_total[5m])",
+            "legendFormat": "{{payment_method}} - {{status}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ops"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Order Creation Failures",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(orders_created_failed_total[5m])",
+            "legendFormat": "{{error_type}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ops"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Order Finalization Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(order_finalization_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile - {{payment_method}}"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(order_finalization_duration_seconds_bucket[5m]))",
+            "legendFormat": "50th percentile - {{payment_method}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s"
+          }
+        ]
+      },
+      {
+        "id": 4,
+        "title": "Payment Intent Creation",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(payment_intent_created_total[5m])",
+            "legendFormat": "Success - {{provider}}"
+          },
+          {
+            "expr": "rate(payment_intent_created_failed_total[5m])",
+            "legendFormat": "Failed - {{provider}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ops"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "COD vs Payment Gateway Ratio",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "cod_order_ratio",
+            "legendFormat": "COD Ratio"
+          },
+          {
+            "expr": "payment_gateway_order_ratio",
+            "legendFormat": "Payment Gateway Ratio"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percentunit"
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 1
+  }
+}

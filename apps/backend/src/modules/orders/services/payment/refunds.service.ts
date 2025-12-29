@@ -8,6 +8,7 @@ import {
 import { and, desc, eq, orders, payments, refunds } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import Razorpay from "razorpay";
+import { AuditLogService } from "../../../../common/audit/audit-log.service";
 import { AppConfigService } from "../../../../common/config/app.config.service";
 import {
   MAX_REFUND_AMOUNT_MULTIPLIER,
@@ -31,6 +32,7 @@ export class RefundsService implements OnModuleInit {
     private readonly appConfigService: AppConfigService,
     private readonly timelineService: OrderTimelineService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditLogService: AuditLogService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
@@ -217,6 +219,16 @@ export class RefundsService implements OnModuleInit {
         "Failed to create refund notification",
       );
     }
+
+    // Log audit event
+    await this.auditLogService.logRefundCreation(
+      createdRefund.id,
+      orderId,
+      amount,
+      reason,
+      null, // actorId not available in this context
+      "system",
+    );
 
     // Process refund asynchronously if payment provider is available
     if (order.razorpayOrderId && this.razorpay) {

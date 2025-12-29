@@ -1,4 +1,6 @@
 import { forwardRef, Module } from "@nestjs/common";
+import { AuditLogModule } from "../../common/audit/audit-log.module";
+import { MetricsModule } from "../../common/metrics/metrics.module";
 import { BundlesModule } from "../bundles/bundles.module";
 import { CartsModule } from "../carts/carts.module";
 import { CustomersModule } from "../customers/customers.module";
@@ -9,6 +11,7 @@ import { PaymentsModule } from "../payments/payments.module";
 import { PricingModule } from "../pricing/pricing.module";
 import { ProductsModule } from "../products/products.module";
 import { RedisStoreModule } from "../redis-store/redis-store.module";
+import { InventoryReconciliationJob } from "./jobs/inventory-reconciliation.job";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
 import { ReconciliationService } from "./reconciliation.service";
@@ -34,6 +37,7 @@ import { OrderEventOrchestrationService } from "./services/events/order-event-or
 import { OrderGstService } from "./services/gst/order-gst.service";
 import { OrderIdempotencyService } from "./services/idempotency/order-idempotency.service";
 import { OrderInventoryService } from "./services/inventory/order-inventory.service";
+import { OrderInventoryMetricsService } from "./services/inventory/order-inventory-metrics.service";
 import { OrderNotificationService } from "./services/notifications/order-notification.service";
 import { OrderAddressService } from "./services/operations/order-address.service";
 import { OrderArchiveService } from "./services/operations/order-archive.service";
@@ -61,6 +65,8 @@ import { OrderValidationService } from "./services/validation/order-validation.s
 
 @Module({
   imports: [
+    MetricsModule,
+    AuditLogModule,
     CartsModule,
     BundlesModule,
     DiscountsModule,
@@ -82,6 +88,7 @@ import { OrderValidationService } from "./services/validation/order-validation.s
     OrderStatusService,
     OrderGstService,
     OrderInventoryService,
+    OrderInventoryMetricsService,
     OrderDiscountService,
     OrderEnrichmentService,
     OrderQueryService,
@@ -123,6 +130,7 @@ import { OrderValidationService } from "./services/validation/order-validation.s
     OrderCancelService,
     OrderArchiveService,
     OrderDuplicateService,
+    InventoryReconciliationJob,
   ],
   exports: [
     OrdersService,

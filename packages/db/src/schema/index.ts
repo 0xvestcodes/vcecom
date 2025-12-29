@@ -23,6 +23,7 @@ export * from "./media-audit-logs";
 export * from "./notifications";
 export * from "./order-items";
 export * from "./order-notes";
+export * from "./order-timeline";
 export * from "./orders";
 export * from "./payment-fee-audit-logs";
 export * from "./payment-method-charges";
