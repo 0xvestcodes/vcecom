@@ -23,10 +23,10 @@ import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
-import { OrderAddressService } from "../orders/services/order-address.service";
-import { OrderNotesService } from "../orders/services/order-notes.service";
+import { OrderAddressService } from "../orders/services/operations/order-address.service";
+import { OrderNotesService } from "../orders/services/operations/order-notes.service";
 import { OrderPaymentService } from "../orders/services/payment/order-payment.service";
-import { RefundsService } from "../orders/services/refunds.service";
+import { RefundsService } from "../orders/services/payment/refunds.service";
 import { AdminService } from "./admin.service";
 import {
   AdminQueryAbandonedCheckoutsDto,

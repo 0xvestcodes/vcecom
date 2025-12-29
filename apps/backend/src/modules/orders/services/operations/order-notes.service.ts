@@ -6,10 +6,10 @@ import {
 } from "@nestjs/common";
 import { desc, eq, orderNotes, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
-import { DB_TOKEN } from "../../database/database.module";
-import type { Database } from "../../database/db";
-import { TimelineEventType } from "../dto/order-timeline.dto";
-import { OrderTimelineService } from "./status/order-timeline.service";
+import { DB_TOKEN } from "../../../database/database.module";
+import type { Database } from "../../../database/db";
+import { TimelineEventType } from "../../dto/order-timeline.dto";
+import { OrderTimelineService } from "../status/order-timeline.service";
 
 @Injectable()
 export class OrderNotesService {
