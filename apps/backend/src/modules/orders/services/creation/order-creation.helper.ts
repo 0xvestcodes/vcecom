@@ -1,5 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
-import { CreateOrderDto } from "../dto/create-order.dto";
+import { CreateOrderDto } from "../../dto/create-order.dto";
 
 /**
  * Helper functions for order creation flow

@@ -13,17 +13,17 @@
     },
     "config": "5e9f5e1a"
   },
-  "/docs-6e7": {
+  "/docs-b7e": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "aba21aa0"
     }
   },
-  "/docs-1dc": {
+  "/docs-672": {
     "__comp": "a7bd4aaa",
     "__props": "0058b4c6"
   },
-  "/docs-e9c": {
+  "/docs-73c": {
     "__comp": "a94703ab"
   },
   "/docs/admin/pagination-424": {
@@ -42,7 +42,7 @@
     "__comp": "17896441",
     "content": "56ee8125"
   },
-  "/docs/architecture/dependencies-255": {
+  "/docs/architecture/dependencies-c60": {
     "__comp": "17896441",
     "content": "ce56f640"
   },
@@ -50,11 +50,11 @@
     "__comp": "17896441",
     "content": "1cd9f096"
   },
-  "/docs/architecture/monorepo-7b8": {
+  "/docs/architecture/monorepo-2b1": {
     "__comp": "17896441",
     "content": "0f88cc62"
   },
-  "/docs/architecture/overview-2b6": {
+  "/docs/architecture/overview-cf3": {
     "__comp": "17896441",
     "content": "0b1ac180"
   },
@@ -90,7 +90,7 @@
     "__comp": "17896441",
     "content": "6aa1d44c"
   },
-  "/docs/catalog/inventory-6bf": {
+  "/docs/catalog/inventory-7cf": {
     "__comp": "17896441",
     "content": "f4f7ca35"
   },
@@ -178,7 +178,7 @@
     "__comp": "17896441",
     "content": "e8f2c13e"
   },
-  "/docs/introduction-e0e": {
+  "/docs/introduction-5e5": {
     "__comp": "17896441",
     "content": "a09c2993"
   },

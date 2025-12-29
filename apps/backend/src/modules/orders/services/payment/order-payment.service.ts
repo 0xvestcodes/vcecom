@@ -6,11 +6,11 @@ import {
 } from "@nestjs/common";
 import { eq, orders, payments } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
-import { isCodPayment } from "../../../common/constants/orders.constants";
-import { DB_TOKEN } from "../../../modules/database/database.module";
-import type { Database } from "../../../modules/database/db";
-import { TimelineEventType } from "../dto/order-timeline.dto";
-import { OrderTimelineService } from "./order-timeline.service";
+import { isCodPayment } from "../../../../common/constants/orders.constants";
+import { DB_TOKEN } from "../../../../modules/database/database.module";
+import type { Database } from "../../../../modules/database/db";
+import { TimelineEventType } from "../../dto/order-timeline.dto";
+import { OrderTimelineService } from "../status/order-timeline.service";
 
 @Injectable()
 export class OrderPaymentService {

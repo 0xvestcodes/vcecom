@@ -10,14 +10,14 @@ import {
   shipments,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
-import { DB_TOKEN } from "../../../modules/database/database.module";
-import type { Database } from "../../../modules/database/db";
+import { DB_TOKEN } from "../../../../modules/database/database.module";
+import type { Database } from "../../../../modules/database/db";
 import {
   OrderTimelineDto,
   TimelineEventDto,
   TimelineEventType,
-} from "../dto/order-timeline.dto";
-import { OrderValidationService } from "./order-validation.service";
+} from "../../dto/order-timeline.dto";
+import { OrderValidationService } from "../validation/order-validation.service";
 
 /**
  * Service responsible for order timeline events

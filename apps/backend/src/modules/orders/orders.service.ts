@@ -9,11 +9,12 @@ import {
   OrderStatus,
   UpdateOrderStatusDto,
 } from "./dto/update-order-status.dto";
-import { OrderCreationService } from "./services/order-creation.service";
-import { OrderQueryService } from "./services/order-query.service";
-import { OrderStatusService } from "./services/order-status.service";
-import { OrderTimelineService } from "./services/order-timeline.service";
-import { OrderTrackingService } from "./services/order-tracking.service";
+import { OrderCodFlowService } from "./services/creation/order-cod-flow.service";
+import { OrderCreationService } from "./services/creation/order-creation.service";
+import { OrderQueryService } from "./services/query/order-query.service";
+import { OrderStatusService } from "./services/status/order-status.service";
+import { OrderTimelineService } from "./services/status/order-timeline.service";
+import { OrderTrackingService } from "./services/status/order-tracking.service";
 
 /**
  * Orders Service - Orchestrator
@@ -24,6 +25,7 @@ import { OrderTrackingService } from "./services/order-tracking.service";
 export class OrdersService {
   constructor(
     private readonly creationService: OrderCreationService,
+    private readonly codFlowService: OrderCodFlowService,
     private readonly queryService: OrderQueryService,
     private readonly statusService: OrderStatusService,
     private readonly timelineService: OrderTimelineService,
@@ -59,7 +61,7 @@ export class OrdersService {
     createOrderDto: CreateOrderDto,
     sessionId: string | null,
   ): Promise<OrderResponseDto> {
-    return this.creationService.createCodOrder(
+    return this.codFlowService.createCodOrder(
       checkoutSessionId,
       userId,
       createOrderDto,

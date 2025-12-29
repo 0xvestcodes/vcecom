@@ -4,7 +4,7 @@ import { PinoLogger } from "nestjs-pino";
 import { DB_TOKEN } from "../../../modules/database/database.module";
 import type { Database } from "../../../modules/database/db";
 import { OrderTrackingDto } from "../dto/order-tracking.dto";
-import { OrderValidationService } from "./order-validation.service";
+import { OrderValidationService } from "./validation/order-validation.service";
 
 /**
  * Service responsible for order shipment tracking

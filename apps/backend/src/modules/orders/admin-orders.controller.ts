@@ -53,11 +53,11 @@ import { OrderArchiveService } from "./services/order-archive.service";
 import { OrderCancelService } from "./services/order-cancel.service";
 import { OrderDuplicateService } from "./services/order-duplicate.service";
 import { OrderNotesService } from "./services/order-notes.service";
-import { OrderPaymentService } from "./services/order-payment.service";
-import { OrderStatusService } from "./services/order-status.service";
-import { OrderTimelineService } from "./services/order-timeline.service";
-import { OrderTrackingService } from "./services/order-tracking.service";
+import { OrderPaymentService } from "./services/payment/order-payment.service";
 import { RefundsService } from "./services/refunds.service";
+import { OrderStatusService } from "./services/status/order-status.service";
+import { OrderTimelineService } from "./services/status/order-timeline.service";
+import { OrderTrackingService } from "./services/status/order-tracking.service";
 
 interface AuthenticatedRequest extends Request {
   user: {
