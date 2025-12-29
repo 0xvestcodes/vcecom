@@ -21,13 +21,13 @@ import { createTestApp } from "../../test/utils/test-module";
 describe("Orders E2E Tests", () => {
   let app: INestApplication;
   let db: any;
-  let redis: any;
+  let _redis: any;
 
   beforeAll(async () => {
     const testApp = await createTestApp();
     app = testApp.app;
     db = testApp.db;
-    redis = testApp.redis;
+    _redis = testApp.redis;
   });
 
   afterAll(async () => {
@@ -42,8 +42,8 @@ describe("Orders E2E Tests", () => {
     let product: any;
     let variant: any;
     let cartItem: any;
-    let checkoutSessionId: string;
-    let paymentIntentId: string;
+    let _checkoutSessionId: string;
+    let _paymentIntentId: string;
 
     beforeEach(async () => {
       // Create test data
@@ -84,8 +84,8 @@ describe("Orders E2E Tests", () => {
       expect(paymentIntentResponse.body).toHaveProperty("checkoutSessionId");
       expect(paymentIntentResponse.body).toHaveProperty("redirectUrl");
 
-      checkoutSessionId = paymentIntentResponse.body.checkoutSessionId;
-      paymentIntentId = paymentIntentResponse.body.paymentIntentId;
+      _checkoutSessionId = paymentIntentResponse.body.checkoutSessionId;
+      _paymentIntentId = paymentIntentResponse.body.paymentIntentId;
 
       // Step 2: Simulate payment webhook (payment confirmed)
       // In a real scenario, this would be called by Razorpay

@@ -1,8 +1,13 @@
-// Build info - used for logging and version tracking
-// This file is typically generated during build, but we provide a default for development/testing
+/**
+ * Build-time information
+ * This file is auto-generated during build process
+ * DO NOT EDIT MANUALLY
+ */
+
 export const BUILD_INFO = {
-  version: process.env.npm_package_version || "0.0.1",
-  buildTime: new Date().toISOString(),
-  gitCommit: process.env.GIT_COMMIT || "dev",
-  gitBranch: process.env.GIT_BRANCH || "dev",
+  ok: true,
+  version: "2025.12.29",
+  buildEnv: "development",
+  commitHash: "0bc76b2",
+  buildDate: "2025-12-29T03:51:37.974Z",
 };

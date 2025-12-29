@@ -2,14 +2,14 @@ import { Inject, Injectable, OnModuleInit } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
 import { eq, orderItems, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
-import { ContextService } from "../../../../common/logging/context.service";
+import { ContextService } from "../../../common/logging/context.service";
 import {
   createErrorContext,
   createLogContext,
-} from "../../../../common/logging/logging.helper";
-import { DB_TOKEN } from "../../../database/database.module";
-import type { Database } from "../../../database/db";
-import { InventoryStore } from "../../../redis-store/stores/inventory-store";
+} from "../../../common/logging/logging.helper";
+import { DB_TOKEN } from "../../database/database.module";
+import type { Database } from "../../database/db";
+import { InventoryStore } from "../../redis-store/stores/inventory-store";
 
 /**
  * Scheduled job to detect and fix inventory mismatches

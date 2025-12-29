@@ -15,7 +15,10 @@ import {
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../../common/logging/context.service";
-import { createLogContext } from "../../../../common/logging/logging.helper";
+import {
+  createErrorContext,
+  createLogContext,
+} from "../../../../common/logging/logging.helper";
 import { BundleCartItemMetadata } from "../../../carts/dto/bundle-cart-item.dto";
 import { DB_TOKEN } from "../../../database/database.module";
 import type { Database } from "../../../database/db";
@@ -274,6 +277,7 @@ export class OrderDuplicateService {
         // For now, we validate the discount code and use a simplified calculation
         // In production, you'd want to run the full discount engine with cart items
         // Access discountsService through the discountService's private property
+        // biome-ignore lint/suspicious/noExplicitAny: Need to access private property for discount recalculation
         const discountsService = (this.discountService as any).discountsService;
         if (discountsService) {
           const eligibleDiscounts = await discountsService.getEligibleDiscounts(

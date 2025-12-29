@@ -132,7 +132,7 @@ export class OrderTimelineService {
       events.push({
         type: persistedEvent.type as TimelineEventType,
         title: persistedEvent.title,
-        description: persistedEvent.description || undefined,
+        description: persistedEvent.description ?? "",
         timestamp: persistedEvent.timestamp,
         actor:
           (persistedEvent.actor as
@@ -436,7 +436,7 @@ export class OrderTimelineService {
     // Persist event to database
     await this.db.insert(orderTimeline).values({
       orderId,
-      type: event.type as string,
+      type: event.type as (typeof orderTimeline.$inferInsert)["type"],
       title: event.title,
       description: event.description || null,
       timestamp: event.timestamp || new Date(),

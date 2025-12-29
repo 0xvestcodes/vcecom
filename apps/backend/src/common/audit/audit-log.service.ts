@@ -31,7 +31,7 @@ export class AuditLogService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
-    @Inject(DB_TOKEN) private readonly _db: Database,
+    @Inject(DB_TOKEN) readonly _db: Database,
   ) {}
 
   /**

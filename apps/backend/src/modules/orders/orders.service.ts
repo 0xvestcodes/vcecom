@@ -30,7 +30,7 @@ export class OrdersService {
   constructor(
     private readonly creationService: OrderCreationService,
     private readonly codFlowService: OrderCodFlowService,
-    private readonly paymentIntentFlowService: OrderPaymentIntentFlowService,
+    readonly _paymentIntentFlowService: OrderPaymentIntentFlowService,
     private readonly queryService: OrderQueryService,
     private readonly statusService: OrderStatusService,
     private readonly timelineService: OrderTimelineService,

@@ -2,13 +2,8 @@ import { INestApplication } from "@nestjs/common";
 import { Test, TestingModule, TestingModuleBuilder } from "@nestjs/testing";
 import { Redis } from "ioredis";
 import { AppModule } from "../../app.module";
-import {
-  DatabaseModule,
-  DB_TOKEN,
-} from "../../modules/database/database.module";
-import { getDatabasePool } from "../../modules/database/db";
-import { RedisStoreModule } from "../../modules/redis-store/redis-store.module";
-import { RedisStoreService } from "../../modules/redis-store/services/redis-store.service";
+import { DB_TOKEN } from "../../modules/database/database.module";
+import { RedisStoreService } from "../../modules/redis-store/redis-store.service";
 import { clearTestDatabase } from "./test-database";
 
 export async function createTestModule(
@@ -49,5 +44,5 @@ export async function createTestApp(
   await clearTestDatabase(db);
   await redisClient.flushdb();
 
-  return { app, module: builder, db, redis: redisClient };
+  return { app, module: moduleFixture, db, redis: redisClient };
 }
