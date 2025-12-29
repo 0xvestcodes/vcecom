@@ -45,8 +45,7 @@ export const endpoints = {
       list: (productId: string) => v(`/admin/products/${productId}/variants`),
       detail: (productId: string, variantId: string) =>
         v(`/admin/products/${productId}/variants/${variantId}`),
-      create: (productId: string) =>
-        v(`/admin/products/${productId}/variants`),
+      create: (productId: string) => v(`/admin/products/${productId}/variants`),
       update: (productId: string, variantId: string) =>
         v(`/admin/products/${productId}/variants/${variantId}`),
       delete: (productId: string, variantId: string) =>
@@ -97,9 +96,13 @@ export const endpoints = {
     shiprocketInitialize: v("/admin/shipping/shiprocket/initialize"),
     createShipment: v("/admin/shipping/shiprocket/shipments"),
     pickupLocations: v("/admin/shipping/shiprocket/pickup-locations"),
-    courierServiceability: v("/admin/shipping/shiprocket/courier-serviceability"),
-    trackShipment: (awb: string) => v(`/admin/shipping/shiprocket/tracking/${awb}`),
-    cancelShipment: (awb: string) => v(`/admin/shipping/shiprocket/cancel/${awb}`),
+    courierServiceability: v(
+      "/admin/shipping/shiprocket/courier-serviceability",
+    ),
+    trackShipment: (awb: string) =>
+      v(`/admin/shipping/shiprocket/tracking/${awb}`),
+    cancelShipment: (awb: string) =>
+      v(`/admin/shipping/shiprocket/cancel/${awb}`),
     listShipments: v("/admin/shipping/shipments"),
     getShipment: (id: string) => v(`/admin/shipping/shipments/${id}`),
   },
@@ -109,11 +112,13 @@ export const endpoints = {
       initialize: v("/admin/payments/razorpay/initialize"),
       getPayment: (paymentId: string) =>
         v(`/admin/payments/razorpay/payments/${paymentId}`),
-      getOrder: (orderId: string) => v(`/admin/payments/razorpay/orders/${orderId}`),
+      getOrder: (orderId: string) =>
+        v(`/admin/payments/razorpay/orders/${orderId}`),
     },
   },
   invoices: {
-    generate: (orderId: string) => v(`/admin/invoices/orders/${orderId}/generate`),
+    generate: (orderId: string) =>
+      v(`/admin/invoices/orders/${orderId}/generate`),
     get: (invoiceId: string) => v(`/admin/invoices/${invoiceId}`),
     getByOrder: (orderId: string) => v(`/admin/invoices/orders/${orderId}`),
     download: (invoiceId: string) => v(`/admin/invoices/${invoiceId}/download`),
@@ -217,9 +222,13 @@ export const endpoints = {
         v(`/admin/products/${productId}/variant-option-types/${optionTypeId}`),
       values: {
         create: (productId: string, optionTypeId: string) =>
-          v(`/admin/products/${productId}/variant-option-types/${optionTypeId}/values`),
+          v(
+            `/admin/products/${productId}/variant-option-types/${optionTypeId}/values`,
+          ),
         delete: (productId: string, optionTypeId: string, valueId: string) =>
-          v(`/admin/products/${productId}/variant-option-types/${optionTypeId}/values/${valueId}`),
+          v(
+            `/admin/products/${productId}/variant-option-types/${optionTypeId}/values/${valueId}`,
+          ),
       },
     },
   },

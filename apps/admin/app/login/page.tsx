@@ -26,8 +26,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
-import { endpoints } from "@/lib/endpoints";
 import { setAuthToken } from "@/lib/auth";
+import { endpoints } from "@/lib/endpoints";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
