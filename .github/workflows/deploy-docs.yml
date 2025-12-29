@@ -22,9 +22,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Generate OpenAPI JSON using stub URLs (no Redis/real services needed)
+  # See generate-openapi.yml for details on stub URL usage
   generate-openapi:
     uses: ./.github/workflows/generate-openapi.yml
 
+  # Build static documentation from OpenAPI JSON
+  # No backend services needed - just builds Docusaurus docs
   build:
     needs: generate-openapi
     runs-on: ubuntu-latest
@@ -61,6 +65,7 @@ jobs:
       - name: Build documentation
         run: pnpm --filter=@vestcodes/vcecom-docs build
         env:
+          # Production build for optimized docs
           NODE_ENV: production
 
       - name: Copy docs to root docs folder

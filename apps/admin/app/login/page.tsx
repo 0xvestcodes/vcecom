@@ -25,7 +25,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { api } from "@/lib/api";
 import { setAuthToken } from "@/lib/auth";
+import { endpoints } from "@/lib/endpoints";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -69,32 +71,16 @@ function LoginForm() {
 
   const mutation = useMutation({
     mutationFn: async (data: LoginFormValues) => {
-      // Use Next.js API route to properly handle cookies
-      // The API route proxies to backend and forwards cookies with correct settings
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include", // Include cookies
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response
-          .json()
-          .catch(() => ({ message: "Login failed" }));
-        throw new Error(error.message || "Login failed");
-      }
-
-      return response.json() as Promise<{
+      // Call backend directly - backend sets httpOnly cookies
+      // apiFetch includes credentials: "include" to handle cookies properly
+      return api.post<{
         accessToken: string;
         refreshToken: string;
         id: string;
         email: string;
         role: string;
         requires2fa: boolean;
-      }>;
+      }>(endpoints.auth.login, data);
     },
     onSuccess: (data) => {
       if (data.requires2fa) {

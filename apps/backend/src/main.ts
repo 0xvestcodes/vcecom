@@ -591,6 +591,7 @@ async function bootstrap() {
 
     // Enable API versioning
     // This allows routes to be versioned (e.g., /v1/store/orders) while maintaining backward compatibility
+    // Routes with @Version(VERSION_NEUTRAL) are accessible without version prefix
     app.enableVersioning({
       type: (await import("@nestjs/common")).VersioningType.URI,
       defaultVersion: "1", // Default to v1

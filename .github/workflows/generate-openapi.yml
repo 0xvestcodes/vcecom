@@ -42,28 +42,39 @@ jobs:
         env:
           NODE_ENV: production
 
-      - name: Setup PostgreSQL
+      - name: Setup PostgreSQL (minimal for doc generation)
         uses: ankane/setup-postgres@v1
         with:
           postgresql-version: '15'
           postgresql-db: 'vcecom_test'
 
-      - name: Setup Redis
-        uses: supercharge/redis-github-action@v1.8.1
-        with:
-          redis-version: '7'
-
-      - name: Start backend server
+      - name: Start backend server (with stub URLs - no Redis needed)
         run: |
           cd apps/backend
           PORT=3001 node dist/main.js &
           echo $! > backend.pid
         env:
+          # Database - minimal setup for doc generation
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/vcecom_test
+          # Redis - stub URL (connection is non-blocking, so this is fine)
           REDIS_URL: redis://localhost:6379
-          JWT_SECRET: test-secret-for-ci
+          # JWT - stub secret for CI
+          JWT_SECRET: test-secret-for-ci-minimum-32-characters-long
+          JWT_REFRESH_SECRET: test-refresh-secret-minimum-32-characters-long
+          # Storage - stub MinIO config (won't be used for doc generation)
+          STORAGE_PROVIDER: minio
+          MINIO_ENDPOINT: localhost:9000
+          MINIO_ACCESS_KEY: minioadmin
+          MINIO_SECRET_KEY: minioadmin
+          MINIO_USE_SSL: "false"
+          MINIO_PUBLIC_URL: http://localhost:9000
+          # Other stub configs
           NODE_ENV: production
           PORT: 3001
+          LOG_LEVEL: error
+          LOG_PRETTY: "false"
+          OTEL_TRACE_ENABLED: "false"
+          PROMETHEUS_ENABLED: "false"
 
       - name: Wait for backend to be ready
         run: |

@@ -18,6 +18,7 @@ const envSchema = z.object({
     .url("DATABASE_URL must be a valid PostgreSQL connection URL"),
 
   // Redis Configuration (Required)
+  // Note: Connection is non-blocking, so stub URLs are fine for doc generation
   REDIS_URL: z.string().url("REDIS_URL must be a valid Redis connection URL"),
 
   // JWT Configuration (Required)

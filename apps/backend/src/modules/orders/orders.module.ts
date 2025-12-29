@@ -65,7 +65,7 @@ import { OrderValidationService } from "./services/validation/order-validation.s
 
 @Module({
   imports: [
-    MetricsModule,
+    MetricsModule.forRoot(),
     AuditLogModule,
     CartsModule,
     BundlesModule,
