@@ -1,7 +1,7 @@
 {
   "id": "orders/reconciliation",
-  "title": "Order Reconciliation",
-  "description": "Order reconciliation ensures consistency between payment gateway transactions, order records, and inventory. It handles recovery from failures, identifies discrepancies, and maintains data integrity.",
+  "title": "Order Inventory Reconciliation",
+  "description": "Overview",
   "source": "@site/docs/orders/reconciliation.md",
   "sourceDirName": "orders",
   "slug": "/orders/reconciliation",
@@ -12,7 +12,7 @@
   "tags": [],
   "version": "current",
   "lastUpdatedBy": "Sarwagya Singh",
-  "lastUpdatedAt": 1766374247000,
+  "lastUpdatedAt": 1766980009000,
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {

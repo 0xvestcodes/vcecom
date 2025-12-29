@@ -14,15 +14,15 @@ export default [
   },
   {
     path: '/docs',
-    component: ComponentCreator('/docs', 'b7e'),
+    component: ComponentCreator('/docs', '9d0'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', '672'),
+        component: ComponentCreator('/docs', '0e2'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', '73c'),
+            component: ComponentCreator('/docs', '373'),
             routes: [
               {
                 path: '/docs/admin/pagination',
@@ -49,25 +49,25 @@ export default [
               },
               {
                 path: '/docs/architecture/dependencies',
-                component: ComponentCreator('/docs/architecture/dependencies', 'c60'),
+                component: ComponentCreator('/docs/architecture/dependencies', 'ccf'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
                 path: '/docs/architecture/modules',
-                component: ComponentCreator('/docs/architecture/modules', '220'),
+                component: ComponentCreator('/docs/architecture/modules', '756'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
                 path: '/docs/architecture/monorepo',
-                component: ComponentCreator('/docs/architecture/monorepo', '2b1'),
+                component: ComponentCreator('/docs/architecture/monorepo', 'ad4'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
                 path: '/docs/architecture/overview',
-                component: ComponentCreator('/docs/architecture/overview', 'cf3'),
+                component: ComponentCreator('/docs/architecture/overview', 'd82'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
@@ -121,7 +121,7 @@ export default [
               },
               {
                 path: '/docs/catalog/inventory',
-                component: ComponentCreator('/docs/catalog/inventory', '7cf'),
+                component: ComponentCreator('/docs/catalog/inventory', '8e5'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
@@ -157,7 +157,7 @@ export default [
               },
               {
                 path: '/docs/checkout/payment-intent',
-                component: ComponentCreator('/docs/checkout/payment-intent', 'ed8'),
+                component: ComponentCreator('/docs/checkout/payment-intent', 'c81'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
@@ -169,7 +169,7 @@ export default [
               },
               {
                 path: '/docs/checkout/webhooks',
-                component: ComponentCreator('/docs/checkout/webhooks', '5ee'),
+                component: ComponentCreator('/docs/checkout/webhooks', 'e8f'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
@@ -253,7 +253,7 @@ export default [
               },
               {
                 path: '/docs/introduction',
-                component: ComponentCreator('/docs/introduction', '5e5'),
+                component: ComponentCreator('/docs/introduction', 'c2c'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
@@ -288,9 +288,14 @@ export default [
               },
               {
                 path: '/docs/orders/creation',
-                component: ComponentCreator('/docs/orders/creation', '55b'),
+                component: ComponentCreator('/docs/orders/creation', '5a3'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/orders/error-handling',
+                component: ComponentCreator('/docs/orders/error-handling', '7c0'),
+                exact: true
               },
               {
                 path: '/docs/orders/fulfillment',
@@ -306,13 +311,13 @@ export default [
               },
               {
                 path: '/docs/orders/overview',
-                component: ComponentCreator('/docs/orders/overview', 'e03'),
+                component: ComponentCreator('/docs/orders/overview', '44b'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
               {
                 path: '/docs/orders/reconciliation',
-                component: ComponentCreator('/docs/orders/reconciliation', 'a8b'),
+                component: ComponentCreator('/docs/orders/reconciliation', '752'),
                 exact: true,
                 sidebar: "docsSidebar"
               },
@@ -321,6 +326,11 @@ export default [
                 component: ComponentCreator('/docs/orders/refunds', '3e8'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/orders/troubleshooting',
+                component: ComponentCreator('/docs/orders/troubleshooting', '874'),
+                exact: true
               },
               {
                 path: '/docs/pricing/customer-groups',

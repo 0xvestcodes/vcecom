@@ -10,6 +10,10 @@ import { JwtService } from "@nestjs/jwt";
 import { customers, eq, users } from "@vcecom/db";
 import * as bcrypt from "bcrypt";
 import { PinoLogger } from "nestjs-pino";
+import {
+  getValidatedJwtRefreshSecret,
+  getValidatedJwtSecret,
+} from "../../common/config/jwt-secret.validation";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
 import { Trace } from "../../common/tracing/trace.decorator";
@@ -234,12 +238,11 @@ export class CustomersService {
       role: newUser.role,
     };
     const accessToken = this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET || "change-me-in-production",
+      secret: getValidatedJwtSecret(),
       expiresIn: process.env.JWT_EXPIRES_IN || "1d",
     });
     const refreshToken = this.jwtService.sign(payload, {
-      secret:
-        process.env.JWT_REFRESH_SECRET || "change-me-refresh-in-production",
+      secret: getValidatedJwtRefreshSecret(),
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
     });
 

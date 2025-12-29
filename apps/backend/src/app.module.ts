@@ -2,6 +2,7 @@ import { Module } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AuditLogModule } from "./common/audit/audit-log.module";
 import { ConfigModule } from "./common/config/config.module";
+import { HealthController } from "./common/health/health.controller";
 import { HealthDatabaseController } from "./common/health/health-database.controller";
 import { HealthJobsController } from "./common/health/health-jobs.controller";
 import { HealthLoggerController } from "./common/health/health-logger.controller";
@@ -51,10 +52,13 @@ import { SystemLogsModule } from "./modules/system-logs/system-logs.module";
     // Register logging and tracing modules first
     LoggerModule,
     ContextModule,
-    OtelTracingModule,
-    TracingModule, // Global tracing with interceptor
+    // Tracing modules - only loaded if OTEL_EXPORTER_ZIPKIN_ENDPOINT is set
+    ...(process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT
+      ? [OtelTracingModule.forRoot(), TracingModule.forRoot()]
+      : []),
     RateLimitingModule,
-    MetricsModule, // Prometheus metrics
+    // Prometheus metrics - only loaded if PROMETHEUS_ENABLED=true
+    MetricsModule.forRoot(),
     AuditLogModule, // Audit logging
     // Register DatabaseModule early for connection management
     DatabaseModule,
@@ -91,6 +95,7 @@ import { SystemLogsModule } from "./modules/system-logs/system-logs.module";
   ],
   controllers: [
     AppController,
+    HealthController, // Comprehensive health check (should be first)
     HealthLoggerController,
     HealthTracingController,
     HealthDatabaseController,

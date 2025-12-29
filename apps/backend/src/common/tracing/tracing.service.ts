@@ -27,21 +27,57 @@ export interface SpanResult<_T> {
 /**
  * Service for creating OpenTelemetry spans with integrated logging
  * Provides utilities for creating spans and ensuring logs include trace/span IDs
+ * Only active if OTEL_EXPORTER_ZIPKIN_ENDPOINT is set
  */
 @Injectable()
 export class TracingService {
   private readonly tracer = trace.getTracer("vcecom-backend");
+  private readonly isTracingEnabled: boolean;
 
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
-  ) {}
+  ) {
+    // Check if tracing is enabled
+    this.isTracingEnabled = !!process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT;
+  }
 
   /**
    * Start a new span with integrated logging
    * Creates a span and returns a logger that includes trace/span IDs
+   * Returns a no-op implementation if tracing is disabled
    */
   startSpan<T = void>(options: SpanOptions): SpanResult<T> {
+    // Return no-op implementation if tracing is disabled
+    if (!this.isTracingEnabled) {
+      const noOpSpan = {
+        setAttribute: () => {},
+        setAttributes: () => {},
+        addEvent: () => {},
+        addLink: () => {},
+        addLinks: () => {},
+        setStatus: () => {},
+        updateName: () => {},
+        end: () => {},
+        isRecording: () => false,
+        spanContext: () => ({
+          traceId: "",
+          spanId: "",
+          traceFlags: 0,
+        }),
+        setSpanContext: () => {},
+        recordException: () => {},
+      } as unknown as Span;
+
+      return {
+        span: noOpSpan,
+        logger: this.logger,
+        execute: async <R>(fn: () => R | Promise<R>) => {
+          return fn();
+        },
+      };
+    }
+
     const {
       operation,
       attributes = {},

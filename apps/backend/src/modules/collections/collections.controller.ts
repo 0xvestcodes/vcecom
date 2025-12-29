@@ -22,9 +22,9 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
-import { PaginatedResponseDto } from "../../common/dto/pagination.dto";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
+import { PaginatedResponseDto } from "../../common/dto/pagination.dto";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { CollectionsService } from "./collections.service";
 import { AddProductsDto } from "./dto/add-products.dto";
@@ -239,9 +239,7 @@ export class CollectionsController {
   @ApiForbiddenResponse({
     description: "Access denied. Admin role required.",
   })
-  async getProducts(
-    @Param("id") id: string,
-  ): Promise<
+  async getProducts(@Param("id") id: string): Promise<
     Array<{
       id: string;
       title: string;

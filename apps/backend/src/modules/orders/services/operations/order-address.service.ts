@@ -9,8 +9,8 @@ import { PinoLogger } from "nestjs-pino";
 import { MarkOrderPaidResponseDto } from "../../../admin/dto/mark-order-paid.dto";
 import { DB_TOKEN } from "../../../database/database.module";
 import type { Database } from "../../../database/db";
-import { OrderResponseBuilderService } from "../query/order-response-builder.service";
 import { TimelineEventType } from "../../dto/order-timeline.dto";
+import { OrderResponseBuilderService } from "../query/order-response-builder.service";
 import { OrderTimelineService } from "../status/order-timeline.service";
 
 interface AddressUpdate {

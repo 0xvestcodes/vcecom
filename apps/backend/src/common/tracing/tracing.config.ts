@@ -10,17 +10,21 @@ import { createResource } from "./resource-detectors";
 /**
  * Initialize OpenTelemetry SDK
  * Must be called before NestJS bootstrap
+x * Only initializes if OTEL_EXPORTER_ZIPKIN_ENDPOINT is set
  */
 export function initializeTracing(): NodeSDK | null {
-  // Skip if tracing is disabled
+  // Skip if tracing is explicitly disabled
   if (process.env.OTEL_TRACE_ENABLED === "false") {
     return null;
   }
 
+  // Only initialize if Zipkin endpoint is configured
+  const zipkinEndpoint = process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT;
+  if (!zipkinEndpoint) {
+    return null; // Tracing is optional - skip if endpoint not configured
+  }
+
   const samplingRate = parseFloat(process.env.OTEL_TRACE_SAMPLING || "1.0");
-  const zipkinEndpoint =
-    process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT ||
-    "http://localhost:9411/api/v2/spans";
 
   // Create Zipkin exporter
   const zipkinExporter = new ZipkinExporter({

@@ -16,14 +16,30 @@ function createPool(): Pool {
     );
   }
 
+  // Enforce SSL in production for secure database connections
+  const isProduction = process.env.NODE_ENV === "production";
+  let connectionString = databaseUrl;
+
+  // Add SSL mode requirement if not already present and in production
+  if (isProduction && !databaseUrl.includes("sslmode=")) {
+    const separator = databaseUrl.includes("?") ? "&" : "?";
+    connectionString = `${databaseUrl}${separator}sslmode=require`;
+  }
+
   // Optimized for Railway shared tier (15 max connections)
   const pool = new Pool({
-    connectionString: databaseUrl,
+    connectionString,
     max: 10, // Leave 5 for Railway overhead
     min: 0, // No pre-warming - connections created on-demand
     idleTimeoutMillis: 20000, // Close idle clients after 20 seconds
     connectionTimeoutMillis: 5000, // Fail fast if connection can't be established
     allowExitOnIdle: true, // Allow process to exit when pool is idle
+    // SSL configuration for production
+    ...(isProduction && {
+      ssl: {
+        rejectUnauthorized: true, // Reject self-signed certificates in production
+      },
+    }),
   });
 
   // Increase max listeners to prevent EventEmitter warnings

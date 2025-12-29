@@ -53,11 +53,6 @@ export class ErrorBoundary extends React.Component<
 
     // Call optional error handler
     this.props.onError?.(error, errorInfo);
-
-    // TODO: In production, send error to error tracking service (e.g., Sentry)
-    // if (process.env.NODE_ENV === 'production') {
-    //   Sentry.captureException(error, { contexts: { react: errorInfo } });
-    // }
   }
 
   handleReset = () => {

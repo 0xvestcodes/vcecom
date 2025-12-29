@@ -10,8 +10,8 @@ import { isCodPayment } from "../../../../common/constants/orders.constants";
 import { DB_TOKEN } from "../../../../modules/database/database.module";
 import type { Database } from "../../../../modules/database/db";
 import { MarkOrderPaidResponseDto } from "../../../admin/dto/mark-order-paid.dto";
-import { OrderResponseBuilderService } from "../query/order-response-builder.service";
 import { TimelineEventType } from "../../dto/order-timeline.dto";
+import { OrderResponseBuilderService } from "../query/order-response-builder.service";
 import { OrderTimelineService } from "../status/order-timeline.service";
 
 @Injectable()

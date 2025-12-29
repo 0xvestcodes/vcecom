@@ -13,17 +13,17 @@
     },
     "config": "5e9f5e1a"
   },
-  "/docs-b7e": {
+  "/docs-9d0": {
     "__comp": "5e95c892",
     "__context": {
       "plugin": "aba21aa0"
     }
   },
-  "/docs-672": {
+  "/docs-0e2": {
     "__comp": "a7bd4aaa",
     "__props": "0058b4c6"
   },
-  "/docs-73c": {
+  "/docs-373": {
     "__comp": "a94703ab"
   },
   "/docs/admin/pagination-424": {
@@ -42,19 +42,19 @@
     "__comp": "17896441",
     "content": "56ee8125"
   },
-  "/docs/architecture/dependencies-c60": {
+  "/docs/architecture/dependencies-ccf": {
     "__comp": "17896441",
     "content": "ce56f640"
   },
-  "/docs/architecture/modules-220": {
+  "/docs/architecture/modules-756": {
     "__comp": "17896441",
     "content": "1cd9f096"
   },
-  "/docs/architecture/monorepo-2b1": {
+  "/docs/architecture/monorepo-ad4": {
     "__comp": "17896441",
     "content": "0f88cc62"
   },
-  "/docs/architecture/overview-cf3": {
+  "/docs/architecture/overview-d82": {
     "__comp": "17896441",
     "content": "0b1ac180"
   },
@@ -90,7 +90,7 @@
     "__comp": "17896441",
     "content": "6aa1d44c"
   },
-  "/docs/catalog/inventory-7cf": {
+  "/docs/catalog/inventory-8e5": {
     "__comp": "17896441",
     "content": "f4f7ca35"
   },
@@ -114,7 +114,7 @@
     "__comp": "17896441",
     "content": "8053e6dc"
   },
-  "/docs/checkout/payment-intent-ed8": {
+  "/docs/checkout/payment-intent-c81": {
     "__comp": "17896441",
     "content": "a64b2381"
   },
@@ -122,7 +122,7 @@
     "__comp": "17896441",
     "content": "50aafbb1"
   },
-  "/docs/checkout/webhooks-5ee": {
+  "/docs/checkout/webhooks-e8f": {
     "__comp": "17896441",
     "content": "b473dddb"
   },
@@ -178,7 +178,7 @@
     "__comp": "17896441",
     "content": "e8f2c13e"
   },
-  "/docs/introduction-5e5": {
+  "/docs/introduction-c2c": {
     "__comp": "17896441",
     "content": "a09c2993"
   },
@@ -202,9 +202,13 @@
     "__comp": "17896441",
     "content": "da03633c"
   },
-  "/docs/orders/creation-55b": {
+  "/docs/orders/creation-5a3": {
     "__comp": "17896441",
     "content": "57b76398"
+  },
+  "/docs/orders/error-handling-7c0": {
+    "__comp": "17896441",
+    "content": "5794a45a"
   },
   "/docs/orders/fulfillment-3b7": {
     "__comp": "17896441",
@@ -214,17 +218,21 @@
     "__comp": "17896441",
     "content": "b2376961"
   },
-  "/docs/orders/overview-e03": {
+  "/docs/orders/overview-44b": {
     "__comp": "17896441",
     "content": "593e8d2f"
   },
-  "/docs/orders/reconciliation-a8b": {
+  "/docs/orders/reconciliation-752": {
     "__comp": "17896441",
     "content": "d05b1696"
   },
   "/docs/orders/refunds-3e8": {
     "__comp": "17896441",
     "content": "2ef541d3"
+  },
+  "/docs/orders/troubleshooting-874": {
+    "__comp": "17896441",
+    "content": "0cc53511"
   },
   "/docs/pricing/customer-groups-cd5": {
     "__comp": "17896441",

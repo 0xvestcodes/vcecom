@@ -109,12 +109,12 @@ export class AuthController {
     );
     const tokens = await this.authService.login(user);
 
-    // Set httpOnly cookies
+    // Set httpOnly cookies with CSRF protection
     const isProduction = process.env.NODE_ENV === "production";
     const cookieOptions = {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "lax" as const,
+      sameSite: isProduction ? ("strict" as const) : ("lax" as const), // Strict in production for CSRF protection
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: "/",
     };
@@ -158,12 +158,12 @@ export class AuthController {
       req.cookies?.admin_refresh_token || refreshTokenDto.refresh_token;
     const tokens = await this.authService.refreshToken(refreshToken);
 
-    // Update cookies
+    // Update cookies with CSRF protection
     const isProduction = process.env.NODE_ENV === "production";
     const cookieOptions = {
       httpOnly: true,
       secure: isProduction,
-      sameSite: "lax" as const,
+      sameSite: isProduction ? ("strict" as const) : ("lax" as const), // Strict in production for CSRF protection
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: "/",
     };

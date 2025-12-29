@@ -132,7 +132,9 @@ export class ProductsService {
    * Get all products with pagination, search, and filters
    */
   @Trace({ operation: "ProductsService.findAll" })
-  async findAll(query: QueryProductsDto): Promise<PaginatedProductsResponseDto> {
+  async findAll(
+    query: QueryProductsDto,
+  ): Promise<PaginatedProductsResponseDto> {
     const { page, limit, offset } = normalizePaginationParams(
       query.page,
       query.limit,
@@ -341,7 +343,9 @@ export class ProductsService {
    * Supports filtering by category, price range, availability, and status
    * Supports sorting by price, name, or date
    */
-  async filter(filterDto: FilterProductsDto): Promise<PaginatedProductsResponseDto> {
+  async filter(
+    filterDto: FilterProductsDto,
+  ): Promise<PaginatedProductsResponseDto> {
     const { page, limit, offset } = normalizePaginationParams(
       filterDto.page,
       filterDto.limit,

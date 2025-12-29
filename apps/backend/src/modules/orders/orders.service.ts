@@ -117,7 +117,10 @@ export class OrdersService {
    * Get all orders for a customer
    */
   @Trace({ operation: "OrdersService.findAll" })
-  async findAll(userId: string, status?: OrderStatus): Promise<OrderResponseDto[]> {
+  async findAll(
+    userId: string,
+    status?: OrderStatus,
+  ): Promise<OrderResponseDto[]> {
     return this.queryService.findAll(userId, status);
   }
 
