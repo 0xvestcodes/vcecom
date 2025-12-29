@@ -102,6 +102,14 @@ export class ProductResponseDto {
   images?: string[] | null;
 
   @ApiProperty({
+    description: "Thumbnail image URL (first image or variant-specific)",
+    example: "https://example.com/image1.jpg",
+    nullable: true,
+    required: false,
+  })
+  thumbnailUrl?: string | null;
+
+  @ApiProperty({
     description: "Pricelist prices for this product",
     type: [Object],
     example: [

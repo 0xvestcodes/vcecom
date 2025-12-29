@@ -149,7 +149,7 @@ export class OrdersController {
   async findAll(
     @Request() req: AuthenticatedRequest,
     @Query("status") status?: OrderStatus,
-  ) {
+  ): Promise<OrderResponseDto[]> {
     return this.ordersService.findAll(req.user.userId, status);
   }
 
@@ -181,7 +181,7 @@ export class OrdersController {
       user?: { userId: string; email: string; role: string };
     },
     @Param("id") id: string,
-  ) {
+  ): Promise<OrderResponseDto> {
     // If user is authenticated, use authenticated flow
     if (req.user?.userId) {
       return this.ordersService.findOne(req.user.userId, id);
@@ -359,9 +359,7 @@ export class OrdersController {
     @Request() req: AuthenticatedRequest,
     @Param("id") id: string,
   ): Promise<PaymentIntentResponseDto> {
-    // This will need to be implemented in OrdersService
-    // For now, return a placeholder
-    throw new Error("Payment retry not yet implemented");
+    return this.ordersService.retryPayment(req.user.userId, id);
   }
 
   @Post(":id/cancel")

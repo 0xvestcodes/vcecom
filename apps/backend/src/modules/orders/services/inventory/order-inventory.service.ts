@@ -13,6 +13,7 @@ import type { Database } from "../../../database/db";
 import { BundlePricingService } from "../../../pricing/services/bundle-pricing.service";
 import { CheckoutLockStore } from "../../../redis-store/stores/checkout-lock-store";
 import { InventoryStore } from "../../../redis-store/stores/inventory-store";
+import { OrderInventoryMetricsService } from "./order-inventory-metrics.service";
 
 /**
  * Service responsible for order inventory operations
@@ -26,6 +27,7 @@ export class OrderInventoryService {
     private readonly inventoryStore: InventoryStore,
     private readonly checkoutLockStore: CheckoutLockStore,
     private readonly bundlePricingService: BundlePricingService,
+    private readonly inventoryMetricsService: OrderInventoryMetricsService,
     @Inject(DB_TOKEN) private readonly db: Database,
   ) {}
 
@@ -177,6 +179,13 @@ export class OrderInventoryService {
         }),
         "CRITICAL: Failed to commit inventory for order - manual reconciliation required",
       );
+
+      // Record metric for monitoring and alerting
+      this.inventoryMetricsService.recordInventoryCommitFailure(
+        orderId,
+        cartId,
+      );
+
       // Don't throw - order is already created, inventory reconciliation will need to be done manually
     }
   }

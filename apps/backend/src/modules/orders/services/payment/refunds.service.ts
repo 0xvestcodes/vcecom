@@ -8,6 +8,7 @@ import {
 import { and, desc, eq, orders, payments, refunds } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import Razorpay from "razorpay";
+import { AuditLogService } from "../../../../common/audit/audit-log.service";
 import { AppConfigService } from "../../../../common/config/app.config.service";
 import {
   MAX_REFUND_AMOUNT_MULTIPLIER,
@@ -17,6 +18,7 @@ import { DB_TOKEN } from "../../../database/database.module";
 import type { Database } from "../../../database/db";
 import { NotificationsService } from "../../../notifications/notifications.service";
 import { NotificationType } from "../../../notifications/types/notification.types";
+import { RefundResponseDto } from "../../../admin/dto/refund-response.dto";
 import { RazorpayConfigService } from "../../../payments/razorpay-config.service";
 import { TimelineEventType } from "../../dto/order-timeline.dto";
 import { OrderTimelineService } from "../status/order-timeline.service";
@@ -31,6 +33,7 @@ export class RefundsService implements OnModuleInit {
     private readonly appConfigService: AppConfigService,
     private readonly timelineService: OrderTimelineService,
     private readonly notificationsService: NotificationsService,
+    private readonly auditLogService: AuditLogService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
@@ -54,7 +57,7 @@ export class RefundsService implements OnModuleInit {
    * @param orderId - Order ID
    * @returns Array of refunds
    */
-  async findByOrderId(orderId: string) {
+  async findByOrderId(orderId: string): Promise<RefundResponseDto[]> {
     // Verify order exists
     const [order] = await this.db
       .select()
@@ -82,7 +85,11 @@ export class RefundsService implements OnModuleInit {
    * @param reason - Reason for refund
    * @returns Created refund
    */
-  async create(orderId: string, amount: number, reason: string) {
+  async create(
+    orderId: string,
+    amount: number,
+    reason: string,
+  ): Promise<RefundResponseDto> {
     if (amount <= 0) {
       throw new BadRequestException("Refund amount must be greater than 0");
     }
@@ -217,6 +224,16 @@ export class RefundsService implements OnModuleInit {
         "Failed to create refund notification",
       );
     }
+
+    // Log audit event
+    await this.auditLogService.logRefundCreation(
+      createdRefund.id,
+      orderId,
+      amount,
+      reason,
+      null, // actorId not available in this context
+      "system",
+    );
 
     // Process refund asynchronously if payment provider is available
     if (order.razorpayOrderId && this.razorpay) {

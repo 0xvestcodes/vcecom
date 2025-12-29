@@ -1,0 +1,88 @@
+{
+  "dashboard": {
+    "title": "Inventory Reconciliation",
+    "tags": ["orders", "inventory", "reconciliation"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Inventory Commit Failures (CRITICAL)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "increase(inventory_commit_failed_total[5m])",
+            "legendFormat": "Failures"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "short"
+          }
+        ],
+        "alert": {
+          "name": "InventoryCommitFailure",
+          "message": "Inventory commit failure detected - manual reconciliation required"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Inventory Commit Failure Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(inventory_commit_failed_total[5m]) / rate(orders_created_total[5m])",
+            "legendFormat": "Failure Rate"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percentunit"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Total Inventory Commit Failures",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(inventory_commit_failed_total[24h]))",
+            "legendFormat": "Last 24h"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": {
+              "mode": "thresholds"
+            },
+            "thresholds": {
+              "steps": [
+                {
+                  "value": 0,
+                  "color": "green"
+                },
+                {
+                  "value": 1,
+                  "color": "red"
+                }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Reconciliation Job Status",
+        "type": "log",
+        "targets": [
+          {
+            "expr": "{job=\"orders\"} |= \"reconciliation\""
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 1
+  }
+}

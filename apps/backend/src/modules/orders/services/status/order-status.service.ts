@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { and, eq, orderItems, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { AuditLogService } from "../../../../common/audit/audit-log.service";
 import { ContextService } from "../../../../common/logging/context.service";
 import { createErrorContext } from "../../../../common/logging/logging.helper";
 import { DB_TOKEN } from "../../../../modules/database/database.module";
@@ -38,6 +39,7 @@ export class OrderStatusService {
     private readonly validationService: OrderValidationService,
     private readonly gstService: OrderGstService,
     private readonly orderEventsService: OrderEventsService,
+    private readonly auditLogService: AuditLogService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
@@ -134,7 +136,19 @@ export class OrderStatusService {
       ...updatedOrder,
       gstBreakdown,
       items,
-    } as OrderResponseDto;
+      paymentFeeBreakdown:
+        (updatedOrder.paymentFeeBreakdown as {
+          method: string;
+          chargeType: string;
+          calculatedFee: number;
+          flatAmount?: number;
+          percentage?: number;
+          mixMin?: number;
+          mixCap?: number;
+        } | null) || null,
+      discountCode: updatedOrder.discountCode ?? undefined,
+      discountAmount: updatedOrder.discountAmount ?? undefined,
+    };
   }
 
   /**
@@ -143,6 +157,7 @@ export class OrderStatusService {
   async updateStatusForAdmin(
     orderId: string,
     updateStatusDto: UpdateOrderStatusDto,
+    adminId?: string,
   ): Promise<OrderResponseDto> {
     // Get current order (no customer validation for admin)
     const [order] = await this.db
@@ -171,6 +186,17 @@ export class OrderStatusService {
       .where(eq(orders.id, orderId))
       .returning();
 
+    // Log audit event
+    if (adminId) {
+      await this.auditLogService.logOrderStatusChange(
+        orderId,
+        order.status,
+        updateStatusDto.status,
+        adminId,
+        "admin",
+      );
+    }
+
     // Get order items
     const items = await this.db
       .select()
@@ -189,7 +215,19 @@ export class OrderStatusService {
       ...updatedOrder,
       gstBreakdown,
       items,
-    } as OrderResponseDto;
+      paymentFeeBreakdown:
+        (updatedOrder.paymentFeeBreakdown as {
+          method: string;
+          chargeType: string;
+          calculatedFee: number;
+          flatAmount?: number;
+          percentage?: number;
+          mixMin?: number;
+          mixCap?: number;
+        } | null) || null,
+      discountCode: updatedOrder.discountCode ?? undefined,
+      discountAmount: updatedOrder.discountAmount ?? undefined,
+    };
   }
 
   /**

@@ -1,0 +1,43 @@
+# Prometheus configuration for VCEcom Backend
+global:
+  scrape_interval: 15s # Scrape targets every 15 seconds
+  evaluation_interval: 15s # Evaluate rules every 15 seconds
+  external_labels:
+    cluster: 'vcecom-dev'
+    environment: 'development'
+
+# Alertmanager configuration (if using Alertmanager)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - '/etc/prometheus/alerts/*.yml'
+
+# Scrape configurations
+scrape_configs:
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Scrape VCEcom Backend API
+  - job_name: 'vcecom-backend'
+    metrics_path: '/metrics'
+    static_configs:
+      # For Docker Desktop (Mac/Windows), use host.docker.internal
+      # For Linux, you may need to use the host IP or add extra_hosts in docker-compose
+      - targets: ['host.docker.internal:3000']
+        labels:
+          service: 'backend'
+          tier: 'api'
+          environment: 'development'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    # Optional: Add basic auth if your metrics endpoint is protected
+    # basic_auth:
+    #   username: 'prometheus'
+    #   password: 'your-password'

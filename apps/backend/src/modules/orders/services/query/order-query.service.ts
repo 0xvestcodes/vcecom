@@ -132,15 +132,8 @@ export class OrderQueryService {
         archived: order.archived || false,
         archivedAt: order.archivedAt || null,
         archivedBy: order.archivedBy || null,
-        ...(order.discountCode !== null && order.discountCode !== undefined
-          ? { discountCode: order.discountCode }
-          : {}),
-        ...(order.discountAmount !== null && order.discountAmount !== undefined
-          ? { discountAmount: order.discountAmount }
-          : {}),
-      } as OrderResponseDto & {
-        discountCode?: string | null;
-        discountAmount?: number;
+        discountCode: order.discountCode ?? undefined,
+        discountAmount: order.discountAmount ?? undefined,
       };
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -231,15 +224,8 @@ export class OrderQueryService {
         archived: order.archived || false,
         archivedAt: order.archivedAt || null,
         archivedBy: order.archivedBy || null,
-        ...(order.discountCode !== null && order.discountCode !== undefined
-          ? { discountCode: order.discountCode }
-          : {}),
-        ...(order.discountAmount !== null && order.discountAmount !== undefined
-          ? { discountAmount: order.discountAmount }
-          : {}),
-      } as OrderResponseDto & {
-        discountCode?: string | null;
-        discountAmount?: number;
+        discountCode: order.discountCode ?? undefined,
+        discountAmount: order.discountAmount ?? undefined,
       };
     } catch (error) {
       if (error instanceof NotFoundException) {
@@ -368,17 +354,8 @@ export class OrderQueryService {
               archived: order.archived || false,
               archivedAt: order.archivedAt || null,
               archivedBy: order.archivedBy || null,
-              ...(order.discountCode !== null &&
-              order.discountCode !== undefined
-                ? { discountCode: order.discountCode }
-                : {}),
-              ...(order.discountAmount !== null &&
-              order.discountAmount !== undefined
-                ? { discountAmount: order.discountAmount }
-                : {}),
-            } as OrderResponseDto & {
-              discountCode?: string | null;
-              discountAmount?: number;
+              discountCode: order.discountCode ?? undefined,
+              discountAmount: order.discountAmount ?? undefined,
             };
           } catch (error) {
             this.logger.error(

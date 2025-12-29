@@ -4,10 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { addresses, eq, orders } from "@vcecom/db";
+import { addresses, eq, orderItems, orders } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { MarkOrderPaidResponseDto } from "../../../admin/dto/mark-order-paid.dto";
 import { DB_TOKEN } from "../../../database/database.module";
 import type { Database } from "../../../database/db";
+import { OrderResponseBuilderService } from "../query/order-response-builder.service";
 import { TimelineEventType } from "../../dto/order-timeline.dto";
 import { OrderTimelineService } from "../status/order-timeline.service";
 
@@ -25,6 +27,7 @@ export class OrderAddressService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly timelineService: OrderTimelineService,
+    private readonly responseBuilderService: OrderResponseBuilderService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
@@ -41,7 +44,7 @@ export class OrderAddressService {
     addressType: "shipping" | "billing",
     addressData: AddressUpdate,
     adminId: string,
-  ) {
+  ): Promise<MarkOrderPaidResponseDto> {
     // Get order
     const [order] = await this.db
       .select()
@@ -116,6 +119,19 @@ export class OrderAddressService {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
+    // Get order items
+    const orderItemsList = await this.db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+
+    // Calculate GST breakdown
+    const gstBreakdown =
+      await this.responseBuilderService.calculateGstBreakdownFromOrderItems(
+        orderId,
+        updatedOrder.shippingAddressId,
+      );
+
     this.logger.info(
       {
         orderId,
@@ -126,6 +142,22 @@ export class OrderAddressService {
       "Order address updated",
     );
 
-    return updatedOrder;
+    return {
+      ...updatedOrder,
+      gstBreakdown,
+      items: orderItemsList,
+      paymentFeeBreakdown:
+        (updatedOrder.paymentFeeBreakdown as {
+          method: string;
+          chargeType: string;
+          calculatedFee: number;
+          flatAmount?: number;
+          percentage?: number;
+          mixMin?: number;
+          mixCap?: number;
+        } | null) || null,
+      discountCode: updatedOrder.discountCode ?? undefined,
+      discountAmount: updatedOrder.discountAmount ?? undefined,
+    };
   }
 }

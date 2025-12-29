@@ -1,4 +1,5 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
+import { customers, eq } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../../common/logging/context.service";
 import {
@@ -6,6 +7,8 @@ import {
   createLogContext,
 } from "../../../../common/logging/logging.helper";
 import { BundleCartItemMetadata } from "../../../carts/dto/bundle-cart-item.dto";
+import { DB_TOKEN } from "../../../database/database.module";
+import type { Database } from "../../../database/db";
 import { DiscountsService } from "../../../discounts/discounts.service";
 import { DiscountResponseDto } from "../../../discounts/dto/discount-response.dto";
 import { runDiscountEngine } from "../../../discounts/engine/discount-engine";
@@ -38,6 +41,7 @@ export class OrderDiscountService {
     private readonly hotReloadWatcher: HotReloadWatcher,
     private readonly bundleService: RulesetBundleService,
     private readonly discountProfiler: DiscountProfiler,
+    @Inject(DB_TOKEN) private readonly db: Database,
   ) {}
 
   /**
@@ -107,10 +111,35 @@ export class OrderDiscountService {
 
       if (eligibleDiscounts.length > 0) {
         // Prepare customer data for engine
+        let customerGroupIds: string[] = [];
+        if (customerId) {
+          try {
+            const [customer] = await this.db
+              .select({ customerGroupId: customers.customerGroupId })
+              .from(customers)
+              .where(eq(customers.id, customerId))
+              .limit(1);
+            // Convert single customerGroupId to array format expected by discount engine
+            if (customer?.customerGroupId) {
+              customerGroupIds = [customer.customerGroupId];
+            }
+          } catch (error) {
+            this.logger.warn(
+              createErrorContext(
+                this.contextService,
+                "applyDiscountsToOrder",
+                error,
+                { customerId },
+              ),
+              "Failed to fetch customer group IDs, continuing without group discounts",
+            );
+          }
+        }
+
         const customerData = customerId
           ? {
               id: customerId,
-              customerGroupIds: [], // TODO: Parse from customer data if available
+              customerGroupIds,
             }
           : null;
 

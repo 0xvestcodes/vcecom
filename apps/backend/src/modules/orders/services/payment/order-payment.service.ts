@@ -4,11 +4,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { eq, orders, payments } from "@vcecom/db";
+import { eq, orderItems, orders, payments } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { isCodPayment } from "../../../../common/constants/orders.constants";
 import { DB_TOKEN } from "../../../../modules/database/database.module";
 import type { Database } from "../../../../modules/database/db";
+import { MarkOrderPaidResponseDto } from "../../../admin/dto/mark-order-paid.dto";
+import { OrderResponseBuilderService } from "../query/order-response-builder.service";
 import { TimelineEventType } from "../../dto/order-timeline.dto";
 import { OrderTimelineService } from "../status/order-timeline.service";
 
@@ -17,6 +19,7 @@ export class OrderPaymentService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly timelineService: OrderTimelineService,
+    private readonly responseBuilderService: OrderResponseBuilderService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
@@ -33,7 +36,7 @@ export class OrderPaymentService {
     adminId: string,
     adminName?: string,
     adminEmail?: string,
-  ) {
+  ): Promise<MarkOrderPaidResponseDto> {
     // Get order
     const [order] = await this.db
       .select()
@@ -113,6 +116,19 @@ export class OrderPaymentService {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
+    // Get order items
+    const orderItemsList = await this.db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+
+    // Calculate GST breakdown
+    const gstBreakdown =
+      await this.responseBuilderService.calculateGstBreakdownFromOrderItems(
+        orderId,
+        updatedOrder.shippingAddressId,
+      );
+
     this.logger.info(
       {
         orderId,
@@ -127,6 +143,22 @@ export class OrderPaymentService {
       "COD order marked as paid by admin",
     );
 
-    return updatedOrder;
+    return {
+      ...updatedOrder,
+      gstBreakdown,
+      items: orderItemsList,
+      paymentFeeBreakdown:
+        (updatedOrder.paymentFeeBreakdown as {
+          method: string;
+          chargeType: string;
+          calculatedFee: number;
+          flatAmount?: number;
+          percentage?: number;
+          mixMin?: number;
+          mixCap?: number;
+        } | null) || null,
+      discountCode: updatedOrder.discountCode ?? undefined,
+      discountAmount: updatedOrder.discountAmount ?? undefined,
+    };
   }
 }
