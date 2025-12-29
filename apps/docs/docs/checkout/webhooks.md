@@ -18,16 +18,32 @@ sequenceDiagram
     participant Razorpay
     participant Webhook
     participant Payments
-    participant Orders
+    participant OrdersService
+    participant PaymentFinalization
     participant Inventory
+    participant Cart
     
     Razorpay->>Webhook: POST /payments/razorpay/webhook
     Webhook->>Webhook: Verify signature
     Webhook->>Payments: Handle webhook event
     Payments->>Payments: Update payment intent status
-    Payments->>Orders: Create order (if captured)
-    Orders->>Inventory: Commit inventory
-    Orders-->>Webhook: Order created
+    
+    alt Payment Captured
+        Payments->>OrdersService: finalizeOrderFromPayment()
+        OrdersService->>PaymentFinalization: finalizeOrderFromPayment()
+        PaymentFinalization->>PaymentFinalization: Check idempotency
+        PaymentFinalization->>PaymentFinalization: Get checkout metadata
+        PaymentFinalization->>PaymentFinalization: Create order record
+        PaymentFinalization->>PaymentFinalization: Create order items
+        PaymentFinalization->>Inventory: Commit inventory (atomic)
+        Inventory-->>PaymentFinalization: Inventory committed
+        PaymentFinalization->>Cart: Clear cart
+        Cart-->>PaymentFinalization: Cart cleared
+        PaymentFinalization->>PaymentFinalization: Send notification
+        PaymentFinalization-->>OrdersService: Order created
+        OrdersService-->>Webhook: Order created
+    end
+    
     Webhook-->>Razorpay: 200 OK
 ```
 
@@ -149,28 +165,95 @@ switch (eventName) {
 
 ### Event Handler
 
+The webhook handler calls `OrdersService.finalizeOrderFromPayment()`, which delegates to `OrderPaymentFinalizationService`:
+
 ```typescript
 async handlePaymentCaptured(
   webhookEvent: RazorpayWebhookEventDto,
 ): Promise<void> {
   const paymentData = webhookEvent.payload.payment.entity;
-  const orderId = paymentData.order_id;  // Razorpay order ID
+  const paymentIntentId = paymentData.order_id;  // Razorpay order ID
 
   // Find checkout session by payment intent ID
   const checkoutSessionId = await this.checkoutStore
-    .getCheckoutSessionByPaymentIntent(orderId);
+    .getCheckoutSessionByPaymentIntent(paymentIntentId);
 
   if (!checkoutSessionId) {
-    this.logger.warn(`Checkout session not found for payment intent ${orderId}`);
+    this.logger.warn(`Checkout session not found for payment intent ${paymentIntentId}`);
     return;
   }
 
+  // Update payment intent status to CAPTURED
+  await this.checkoutStore.updatePaymentIntentStatus(
+    checkoutSessionId,
+    PaymentIntentStatus.CAPTURED,
+  );
+
   // Create order from checkout session
+  // This calls OrderPaymentFinalizationService.finalizeOrderFromPayment()
   await this.ordersService.finalizeOrderFromPayment(
     checkoutSessionId,
-    orderId,
+    paymentIntentId,
     "razorpay",
   );
+}
+```
+
+### OrderPaymentFinalizationService Flow
+
+The `OrderPaymentFinalizationService.finalizeOrderFromPayment()` method handles the complete order creation process:
+
+```typescript
+// OrderPaymentFinalizationService.finalizeOrderFromPayment()
+async finalizeOrderFromPayment(
+  checkoutSessionId: string,
+  paymentIntentId: string,
+  provider: string = "razorpay",
+): Promise<OrderResponseDto> {
+  // 1. Check payment-scoped idempotency (prevents duplicate orders)
+  const existingOrder = await this.idempotencyService.checkExistingOrder(
+    checkoutSessionId, paymentIntentId, provider
+  );
+  if (existingOrder) return existingOrder;
+  
+  // 2. Get checkout session and validate state (PAYMENT_CONFIRMED)
+  const session = await this.checkoutSessionService.getSession(
+    checkoutSessionId, CheckoutState.PAYMENT_CONFIRMED
+  );
+  
+  // 3. Get checkout metadata (customer, addresses, snapshots)
+  const metadata = await this.checkoutSessionService.getMetadata(checkoutSessionId);
+  
+  // 4. Validate cart and get cart items
+  const cart = await this.cartsService.getCartById(session.cartId);
+  const cartItems = await this.cartValidationService.validateAndFetchCartItems(...);
+  
+  // 5. Calculate totals and validate snapshots
+  const totals = await this.totalsCalculationService.calculateTotalsFromCartItems(...);
+  const pricingValidation = await this.snapshotValidationService
+    .validatePricingSnapshot(checkoutSessionId, metadata.pricingSnapshot, subtotal);
+  
+  // 6. Persist order
+  const persistedOrder = await this.persistenceService.persistOrder(customerId, {...});
+  
+  // 7. Persist order items
+  await this.persistenceService.persistOrderItems(orderId, variantItems, bundleItems, ...);
+  
+  // 8. Commit inventory atomically (releases reservations + decrements stock)
+  await this.inventoryService.commitOrderInventory(
+    cart.id, orderId, variantItems, bundleItems, true // clearCheckoutLock = true
+  );
+  
+  // 9. Transition checkout state (PAYMENT_CONFIRMED → ORDER_CREATED → COMPLETED)
+  await this.stateTransitionService.completeOrderTransitions(checkoutSessionId, orderId);
+  
+  // 10. Clear cart
+  await this.cartCleanupService.clearCartById(session.cartId);
+  
+  // 11. Send order confirmation notification
+  await this.notificationService.sendOrderConfirmation(...);
+  
+  return orderResponse;
 }
 ```
 
@@ -179,41 +262,76 @@ async handlePaymentCaptured(
 ```mermaid
 sequenceDiagram
     participant Webhook
-    participant Orders
+    participant OrdersService
+    participant PaymentFinalization
+    participant Idempotency
     participant Checkout
+    participant Persistence
     participant Inventory
     participant Cart
+    participant Notification
     
-    Webhook->>Orders: Payment captured
-    Orders->>Checkout: Get checkout session
-    Checkout-->>Orders: Session data
-    Orders->>Orders: Create order record
-    Orders->>Inventory: Commit inventory
-    Inventory-->>Orders: Inventory committed
-    Orders->>Cart: Clear cart
-    Cart-->>Orders: Cart cleared
-    Orders-->>Webhook: Order created
+    Webhook->>OrdersService: Payment captured
+    OrdersService->>PaymentFinalization: finalizeOrderFromPayment()
+    
+    PaymentFinalization->>Idempotency: Check existing order
+    Idempotency-->>PaymentFinalization: No existing order
+    
+    PaymentFinalization->>Checkout: Get checkout session
+    Checkout-->>PaymentFinalization: Session + metadata
+    
+    PaymentFinalization->>PaymentFinalization: Validate cart & calculate totals
+    PaymentFinalization->>PaymentFinalization: Validate snapshots
+    
+    PaymentFinalization->>Persistence: Persist order
+    Persistence-->>PaymentFinalization: Order created
+    
+    PaymentFinalization->>Persistence: Persist order items
+    Persistence-->>PaymentFinalization: Items created
+    
+    PaymentFinalization->>Inventory: Commit inventory (atomic)
+    Inventory-->>PaymentFinalization: Inventory committed
+    
+    PaymentFinalization->>Checkout: Transition state
+    Checkout-->>PaymentFinalization: State updated
+    
+    PaymentFinalization->>Cart: Clear cart
+    Cart-->>PaymentFinalization: Cart cleared
+    
+    PaymentFinalization->>Notification: Send confirmation
+    Notification-->>PaymentFinalization: Notification sent
+    
+    PaymentFinalization-->>OrdersService: Order created
+    OrdersService-->>Webhook: Order created
 ```
 
 ### Idempotency
 
-Order creation is idempotent:
+Order creation is idempotent using payment-scoped idempotency:
 
 ```typescript
-// Check if order already exists
-const existingOrderId = await this.checkoutStore.getOrderByPaymentIntent(
-  provider,
+// OrderIdempotencyService.checkExistingOrder()
+// Checks if order already exists for this payment intent
+const existingOrder = await this.idempotencyService.checkExistingOrder(
+  checkoutSessionId,
   paymentIntentId,
+  provider,
 );
 
-if (existingOrderId) {
-  // Order already exists, return it
-  return await this.getOrder(existingOrderId);
+if (existingOrder) {
+  // Order already exists (webhook retry), return it
+  return existingOrder;
 }
 
 // Create new order
-const order = await this.createOrderFromCheckout(...);
+const order = await this.persistenceService.persistOrder(...);
 ```
+
+**Key Points:**
+- Payment-scoped idempotency prevents duplicate orders from same payment intent
+- Webhook retries are safe (idempotency check happens first)
+- Uses `OrderIdempotencyService` to check for existing orders
+- If order exists, returns it immediately without creating duplicate
 
 ## Payment Failed Event
 

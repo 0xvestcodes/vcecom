@@ -4,8 +4,76 @@ The orders system manages the complete lifecycle of customer orders from creatio
 
 ## Order Architecture
 
+The orders module uses a service-oriented architecture with specialized services organized by domain. This separation of concerns enables better maintainability, testability, and scalability.
+
+### Service Architecture
+
+The orders module is organized into specialized services:
+
+**Orchestration Layer:**
+- `OrdersService` - Thin orchestrator that delegates to specialized services (no business logic, only coordination)
+
+**Creation Services:**
+- `OrderCreationService` - Coordinates order creation flows
+- `OrderPaymentIntentFlowService` - Handles payment intent creation during checkout
+- `OrderPaymentFinalizationService` - Handles order creation from payment webhook
+- `OrderCodFlowService` - Handles Cash on Delivery (COD) order creation
+
+**Query Services:**
+- `OrderQueryService` - Handles order retrieval and filtering
+- `OrderEnrichmentService` - Enriches order data with related entities
+- `OrderResponseBuilderService` - Builds order response DTOs
+
+**Status Services:**
+- `OrderStatusService` - Manages order status transitions
+- `OrderTimelineService` - Manages order timeline events
+- `OrderTrackingService` - Provides order tracking information
+
+**Domain Services (organized by domain):**
+- `services/calculation/` - Order total calculations and GST computation
+- `services/cart/` - Cart processing and validation
+- `services/checkout/` - Checkout orchestration and session management
+- `services/discount/` - Discount application and validation
+- `services/pricing/` - Pricing engine integration
+- `services/payment/` - Payment intent handling
+- `services/persistence/` - Database operations
+- `services/snapshot/` - Pricing and discount snapshot management
+- `services/inventory/` - Inventory operations and reservations
+- `services/validation/` - Order validation logic
+
+### Service Interaction Diagram
+
+```mermaid
+graph TB
+    OrdersService[OrdersService<br/>Orchestrator] --> OrderCreationService[OrderCreationService]
+    OrdersService --> OrderQueryService[OrderQueryService]
+    OrdersService --> OrderStatusService[OrderStatusService]
+    OrdersService --> OrderTimelineService[OrderTimelineService]
+    OrdersService --> OrderTrackingService[OrderTrackingService]
+    
+    OrderCreationService --> PaymentIntentFlow[OrderPaymentIntentFlowService]
+    OrderCreationService --> PaymentFinalization[OrderPaymentFinalizationService]
+    OrderCreationService --> CodFlow[OrderCodFlowService]
+    
+    PaymentIntentFlow --> CheckoutOrch[OrderCheckoutOrchestrationService]
+    PaymentIntentFlow --> CartProcessing[OrderCartProcessingService]
+    PaymentIntentFlow --> PricingEngine[OrderPricingEngineService]
+    PaymentIntentFlow --> DiscountEngine[OrderDiscountEngineService]
+    PaymentIntentFlow --> PaymentIntent[OrderPaymentIntentService]
+    
+    PaymentFinalization --> Persistence[OrderPersistenceService]
+    PaymentFinalization --> Inventory[OrderInventoryService]
+    PaymentFinalization --> StateTransition[OrderStateTransitionService]
+    
+    CodFlow --> Persistence
+    CodFlow --> Inventory
+    CodFlow --> StateTransition
+```
+
 ### Core Components
-- **Order Creation**: Atomic order creation from checkout sessions
+- **Order Creation**: Webhook-driven order creation after payment confirmation
+- **Payment Intent Creation**: Separate flow for creating payment intents during checkout
+- **COD Flow**: Dedicated flow for Cash on Delivery orders that bypasses payment intent
 - **Order Lifecycle**: Status tracking and state management
 - **Order Items**: Detailed line items with pricing and metadata
 - **Order Timeline**: Audit trail of all order events
@@ -69,18 +137,76 @@ interface OrderItem {
 
 ## Order Creation Process
 
-### From Checkout Session
+### Payment Intent Flow (Standard Orders)
 
-```typescript
-async createOrderFromCheckout(checkoutId: string): Promise<Order> {
-  // 1. Validate checkout session state
-  // 2. Get checkout metadata and pricing snapshots
-  // 3. Create order record with atomic transaction
-  // 4. Create order items from cart
-  // 5. Commit inventory reservations
-  // 6. Update checkout session
-  // 7. Send order confirmation
-}
+For standard orders, the process is split into two phases:
+
+**Phase 1: Payment Intent Creation** (during checkout)
+1. Customer initiates checkout
+2. System orchestrates checkout setup (customer, addresses, cart)
+3. System processes cart items and calculates totals
+4. System runs pricing engine to get effective prices
+5. System applies discount engine to calculate discounts
+6. System creates payment intent with Razorpay
+7. System stores checkout metadata (customer, addresses, snapshots)
+8. Customer completes payment at gateway
+
+**Phase 2: Order Finalization** (via webhook)
+1. Payment gateway sends webhook on payment capture
+2. System retrieves checkout session and metadata
+3. System validates payment-scoped idempotency
+4. System creates order record with atomic transaction
+5. System creates order items from cart
+6. System commits inventory (releases reservations and decrements stock)
+7. System transitions checkout state to ORDER_CREATED
+8. System clears cart
+9. System sends order confirmation notification
+
+### COD Flow (Cash on Delivery)
+
+COD orders skip payment intent creation and go directly to order creation:
+
+1. Customer selects COD as payment method during checkout
+2. System detects COD payment method
+3. System orchestrates checkout setup (customer, addresses, cart)
+4. System processes cart items and calculates totals
+5. System runs pricing and discount engines
+6. System stores checkout metadata
+7. System creates order directly (no payment intent)
+8. System creates COD payment record
+9. System commits inventory
+10. System transitions checkout state (LOCKED → PAYMENT_CONFIRMED → ORDER_CREATED → COMPLETED)
+11. System clears cart
+12. System sends order confirmation notification
+
+### Order Creation Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant Customer
+    participant Checkout
+    participant PaymentIntentFlow
+    participant PaymentGateway
+    participant Webhook
+    participant PaymentFinalization
+    participant OrderDB
+    
+    Customer->>Checkout: Initiate checkout
+    Checkout->>PaymentIntentFlow: Create payment intent
+    PaymentIntentFlow->>PaymentIntentFlow: Process cart & calculate totals
+    PaymentIntentFlow->>PaymentIntentFlow: Run pricing & discount engines
+    PaymentIntentFlow->>PaymentGateway: Create Razorpay order
+    PaymentGateway-->>PaymentIntentFlow: Payment intent ID
+    PaymentIntentFlow-->>Checkout: Payment intent + session ID
+    
+    Customer->>PaymentGateway: Complete payment
+    PaymentGateway->>Webhook: Payment captured webhook
+    Webhook->>PaymentFinalization: finalizeOrderFromPayment()
+    PaymentFinalization->>PaymentFinalization: Check idempotency
+    PaymentFinalization->>OrderDB: Create order
+    PaymentFinalization->>OrderDB: Create order items
+    PaymentFinalization->>OrderDB: Commit inventory
+    PaymentFinalization-->>Webhook: Order created
 ```
 
 ### Order Number Generation
