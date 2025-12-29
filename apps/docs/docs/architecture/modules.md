@@ -78,9 +78,41 @@
 
 ### Orders Module (`modules/orders`)
 - **Purpose**: Order creation, fulfillment, and management
-- **Key Services**: `OrdersService`, `OrderFulfillmentService`
-- **Endpoints**: Order CRUD, fulfillment status updates
-- **Features**: Order status workflow, fulfillment tracking, reconciliation
+- **Architecture**: Service-oriented architecture with specialized services organized by domain
+- **Orchestration Layer**:
+  - `OrdersService` - Thin orchestrator that delegates to specialized services
+- **Creation Services**:
+  - `OrderCreationService` - Coordinates order creation flows
+  - `OrderPaymentIntentFlowService` - Handles payment intent creation during checkout
+  - `OrderPaymentFinalizationService` - Handles order creation from payment webhook
+  - `OrderCodFlowService` - Handles Cash on Delivery (COD) order creation
+- **Query Services**:
+  - `OrderQueryService` - Handles order retrieval and filtering
+  - `OrderEnrichmentService` - Enriches order data with related entities
+  - `OrderResponseBuilderService` - Builds order response DTOs
+- **Status Services**:
+  - `OrderStatusService` - Manages order status transitions
+  - `OrderTimelineService` - Manages order timeline events
+  - `OrderTrackingService` - Provides order tracking information
+- **Domain Services** (organized by domain):
+  - `services/calculation/` - Order total calculations and GST computation
+  - `services/cart/` - Cart processing and validation
+  - `services/checkout/` - Checkout orchestration and session management
+  - `services/discount/` - Discount application and validation
+  - `services/pricing/` - Pricing engine integration
+  - `services/payment/` - Payment intent handling
+  - `services/persistence/` - Database operations
+  - `services/snapshot/` - Pricing and discount snapshot management
+  - `services/inventory/` - Inventory operations and reservations
+  - `services/validation/` - Order validation logic
+- **Endpoints**: Order CRUD, payment intent creation, fulfillment status updates
+- **Features**: 
+  - Webhook-driven order creation (orders created after payment confirmation)
+  - COD flow (bypasses payment intent creation)
+  - Payment-scoped idempotency
+  - Order status workflow
+  - Fulfillment tracking
+  - Reconciliation
 
 ### Payments Module (`modules/payments`)
 - **Purpose**: Payment intent creation and Razorpay integration

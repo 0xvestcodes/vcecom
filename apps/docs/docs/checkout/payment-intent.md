@@ -1,6 +1,6 @@
 # Payment Intent
 
-Payment intents represent a payment request to the payment gateway (Razorpay). They are created during checkout and serve as the bridge between the checkout session and actual payment processing.
+Payment intents represent a payment request to the payment gateway (Razorpay). They are created during checkout and serve as the bridge between the checkout session and actual payment processing. **Important**: Orders are created only after payment confirmation via webhook, not during payment intent creation. Cash on Delivery (COD) orders bypass payment intent creation entirely.
 
 ## Payment Intent Overview
 
@@ -30,23 +30,95 @@ stateDiagram-v2
 
 ### Creation Flow
 
+Payment intent creation is handled by `OrderPaymentIntentFlowService`:
+
 ```mermaid
 sequenceDiagram
+    participant Customer
     participant Checkout
-    participant Orders
-    participant Payments
+    participant PaymentIntentFlow
+    participant CheckoutOrch
+    participant CartProcessing
+    participant PricingEngine
+    participant DiscountEngine
+    participant PaymentIntentService
     participant Razorpay
     participant Redis
     
-    Checkout->>Orders: Create order (payment intent)
-    Orders->>Orders: Calculate total amount
-    Orders->>Payments: Create payment intent
-    Payments->>Redis: Check if exists (idempotent)
-    Payments->>Razorpay: Create Razorpay order
-    Razorpay-->>Payments: Order ID
-    Payments->>Redis: Store payment intent
-    Payments-->>Orders: Payment intent
-    Orders-->>Checkout: Payment details
+    Customer->>Checkout: Initiate checkout
+    Checkout->>PaymentIntentFlow: createPaymentIntent()
+    PaymentIntentFlow->>CheckoutOrch: Orchestrate checkout setup
+    CheckoutOrch-->>PaymentIntentFlow: Customer, addresses, cart
+    
+    PaymentIntentFlow->>CartProcessing: Extract & process cart items
+    CartProcessing-->>PaymentIntentFlow: Cart items with variants
+    
+    PaymentIntentFlow->>PaymentIntentFlow: Calculate totals (GST, shipping)
+    PaymentIntentFlow->>PricingEngine: Run pricing engine
+    PricingEngine-->>PaymentIntentFlow: Effective prices
+    
+    PaymentIntentFlow->>DiscountEngine: Apply discounts
+    DiscountEngine-->>PaymentIntentFlow: Discount amount & snapshot
+    
+    PaymentIntentFlow->>PaymentIntentFlow: Check payment method
+    
+    alt COD Payment Method
+        PaymentIntentFlow->>PaymentIntentFlow: Create COD order directly
+        PaymentIntentFlow-->>Checkout: COD order created
+    else Standard Payment
+        PaymentIntentFlow->>PaymentIntentService: Create payment intent
+        PaymentIntentService->>Redis: Check if exists (idempotent)
+        PaymentIntentService->>Razorpay: Create Razorpay order
+        Razorpay-->>PaymentIntentService: Order ID
+        PaymentIntentService->>Redis: Store payment intent
+        PaymentIntentService-->>PaymentIntentFlow: Payment intent
+        PaymentIntentFlow-->>Checkout: Payment intent + session ID
+    end
+```
+
+### Relationship with Order Creation
+
+**Key Point**: Payment intent creation does NOT create an order. Orders are created only after payment confirmation via webhook.
+
+1. **Payment Intent Creation** (during checkout):
+   - Creates payment intent with Razorpay
+   - Stores checkout metadata (customer, addresses, snapshots)
+   - Returns payment intent to customer
+   - Customer completes payment at gateway
+
+2. **Order Creation** (via webhook):
+   - Payment gateway sends webhook on payment capture
+   - `OrderPaymentFinalizationService.finalizeOrderFromPayment()` is called
+   - Order is created using stored checkout metadata
+   - Inventory is committed
+   - Cart is cleared
+
+### COD Handling
+
+Cash on Delivery (COD) orders bypass payment intent creation:
+
+```typescript
+// In OrderPaymentIntentFlowService.createPaymentIntent()
+const isCod = isCodPayment(paymentMethod);
+
+if (isCod) {
+  // COD detected - skip payment intent creation
+  // Create order directly via OrderCodFlowService
+  const codOrder = await this.codFlowService.createCodOrder(
+    checkoutSessionId, userId, createOrderDto, sessionId
+  );
+  
+  return {
+    paymentIntent: {
+      paymentProvider: "cod",
+      paymentIntentId: `cod-${codOrder.id}`,
+      status: PaymentIntentStatus.CREATED,
+    },
+    checkoutSessionId,
+    orderId: codOrder.id, // Order already created
+    message: "COD order created successfully",
+  };
+}
 ```
 
 ### Idempotent Creation
@@ -54,10 +126,18 @@ sequenceDiagram
 Payment intents are created idempotently to prevent duplicates:
 
 ```typescript
+// OrderPaymentIntentService.createPaymentIntent()
 async createPaymentIntent(
   checkoutSessionId: string,
-  amount: number,
-  currency: string = "INR",
+  total: number,
+  subtotalAfterDiscount: number,
+  totalGstAmount: number,
+  shippingCost: number,
+  paymentFee: number,
+  paymentMethod: string | undefined,
+  effectiveSubtotal: number,
+  discountSnapshot: DiscountSnapshot | null,
+  pricingSnapshot: PricingSnapshot | null,
 ): Promise<PaymentIntent> {
   // Assert checkout state is LOCKED
   await this.checkoutStore.assertState(
@@ -70,13 +150,17 @@ async createPaymentIntent(
     checkoutSessionId,
     async () => {
       // Only called if payment intent doesn't exist
+      const amountInPaise = Math.round(total * PAISE_PER_RUPEE);
+      
       const razorpayOrder = await this.razorpay.orders.create({
-        amount: amount,  // Amount in paise
-        currency: currency,
+        amount: amountInPaise,  // Amount in paise
+        currency: "INR",
         receipt: checkoutSessionId,
         notes: {
           checkoutSessionId,
           order_number: `pending-${Date.now()}`,
+          payment_fee: paymentFee.toString(),
+          payment_method: paymentMethod || "unknown",
         },
       });
 
@@ -289,15 +373,38 @@ const razorpayOrder = await this.razorpay.orders.create({
 
 ### Status Updates via Webhooks
 
-Payment intent status is updated when webhooks are received:
+Payment intent status is updated when webhooks are received. When payment is captured, the order is created:
 
 ```typescript
-// Payment captured webhook
+// Payment captured webhook handler
 case "payment.captured":
   await this.handlePaymentCaptured(webhookEvent);
-  // Updates payment intent status to CAPTURED
-  // Creates order from checkout session
+  // 1. Updates payment intent status to CAPTURED
+  // 2. Calls OrderPaymentFinalizationService.finalizeOrderFromPayment()
+  // 3. Creates order from checkout session
+  // 4. Commits inventory
+  // 5. Clears cart
   break;
+```
+
+### Order Creation from Payment Intent
+
+When payment is captured, the webhook handler calls:
+
+```typescript
+// In webhook handler
+const checkoutSessionId = await this.checkoutStore
+  .getCheckoutSessionByPaymentIntent(paymentIntentId);
+
+await this.ordersService.finalizeOrderFromPayment(
+  checkoutSessionId,
+  paymentIntentId,
+  "razorpay",
+);
+
+// This delegates to:
+// OrderPaymentFinalizationService.finalizeOrderFromPayment()
+// Which creates the order using stored checkout metadata
 ```
 
 ### Manual Status Updates
@@ -378,18 +485,38 @@ X-Session-Id: {session-id}
 }
 ```
 
-**Response**:
+**Response** (Standard Payment):
 ```json
 {
   "paymentIntent": {
     "paymentProvider": "razorpay",
     "paymentIntentId": "order_abc123",
-    "status": "created"
+    "status": "created",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z"
   },
-  "orderId": null,
-  "redirectUrl": "https://razorpay.com/checkout/..."
+  "checkoutSessionId": "session-123",
+  "message": "Payment intent created. Redirect user to payment gateway."
 }
 ```
+
+**Response** (COD Payment):
+```json
+{
+  "paymentIntent": {
+    "paymentProvider": "cod",
+    "paymentIntentId": "cod-order-123",
+    "status": "created",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "updatedAt": "2024-01-01T00:00:00Z"
+  },
+  "checkoutSessionId": "session-123",
+  "orderId": "order-123",
+  "message": "COD order created successfully"
+}
+```
+
+**Note**: For COD orders, `orderId` is included in the response since the order is created immediately.
 
 ### Get Payment Intent
 
