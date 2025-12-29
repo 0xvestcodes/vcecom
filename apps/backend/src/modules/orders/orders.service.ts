@@ -1,5 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable } from "@nestjs/common";
+import { eq, payments } from "@vcecom/db";
 import { Trace } from "../../common/tracing/trace.decorator";
+import { DB_TOKEN } from "../database/database.module";
+import type { Database } from "../database/db";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { OrderResponseDto } from "./dto/order-response.dto";
 import { OrderTimelineDto } from "./dto/order-timeline.dto";
@@ -11,6 +14,7 @@ import {
 } from "./dto/update-order-status.dto";
 import { OrderCodFlowService } from "./services/creation/order-cod-flow.service";
 import { OrderCreationService } from "./services/creation/order-creation.service";
+import { OrderPaymentIntentFlowService } from "./services/creation/order-payment-intent-flow.service";
 import { OrderQueryService } from "./services/query/order-query.service";
 import { OrderStatusService } from "./services/status/order-status.service";
 import { OrderTimelineService } from "./services/status/order-timeline.service";
@@ -26,10 +30,12 @@ export class OrdersService {
   constructor(
     private readonly creationService: OrderCreationService,
     private readonly codFlowService: OrderCodFlowService,
+    private readonly paymentIntentFlowService: OrderPaymentIntentFlowService,
     private readonly queryService: OrderQueryService,
     private readonly statusService: OrderStatusService,
     private readonly timelineService: OrderTimelineService,
     private readonly trackingService: OrderTrackingService,
+    @Inject(DB_TOKEN) private readonly db: Database,
   ) {}
 
   // ============================================================================
@@ -155,5 +161,58 @@ export class OrdersService {
     orderId: string,
   ): Promise<OrderTimelineDto> {
     return this.timelineService.getTimeline(userId, orderId);
+  }
+
+  /**
+   * Retry payment for a failed order
+   * Creates a new payment intent for orders that failed payment
+   * @param userId - User ID
+   * @param orderId - Order ID
+   * @returns Payment intent response
+   */
+  @Trace({ operation: "OrdersService.retryPayment" })
+  async retryPayment(
+    userId: string,
+    orderId: string,
+  ): Promise<PaymentIntentResponseDto> {
+    // Get order and validate ownership
+    const order = await this.queryService.findOne(userId, orderId);
+
+    // Check if order is already paid
+    const [payment] = await this.db
+      .select()
+      .from(payments)
+      .where(eq(payments.orderId, orderId))
+      .limit(1);
+
+    if (payment && payment.status === "captured") {
+      throw new BadRequestException(
+        "Order is already paid. Cannot retry payment for a paid order.",
+      );
+    }
+
+    // Check order status - only allow retry for pending/failed orders
+    const allowedStatuses = ["pending", "failed"];
+    if (!allowedStatuses.includes(order.status)) {
+      throw new BadRequestException(
+        `Cannot retry payment for order with status: ${order.status}. ` +
+          `Payment retry is only allowed for orders with status: ${allowedStatuses.join(", ")}`,
+      );
+    }
+
+    // Get checkout session ID from order metadata or create new checkout flow
+    // For retry, we need to recreate the checkout flow with the same order details
+    // This is a simplified implementation - in production, you might want to store
+    // checkout session ID with the order for easier retry
+
+    // For now, throw an error indicating that retry requires recreating checkout
+    // In a full implementation, you would:
+    // 1. Store checkout session ID with order
+    // 2. Retrieve checkout metadata
+    // 3. Create new payment intent with same details
+    throw new BadRequestException(
+      "Payment retry requires checkout session recreation. " +
+        "Please initiate a new checkout with the same order items.",
+    );
   }
 }

@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import { and, eq, orderItems, orders, payments } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { AuditLogService } from "../../../../common/audit/audit-log.service";
 import { ContextService } from "../../../../common/logging/context.service";
 import {
   createErrorContext,
@@ -20,6 +21,7 @@ import { CancelOrderDto } from "../../dto/cancel-order.dto";
 import { OrderResponseDto } from "../../dto/order-response.dto";
 import { TimelineEventType } from "../../dto/order-timeline.dto";
 import { OrderGstService } from "../gst/order-gst.service";
+import { RefundsService } from "../payment/refunds.service";
 import { OrderTimelineService } from "../status/order-timeline.service";
 import { OrderValidationService } from "../validation/order-validation.service";
 
@@ -37,6 +39,8 @@ export class OrderCancelService {
     private readonly timelineService: OrderTimelineService,
     private readonly gstService: OrderGstService,
     private readonly bundlePricingService: BundlePricingService,
+    private readonly refundsService: RefundsService,
+    private readonly auditLogService: AuditLogService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
@@ -225,18 +229,34 @@ export class OrderCancelService {
       .limit(1);
 
     if (payment && cancelDto.refundRequested !== false) {
-      // Payment was captured - refund should be processed
-      // Note: Actual refund processing should be handled by RefundsService
-      // This is just a placeholder - refund creation should be done separately
-      this.logger.info(
-        createLogContext(this.contextService, "cancelOrder", {
-          orderId,
-          paymentId: payment.id,
-          amount: payment.amount,
-        }),
-        "Refund should be processed for cancelled order with captured payment",
-      );
-      // TODO: Create refund record or trigger refund processing
+      // Payment was captured - create refund automatically
+      try {
+        const refundAmount = payment.amount / 100; // Convert from paise to rupees
+        const refundReason =
+          cancelDto.reason ||
+          `Order cancelled${isAdmin ? " by admin" : " by customer"}`;
+
+        await this.refundsService.create(orderId, refundAmount, refundReason);
+
+        this.logger.info(
+          createLogContext(this.contextService, "cancelOrder", {
+            orderId,
+            paymentId: payment.id,
+            refundAmount,
+            refundReason,
+          }),
+          "Refund created automatically for cancelled order with captured payment",
+        );
+      } catch (error) {
+        // Log error but don't fail cancellation - refund can be processed manually later
+        this.logger.error(
+          createErrorContext(this.contextService, "cancelOrder", error, {
+            orderId,
+            paymentId: payment.id,
+          }),
+          "Failed to create refund for cancelled order - manual refund processing required",
+        );
+      }
     }
 
     // Update order status to cancelled
@@ -248,6 +268,14 @@ export class OrderCancelService {
       })
       .where(eq(orders.id, orderId))
       .returning();
+
+    // Log audit event
+    await this.auditLogService.logOrderCancellation(
+      orderId,
+      actorId,
+      isAdmin ? "admin" : "customer",
+      cancelDto.reason,
+    );
 
     // Create timeline event
     await this.timelineService.addEvent(orderId, {

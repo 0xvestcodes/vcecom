@@ -24,6 +24,7 @@ import { InventoryStore } from "../../../redis-store/stores/inventory-store";
 import { DuplicateOrderDto } from "../../dto/duplicate-order.dto";
 import { OrderResponseDto } from "../../dto/order-response.dto";
 import { TimelineEventType } from "../../dto/order-timeline.dto";
+import { OrderDiscountService } from "../discount/order-discount.service";
 import { OrderGstService } from "../gst/order-gst.service";
 import { OrderTimelineService } from "../status/order-timeline.service";
 import { OrderValidationService } from "../validation/order-validation.service";
@@ -42,6 +43,7 @@ export class OrderDuplicateService {
     private readonly timelineService: OrderTimelineService,
     private readonly gstService: OrderGstService,
     private readonly bundlePricingService: BundlePricingService,
+    private readonly discountService: OrderDiscountService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
 
@@ -255,15 +257,72 @@ export class OrderDuplicateService {
       subtotal += item.price * item.quantity;
     }
 
-    // For now, use original shipping cost and discount
-    // In a full implementation, you'd recalculate shipping and apply new discount code
+    // Use original shipping cost
     const shippingCost = originalOrder.shippingCost || 0;
-    const discountAmount = originalOrder.discountAmount || 0;
     const discountCode =
       duplicateDto.discountCode || originalOrder.discountCode;
 
-    // TODO: Recalculate discount if discountCode is provided
-    // For now, we'll use original discount amount
+    // Recalculate discount if new discountCode is provided
+    let discountAmount = originalOrder.discountAmount || 0;
+    if (
+      duplicateDto.discountCode &&
+      duplicateDto.discountCode !== originalOrder.discountCode
+    ) {
+      try {
+        // Validate discount code exists and is eligible
+        // Note: Full recalculation would require preparing cart items for discount engine
+        // For now, we validate the discount code and use a simplified calculation
+        // In production, you'd want to run the full discount engine with cart items
+        // Access discountsService through the discountService's private property
+        const discountsService = (this.discountService as any).discountsService;
+        if (discountsService) {
+          const eligibleDiscounts = await discountsService.getEligibleDiscounts(
+            subtotal,
+            customerId,
+            undefined, // userId not available in this context
+            duplicateDto.discountCode,
+          );
+
+          if (eligibleDiscounts.length > 0) {
+            // Use first eligible discount - simplified calculation
+            // Full implementation would run discount engine with cart items
+            const discount = eligibleDiscounts[0];
+            if (discount.type === "PERCENTAGE") {
+              discountAmount = (subtotal * (discount.value || 0)) / 100;
+            } else if (discount.type === "FIXED") {
+              discountAmount = Math.min(discount.value || 0, subtotal);
+            }
+            // Apply discount limits if any
+            if (discount.maxDiscountAmount) {
+              discountAmount = Math.min(
+                discountAmount,
+                discount.maxDiscountAmount,
+              );
+            }
+          } else {
+            // Discount code not eligible - reset to 0
+            discountAmount = 0;
+            this.logger.warn(
+              createLogContext(this.contextService, "duplicateOrder", {
+                orderId: originalOrder.id,
+                discountCode: duplicateDto.discountCode,
+              }),
+              "Discount code not eligible for duplicated order, discount reset to 0",
+            );
+          }
+        }
+      } catch (error) {
+        // If discount validation fails, use original discount amount
+        this.logger.warn(
+          createErrorContext(this.contextService, "duplicateOrder", error, {
+            orderId: originalOrder.id,
+            discountCode: duplicateDto.discountCode,
+          }),
+          "Failed to validate discount code for duplicate order, using original discount",
+        );
+        discountAmount = originalOrder.discountAmount || 0;
+      }
+    }
 
     // Calculate GST (will be recalculated properly)
     const finalSubtotal = subtotal - discountAmount;

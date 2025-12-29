@@ -1,0 +1,100 @@
+{
+  "dashboard": {
+    "title": "Order Error Rates",
+    "tags": ["orders", "errors", "monitoring"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Order Creation Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(orders_created_failed_total[5m]) / rate(orders_created_total[5m])",
+            "legendFormat": "Error Rate"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percentunit",
+            "max": 1
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Errors by Type",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum by (error_type) (rate(orders_created_failed_total[5m]))",
+            "legendFormat": "{{error_type}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ops"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Critical Errors (Inventory Commit Failures)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(inventory_commit_failed_total[5m])",
+            "legendFormat": "Critical Failures"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ops"
+          }
+        ],
+        "alert": {
+          "name": "CriticalInventoryCommitFailure",
+          "message": "CRITICAL: Inventory commit failures detected"
+        }
+      },
+      {
+        "id": 4,
+        "title": "Error Rate Trend (24h)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(orders_created_failed_total[5m]) / rate(orders_created_total[5m])",
+            "legendFormat": "Error Rate"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "percentunit"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Total Errors (Last 24h)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(orders_created_failed_total[24h]))",
+            "legendFormat": "Order Creation Failures"
+          },
+          {
+            "expr": "sum(increase(inventory_commit_failed_total[24h]))",
+            "legendFormat": "Inventory Commit Failures"
+          },
+          {
+            "expr": "sum(increase(payment_intent_created_failed_total[24h]))",
+            "legendFormat": "Payment Intent Failures"
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 1
+  }
+}

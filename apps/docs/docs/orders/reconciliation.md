@@ -1,460 +1,170 @@
-# Order Reconciliation
+# Order Inventory Reconciliation
 
-Order reconciliation ensures consistency between payment gateway transactions, order records, and inventory. It handles recovery from failures, identifies discrepancies, and maintains data integrity.
+## Overview
 
-## Reconciliation Overview
-
-### What is Reconciliation?
-
-Reconciliation is the process of:
-- **Matching Payments**: Verifying payment status matches order status
-- **Recovering Orders**: Creating orders from successful payments that missed order creation
-- **Fixing Inconsistencies**: Resolving discrepancies between systems
-- **Audit Trail**: Maintaining accurate transaction records
-
-### Reconciliation Flow
-
-```mermaid
-flowchart TD
-    A[Identify Payment Intent] --> B{Order Exists?}
-    B -->|Yes| C[Return Existing Order]
-    B -->|No| D[Get Checkout Session]
-    D --> E{Session Found?}
-    E -->|Yes| F[Create Order from Session]
-    E -->|No| G[Log Error]
-    F --> H[Verify Payment Status]
-    H --> I{Payment Confirmed?}
-    I -->|Yes| J[Create Order]
-    I -->|No| K[Return Error]
-    
-    style J fill:#51cf66
-    style K fill:#ff6b6b
-```
-
-## Payment Intent Reconciliation
-
-### Reprocess Payment Intent
-
-```typescript
-async reprocessPaymentIntent(
-  paymentIntentId: string,
-  provider: string = "razorpay",
-): Promise<OrderResponseDto | null> {
-  // Check if order already exists (idempotent)
-  const existingOrderId = await this.checkoutStore.getOrderByPaymentIntent(
-    provider,
-    paymentIntentId,
-  );
-
-  if (existingOrderId) {
-    // Order already exists, return it
-    return await this.getOrder(existingOrderId);
-  }
-
-  // Find checkout session via payment intent
-  const checkoutSessionId = await this.findCheckoutSessionByPaymentIntent(
-    paymentIntentId,
-  );
-
-  if (!checkoutSessionId) {
-    throw new NotFoundException(
-      `Checkout session not found for payment intent ${paymentIntentId}`
-    );
-  }
-
-  // Verify payment is confirmed
-  const paymentStatus = await this.verifyPaymentStatus(
-    paymentIntentId,
-    provider,
-  );
-
-  if (paymentStatus !== "captured") {
-    throw new BadRequestException(
-      `Payment not confirmed. Status: ${paymentStatus}`
-    );
-  }
-
-  // Create order from checkout session
-  return await this.ordersService.finalizeOrderFromPayment(
-    checkoutSessionId,
-    paymentIntentId,
-    provider,
-  );
-}
-```
-
-### Idempotent Reconciliation
-
-```typescript
-// Safe to call multiple times
-// Returns existing order if already created
-// Creates order only if missing
-const order = await reconciliationService.reprocessPaymentIntent(
-  paymentIntentId,
-);
-```
-
-## Finding Checkout Sessions
-
-### Reverse Lookup
-
-```typescript
-async findCheckoutSessionByPaymentIntent(
-  paymentIntentId: string,
-): Promise<string | null> {
-  // Try reverse lookup first
-  const reverseKey = `payment:intent:by-id:${paymentIntentId}`;
-  const checkoutSessionId = await this.client.get(reverseKey);
-  
-  if (checkoutSessionId) {
-    return checkoutSessionId;
-  }
-
-  // Fallback: Search all checkout sessions
-  // (less efficient, but handles edge cases)
-  return await this.searchCheckoutSessionsByPaymentIntent(paymentIntentId);
-}
-```
-
-### Payment Intent Lookup
-
-```typescript
-async getOrderByPaymentIntent(
-  provider: string,
-  paymentIntentId: string,
-): Promise<string | null> {
-  // Check if order exists for this payment intent
-  const [order] = await db
-    .select({ id: orders.id })
-    .from(orders)
-    .where(
-      and(
-        eq(orders.razorpayOrderId, paymentIntentId),
-        eq(orders.status, "confirmed"), // Only confirmed orders
-      ),
-    )
-    .limit(1);
-
-  return order?.id || null;
-}
-```
-
-## Payment Status Verification
-
-### Verify Payment Status
-
-```typescript
-async verifyPaymentStatus(
-  paymentIntentId: string,
-  provider: string,
-): Promise<PaymentStatus> {
-  if (provider === "razorpay") {
-    // Get payment details from Razorpay
-    const razorpayOrder = await this.razorpay.orders.fetch(paymentIntentId);
-    
-    // Get payments for this order
-    const payments = await this.razorpay.orders.fetchPayments(
-      paymentIntentId,
-    );
-
-    // Check if any payment is captured
-    const capturedPayment = payments.items.find(
-      (p) => p.status === "captured",
-    );
-
-    return capturedPayment ? "captured" : "pending";
-  }
-
-  throw new BadRequestException(`Unsupported provider: ${provider}`);
-}
-```
-
-## Reconciliation Scenarios
-
-### Scenario 1: Webhook Missed
-
-**Problem**: Payment webhook was missed or failed, order not created.
-
-**Solution**:
-```typescript
-// Admin manually reconciles payment intent
-const order = await reconciliationService.reprocessPaymentIntent(
-  paymentIntentId,
-);
-```
-
-### Scenario 2: Order Creation Failed
-
-**Problem**: Order creation started but failed mid-process.
-
-**Solution**:
-```typescript
-// Checkout session exists, payment confirmed
-// Reconciliation recreates order from session
-const order = await reconciliationService.reprocessPaymentIntent(
-  paymentIntentId,
-);
-```
-
-### Scenario 3: Duplicate Payment Intent
-
-**Problem**: Multiple payment intents created for same checkout.
-
-**Solution**:
-```typescript
-// Idempotent reconciliation prevents duplicates
-// Returns existing order if already created
-const order = await reconciliationService.reprocessPaymentIntent(
-  paymentIntentId,
-);
-```
-
-## Inventory Reconciliation
-
-### Reservation Reconciliation
-
-```typescript
-async reconcileInventoryReservations(): Promise<void> {
-  // Find all variants with reservations
-  const variants = await this.getAllVariantsWithReservations();
-  
-  for (const variantId of variants) {
-    // Get aggregated reserved count
-    const aggregatedReserved = await this.getReservedInventory(variantId);
-    
-    // Get all individual reservations
-    const reservations = await this.getAllReservations(variantId);
-    const totalFromReservations = sumReservations(reservations);
-    
-    // Fix inconsistencies
-    if (aggregatedReserved !== totalFromReservations) {
-      await this.correctReservedCount(variantId, totalFromReservations);
-    }
-  }
-}
-```
-
-### Reservation Cleanup
-
-```typescript
-async cleanupExpiredReservations(): Promise<void> {
-  // Find expired reservations
-  const expiredReservations = await this.findExpiredReservations();
-  
-  for (const reservation of expiredReservations) {
-    // Release reservation
-    await this.releaseInventory(
-      reservation.cartId,
-      reservation.variantId,
-      reservation.quantity,
-    );
-  }
-}
-```
-
-## Order Status Reconciliation
-
-### Status Consistency Check
-
-```typescript
-async reconcileOrderStatuses(): Promise<ReconciliationReport> {
-  const inconsistencies: OrderInconsistency[] = [];
-  
-  // Find orders with payment but wrong status
-  const orders = await this.getOrdersWithPayments();
-  
-  for (const order of orders) {
-    const payment = await this.getPaymentByOrderId(order.id);
-    
-    if (payment.status === "captured" && order.status === "pending") {
-      inconsistencies.push({
-        orderId: order.id,
-        issue: "Payment captured but order still pending",
-        fix: "Update order status to confirmed",
-      });
-    }
-  }
-  
-  return {
-    inconsistencies,
-    fixed: await this.fixInconsistencies(inconsistencies),
-  };
-}
-```
+Inventory reconciliation is a critical process to ensure data consistency between orders and inventory levels. This document describes both automated and manual reconciliation procedures.
 
 ## Automated Reconciliation
 
-### Scheduled Reconciliation
+### Daily Reconciliation Job
 
-```typescript
-@Cron("0 */6 * * *") // Every 6 hours
-async scheduledReconciliation(): Promise<void> {
-  this.logger.info("Starting scheduled reconciliation");
-  
-  // Reconcile payment intents
-  await this.reconcilePaymentIntents();
-  
-  // Reconcile inventory
-  await this.reconcileInventoryReservations();
-  
-  // Reconcile order statuses
-  await this.reconcileOrderStatuses();
-  
-  this.logger.info("Scheduled reconciliation completed");
-}
-```
+A scheduled job runs daily at 2 AM to detect potential inventory mismatches:
 
-### Payment Intent Reconciliation
+- **Location**: `apps/backend/src/modules/orders/jobs/inventory-reconciliation.job.ts`
+- **Schedule**: Daily at 2 AM (configurable via `@Cron` decorator)
+- **Process**: 
+  - Scans orders from the last 24 hours
+  - Checks inventory levels for each order's variants
+  - Flags potential mismatches for manual review
 
-```typescript
-async reconcilePaymentIntents(): Promise<void> {
-  // Find payment intents without orders
-  const orphanedIntents = await this.findOrphanedPaymentIntents();
-  
-  for (const intent of orphanedIntents) {
-    try {
-      // Verify payment status
-      const status = await this.verifyPaymentStatus(intent.id, "razorpay");
-      
-      if (status === "captured") {
-        // Attempt reconciliation
-        await this.reprocessPaymentIntent(intent.id, "razorpay");
-      }
-    } catch (error) {
-      this.logger.error(
-        `Failed to reconcile payment intent ${intent.id}`,
-        error,
-      );
-    }
-  }
-}
-```
+### Monitoring
+
+Reconciliation results are logged with:
+- Number of mismatches found
+- Order IDs and issues detected
+- Errors encountered during reconciliation
 
 ## Manual Reconciliation
 
-### Admin Reconciliation Endpoint
+### When Manual Reconciliation is Needed
 
-```http
-POST /admin/orders/reconcile/{paymentIntentId}?provider=razorpay
+Manual reconciliation is required when:
+1. Inventory commit fails during order creation (CRITICAL)
+2. Automated reconciliation detects mismatches
+3. Inventory levels don't match expected values
+4. Orders exist but inventory wasn't decremented
+
+### Reconciliation Process
+
+#### Step 1: Identify Mismatched Orders
+
+Query orders where inventory commit may have failed:
+
+```sql
+-- Find orders from last 24 hours
+SELECT id, order_number, status, created_at
+FROM orders
+WHERE created_at >= NOW() - INTERVAL '24 hours'
+ORDER BY created_at DESC;
 ```
 
-**Response**:
-```json
-{
-  "orderId": "order-123",
-  "status": "created",
-  "message": "Order created successfully"
-}
-```
+#### Step 2: Check Inventory Levels
 
-### Reconciliation UI
+For each order, verify inventory was decremented:
 
 ```typescript
-// Admin can manually reconcile payment intents
-async reconcilePaymentIntent(paymentIntentId: string) {
-  try {
-    const order = await reconciliationService.reprocessPaymentIntent(
-      paymentIntentId,
-    );
-    toast.success("Order reconciled successfully");
-    return order;
-  } catch (error) {
-    toast.error(error.message || "Reconciliation failed");
-    throw error;
-  }
-}
+// Using Redis CLI or application
+GET inventory:variant:{variantId}
 ```
 
-## Reconciliation Reports
+Compare against expected inventory (should be decremented by order quantity).
 
-### Report Structure
+#### Step 3: Fix Inventory Mismatches
+
+**Option A: Compensation Transaction (Recommended)**
+
+If order was created but inventory wasn't decremented:
+1. Decrement inventory manually using the atomic Lua script
+2. Log the compensation transaction
+3. Update order status if needed
+
+**Option B: Rollback Order**
+
+If order creation failed but inventory was decremented:
+1. Increment inventory back
+2. Cancel/delete the order
+3. Notify customer if needed
+
+### Compensation Strategy
+
+**Decision**: Use compensation transactions (Option A) rather than rollbacks.
+
+**Rationale**:
+- Orders represent customer commitments - rolling back is disruptive
+- Compensation transactions maintain order integrity
+- Easier to audit and track corrections
+- Less risk of data inconsistency
+
+### Manual Reconciliation Endpoint
+
+For admin use, a reconciliation endpoint is available:
 
 ```typescript
-interface ReconciliationReport {
-  timestamp: Date;
-  paymentIntentsReconciled: number;
-  ordersCreated: number;
-  inconsistenciesFound: number;
-  inconsistenciesFixed: number;
-  errors: ReconciliationError[];
-}
+// POST /admin/orders/reconcile/{orderId}
+// Manually trigger reconciliation for a specific order
 ```
 
-### Generating Reports
+## Inventory Commit Failure Handling
 
-```typescript
-async generateReconciliationReport(): Promise<ReconciliationReport> {
-  const report: ReconciliationReport = {
-    timestamp: new Date(),
-    paymentIntentsReconciled: 0,
-    ordersCreated: 0,
-    inconsistenciesFound: 0,
-    inconsistenciesFixed: 0,
-    errors: [],
-  };
-  
-  // Run reconciliation
-  const result = await this.reconcilePaymentIntents();
-  
-  report.paymentIntentsReconciled = result.processed;
-  report.ordersCreated = result.ordersCreated;
-  report.inconsistenciesFound = result.inconsistencies.length;
-  report.inconsistenciesFixed = result.fixed;
-  
-  return report;
-}
-```
+### Detection
 
-## Error Handling
+Inventory commit failures are detected through:
+1. **Metrics**: `inventory_commit_failed_total` counter in Prometheus
+2. **Logs**: Critical error logs with `critical: true` tag
+3. **Reconciliation Job**: Daily automated checks
 
-### Reconciliation Failures
+### Response Procedure
 
-```typescript
-try {
-  await this.reprocessPaymentIntent(paymentIntentId);
-} catch (error) {
-  // Log error with context
-  this.logger.error(
-    createErrorContext(this.contextService, "reconciliation", error, {
-      paymentIntentId,
-    }),
-    "Reconciliation failed",
-  );
-  
-  // Notify admin
-  await this.notificationsService.notifyAdmin({
-    type: "RECONCILIATION_FAILED",
-    paymentIntentId,
-    error: error.message,
-  });
-}
-```
+1. **Immediate**: 
+   - Check Prometheus metrics for failure count
+   - Review critical error logs
+   - Identify affected orders
+
+2. **Short-term**:
+   - Run manual reconciliation for affected orders
+   - Fix inventory mismatches using compensation transactions
+   - Verify fixes
+
+3. **Long-term**:
+   - Investigate root cause (Redis connectivity, Lua script errors, etc.)
+   - Implement preventive measures
+   - Update monitoring/alerting thresholds
+
+## Monitoring & Alerting
+
+### Critical Alerts
+
+Set up alerts for:
+- `inventory_commit_failed_total > 0` (any failure is critical)
+- Reconciliation job failures
+- High mismatch rate (> 1% of orders)
+
+### Dashboards
+
+Monitor:
+- Inventory commit failure rate
+- Reconciliation job execution status
+- Mismatch detection trends
+- Compensation transaction counts
 
 ## Best Practices
 
-1. **Idempotency**: Always make reconciliation idempotent
-2. **Logging**: Log all reconciliation actions
-3. **Monitoring**: Monitor reconciliation success rates
-4. **Automation**: Schedule regular reconciliation
-5. **Manual Override**: Allow manual reconciliation for edge cases
+1. **Regular Monitoring**: Check metrics daily
+2. **Quick Response**: Address mismatches within 24 hours
+3. **Documentation**: Log all manual reconciliation actions
+4. **Root Cause Analysis**: Investigate patterns in failures
+5. **Prevention**: Address underlying issues causing failures
 
-## Edge Cases
+## Troubleshooting
 
-### Checkout Session Expired
+### Common Issues
 
-- Checkout session may have expired
-- Payment intent still valid
-- Reconciliation uses payment gateway data
+**Issue**: Reconciliation job not running
+- **Check**: Cron schedule configuration
+- **Verify**: Job is registered in OrdersModule
 
-### Multiple Payment Attempts
+**Issue**: High mismatch rate
+- **Check**: Redis connectivity and performance
+- **Verify**: Lua script execution success rate
+- **Review**: Order creation flow for errors
 
-- Multiple payments for same intent
-- Reconciliation handles gracefully
-- Uses first successful payment
+**Issue**: Inventory levels incorrect
+- **Check**: Manual inventory adjustments
+- **Verify**: No concurrent modifications
+- **Review**: Order cancellation/refund processes
 
-### Partial Order Creation
+## Related Documentation
 
-- Order partially created
-- Reconciliation completes order
-- Handles partial data gracefully
-
+- [Order Creation Flow](./creation.md)
+- [Inventory Management](../catalog/inventory.md)
+- [Monitoring & Observability](../observability/)

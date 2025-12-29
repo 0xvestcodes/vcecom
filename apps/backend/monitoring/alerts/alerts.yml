@@ -1,0 +1,98 @@
+# Prometheus Alert Rules for VCEcom Backend
+# This file contains alert rules that will be evaluated by Prometheus
+
+groups:
+  - name: vcecom-backend-alerts
+    interval: 30s
+    rules:
+      - alert: CriticalInventoryCommitFailure
+        expr: orders_inventory_commit_failures_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          tier: backend
+        annotations:
+          summary: "Critical: Inventory commit failed for an order"
+          description: "An order was created, but the inventory commit failed. Manual reconciliation is required. Check logs for order_id and cart_id. (Value: {{ $value }})"
+
+      - alert: PaymentIntentCreationFailure
+        expr: increase(orders_payment_intent_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: high
+          tier: backend
+        annotations:
+          summary: "High: Multiple payment intent creation failures"
+          description: "More than 5 payment intent creations failed in the last 5 minutes. Investigate payment gateway integration or transient errors. (Value: {{ $value }})"
+
+      - alert: PaymentWebhookProcessingFailure
+        expr: increase(orders_webhook_failures_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: high
+          tier: backend
+        annotations:
+          summary: "High: Multiple payment webhook processing failures"
+          description: "More than 5 payment webhooks failed to process in the last 5 minutes. Investigate webhook handler logic or external payment provider issues. (Value: {{ $value }})"
+
+      - alert: CheckoutSessionTimeoutRateHigh
+        expr: rate(orders_checkout_session_timeouts_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: medium
+          tier: backend
+        annotations:
+          summary: "Medium: High rate of checkout session timeouts"
+          description: "A high rate of checkout session timeouts detected. This could indicate user abandonment or issues with the checkout flow. (Value: {{ $value }})"
+
+      - alert: HighErrorRateAPI
+        expr: |
+          sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (method, route) /
+          sum(rate(http_requests_total[5m])) by (method, route) > 0.05
+        for: 5m
+        labels:
+          severity: high
+          tier: backend
+        annotations:
+          summary: "High: High API error rate ({{ $labels.method }} {{ $labels.route }})"
+          description: "The error rate for API endpoint {{ $labels.method }} {{ $labels.route }} is above 5%. (Value: {{ $value }})"
+
+      - alert: APIRequestLatencyHigh
+        expr: http_request_duration_seconds{quantile="0.99"} > 1
+        for: 5m
+        labels:
+          severity: medium
+          tier: backend
+        annotations:
+          summary: "Medium: High API request latency (P99 over 1 second)"
+          description: "The 99th percentile of API request duration is over 1 second. Investigate backend performance. (Value: {{ $value }}s)"
+
+      - alert: InventoryReconciliationFailure
+        expr: increase(inventory_reconciliation_runs_total[1h]) == 0
+        for: 25h
+        labels:
+          severity: high
+          tier: backend
+        annotations:
+          summary: "High: Inventory reconciliation job not running"
+          description: "The daily inventory reconciliation job has not run in the last 25 hours. Manual intervention may be required. (Value: {{ $value }})"
+
+      - alert: NegativeInventoryCorrection
+        expr: increase(inventory_negative_corrections_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          tier: backend
+        annotations:
+          summary: "Critical: Negative inventory correction detected"
+          description: "A negative inventory correction was applied, indicating a severe inventory mismatch. Immediate investigation required. (Value: {{ $value }})"
+
+      - alert: RefundProcessingFailure
+        expr: increase(orders_refund_processing_failures_total[5m]) > 0
+        for: 5m
+        labels:
+          severity: high
+          tier: backend
+        annotations:
+          summary: "High: Refund processing failed"
+          description: "A refund failed to process via the payment gateway. Manual intervention is required. (Value: {{ $value }})"

@@ -10,6 +10,7 @@ import {
   productVariants,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
+import { AuditLogService } from "../../../../common/audit/audit-log.service";
 import { COD_PAYMENT_METHOD } from "../../../../common/constants/orders.constants";
 import { ContextService } from "../../../../common/logging/context.service";
 import {
@@ -37,6 +38,7 @@ export class OrderPersistenceService {
     private readonly contextService: ContextService,
     @Inject(DB_TOKEN) private readonly db: Database,
     private readonly bundlePricingService: BundlePricingService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
   /**
@@ -127,6 +129,13 @@ export class OrderPersistenceService {
       }),
       "Order persisted to database",
     );
+
+    // Log audit event
+    await this.auditLogService.logOrderCreation(order.id, customerId, {
+      orderNumber,
+      total: orderData.total,
+      paymentMethod: orderData.paymentMethod,
+    });
 
     return { id: order.id, orderNumber };
   }

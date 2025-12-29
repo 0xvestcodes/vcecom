@@ -1,0 +1,81 @@
+{
+  "dashboard": {
+    "title": "Payment Processing",
+    "tags": ["orders", "payment", "processing"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Payment Intent Creation Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(payment_intent_created_total[5m])",
+            "legendFormat": "Success - {{provider}}"
+          },
+          {
+            "expr": "rate(payment_intent_created_failed_total[5m])",
+            "legendFormat": "Failed - {{provider}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "ops"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Webhook Processing Duration",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(webhook_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "95th percentile - {{provider}}"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(webhook_processing_duration_seconds_bucket[5m]))",
+            "legendFormat": "50th percentile - {{provider}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "format": "s"
+          }
+        ]
+      },
+      {
+        "id": 3,
+        "title": "Payment Intent Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "rate(payment_intent_created_total[5m]) / (rate(payment_intent_created_total[5m]) + rate(payment_intent_created_failed_total[5m]))",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit",
+            "min": 0,
+            "max": 1
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Payment Intent Failures by Error Type",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "sum by (error_type) (increase(payment_intent_created_failed_total[1h]))",
+            "legendFormat": "{{error_type}}"
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "schemaVersion": 27,
+    "version": 1
+  }
+}

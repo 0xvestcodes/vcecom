@@ -5,6 +5,7 @@ import {
   eq,
   orderNotes,
   orders,
+  orderTimeline,
   payments,
   refunds,
   shipments,
@@ -110,6 +111,7 @@ export class OrderTimelineService {
 
   /**
    * Build timeline events from order data
+   * Merges persisted timeline events with dynamically generated events from related tables
    * @private
    */
   private async buildTimelineEvents(
@@ -118,17 +120,49 @@ export class OrderTimelineService {
   ): Promise<TimelineEventDto[]> {
     const events: TimelineEventDto[] = [];
 
-    // Add order creation event
-    events.push({
-      type: TimelineEventType.ORDER_CREATED,
-      title: "Order Created",
-      description: `Order ${order.orderNumber} was created`,
-      timestamp: order.createdAt,
-      metadata: {
-        orderNumber: order.orderNumber,
-        total: order.total,
-      },
-    });
+    // Get persisted timeline events from database
+    const persistedEvents = await this.db
+      .select()
+      .from(orderTimeline)
+      .where(eq(orderTimeline.orderId, orderId))
+      .orderBy(orderTimeline.timestamp);
+
+    // Add persisted events to timeline
+    for (const persistedEvent of persistedEvents) {
+      events.push({
+        type: persistedEvent.type as TimelineEventType,
+        title: persistedEvent.title,
+        description: persistedEvent.description || undefined,
+        timestamp: persistedEvent.timestamp,
+        actor:
+          (persistedEvent.actor as
+            | "system"
+            | "admin"
+            | "customer"
+            | "automated") || undefined,
+        actorId: persistedEvent.actorId || undefined,
+        metadata: persistedEvent.metadata as
+          | Record<string, unknown>
+          | undefined,
+      });
+    }
+
+    // Track which event types we've already added from persisted events
+    const persistedEventTypes = new Set(persistedEvents.map((e) => e.type));
+
+    // Add order creation event (if not already persisted)
+    if (!persistedEventTypes.has("order_created")) {
+      events.push({
+        type: TimelineEventType.ORDER_CREATED,
+        title: "Order Created",
+        description: `Order ${order.orderNumber} was created`,
+        timestamp: order.createdAt,
+        metadata: {
+          orderNumber: order.orderNumber,
+          total: order.total,
+        },
+      });
+    }
 
     // Get payments for this order
     const orderPayments = await this.db
@@ -380,8 +414,7 @@ export class OrderTimelineService {
 
   /**
    * Add an event to the order timeline
-   * Note: Currently events are generated dynamically from database records.
-   * This method is a placeholder for future event storage implementation.
+   * Persists the event to the database for historical tracking
    * @param orderId - Order ID
    * @param event - Event to add
    */
@@ -400,7 +433,18 @@ export class OrderTimelineService {
       throw new NotFoundException(`Order with ID ${orderId} not found`);
     }
 
-    // Log the event for now (future: store in event table or JSONB field)
+    // Persist event to database
+    await this.db.insert(orderTimeline).values({
+      orderId,
+      type: event.type as string,
+      title: event.title,
+      description: event.description || null,
+      timestamp: event.timestamp || new Date(),
+      actor: event.actor || null,
+      actorId: event.actorId || null,
+      metadata: event.metadata || null,
+    });
+
     this._logger.info(
       {
         orderId,
@@ -408,10 +452,7 @@ export class OrderTimelineService {
         actor: event.actor,
         actorId: event.actorId,
       },
-      "Timeline event added",
+      "Timeline event persisted",
     );
-
-    // Future implementation: Store events in a separate table or JSONB field
-    // For now, events are generated dynamically from database records
   }
 }

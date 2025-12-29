@@ -445,6 +445,11 @@ export class AdminOrdersController {
     description:
       "Manually mark a Cash on Delivery order as paid. Only works for COD orders that are not already paid.",
   })
+  @ApiParam({
+    name: "id",
+    description: "Order ID",
+    example: "123e4567-e89b-12d3-a456-426614174000",
+  })
   @ApiResponse({
     status: 200,
     description: "Order marked as paid successfully",
@@ -477,6 +482,11 @@ export class AdminOrdersController {
     description:
       "Create a refund for an order. Refund will be processed via payment provider if available.",
   })
+  @ApiParam({
+    name: "id",
+    description: "Order ID",
+    example: "123e4567-e89b-12d3-a456-426614174000",
+  })
   @ApiResponse({
     status: 201,
     description: "Refund created successfully",
@@ -508,6 +518,11 @@ export class AdminOrdersController {
     summary: "Get all refunds for an order (admin)",
     description: "Retrieve all refunds associated with an order.",
   })
+  @ApiParam({
+    name: "id",
+    description: "Order ID",
+    example: "123e4567-e89b-12d3-a456-426614174000",
+  })
   @ApiResponse({
     status: 200,
     description: "List of refunds retrieved successfully",
@@ -529,6 +544,11 @@ export class AdminOrdersController {
     summary: "Get all notes for an order (admin)",
     description:
       "Retrieve all notes (both admin and customer-visible) for an order.",
+  })
+  @ApiParam({
+    name: "id",
+    description: "Order ID",
+    example: "123e4567-e89b-12d3-a456-426614174000",
   })
   @ApiResponse({
     status: 200,
@@ -553,6 +573,11 @@ export class AdminOrdersController {
     summary: "Create note for an order (admin)",
     description:
       "Add a note to an order. Notes can be admin-only or customer-visible.",
+  })
+  @ApiParam({
+    name: "id",
+    description: "Order ID",
+    example: "123e4567-e89b-12d3-a456-426614174000",
   })
   @ApiResponse({
     status: 201,
@@ -588,6 +613,11 @@ export class AdminOrdersController {
     summary: "Update order address (admin)",
     description:
       "Update shipping or billing address for an order. Validates address fields and PIN code format.",
+  })
+  @ApiParam({
+    name: "id",
+    description: "Order ID",
+    example: "123e4567-e89b-12d3-a456-426614174000",
   })
   @ApiResponse({
     status: 200,

@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common";
+import { inArray, productVariants } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../../common/logging/context.service";
 import { createErrorContext } from "../../../../common/logging/logging.helper";
@@ -91,6 +92,43 @@ export class OrderPricingEngineService {
       const activePriceLists =
         await this.pricingService.getPriceListsForCustomer(customerGroupId);
 
+      // Fetch variant pricing data (compareAtPrice, salePrice, etc.)
+      const variantIds = [
+        ...cartItemsWithVariants.map((item) => item.productVariantId),
+        ...flattenedBundleVariants.map((v) => v.variantId),
+      ];
+      const variantPricingMap = new Map<
+        string,
+        {
+          compareAtPrice: number | null;
+          salePrice: number | null;
+          saleStartDate: Date | null;
+          saleEndDate: Date | null;
+        }
+      >();
+
+      if (variantIds.length > 0) {
+        const variants = await this._db
+          .select({
+            id: productVariants.id,
+            compareAtPrice: productVariants.compareAtPrice,
+            salePrice: productVariants.salePrice,
+            saleStartDate: productVariants.saleStartDate,
+            saleEndDate: productVariants.saleEndDate,
+          })
+          .from(productVariants)
+          .where(inArray(productVariants.id, variantIds));
+
+        for (const variant of variants) {
+          variantPricingMap.set(variant.id, {
+            compareAtPrice: variant.compareAtPrice,
+            salePrice: variant.salePrice,
+            saleStartDate: variant.saleStartDate,
+            saleEndDate: variant.saleEndDate,
+          });
+        }
+      }
+
       // Build variant pricing input (variants + flattened bundles)
       const variantPricingInput = [
         ...cartItemsWithVariants.map((item) => {
@@ -100,27 +138,31 @@ export class OrderPricingEngineService {
           const product = productId
             ? productMapForPricing.get(productId)
             : null;
+          const variantPricing = variantPricingMap.get(item.productVariantId);
           return {
             variantId: item.productVariantId,
             productId: productId || "",
             categoryId: product?.categoryId || null,
             basePrice: item.price,
-            compareAtPrice: undefined, // TODO: Load from variant
-            salePrice: undefined, // TODO: Load from variant
-            saleStartDate: undefined,
-            saleEndDate: undefined,
+            compareAtPrice: variantPricing?.compareAtPrice || undefined,
+            salePrice: variantPricing?.salePrice || undefined,
+            saleStartDate: variantPricing?.saleStartDate || undefined,
+            saleEndDate: variantPricing?.saleEndDate || undefined,
           };
         }),
-        ...flattenedBundleVariants.map((v) => ({
-          variantId: v.variantId,
-          productId: v.productId,
-          categoryId: v.categoryId,
-          basePrice: v.basePrice,
-          compareAtPrice: undefined,
-          salePrice: undefined,
-          saleStartDate: undefined,
-          saleEndDate: undefined,
-        })),
+        ...flattenedBundleVariants.map((v) => {
+          const variantPricing = variantPricingMap.get(v.variantId);
+          return {
+            variantId: v.variantId,
+            productId: v.productId,
+            categoryId: v.categoryId,
+            basePrice: v.basePrice,
+            compareAtPrice: variantPricing?.compareAtPrice || undefined,
+            salePrice: variantPricing?.salePrice || undefined,
+            saleStartDate: variantPricing?.saleStartDate || undefined,
+            saleEndDate: variantPricing?.saleEndDate || undefined,
+          };
+        }),
       ];
 
       // Run pricing engine
