@@ -24,6 +24,7 @@ import {
 } from "@nestjs/swagger";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
 import { Roles } from "../../common/decorators/roles.decorator";
+import { PaginatedResponseDto } from "../../common/dto/pagination.dto";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
 import { CollectionsService } from "./collections.service";
 import { AddProductsDto } from "./dto/add-products.dto";
@@ -73,7 +74,9 @@ export class CollectionsController {
   @ApiForbiddenResponse({
     description: "Access denied. Admin role required.",
   })
-  async findAll(@Query() query: QueryCollectionsDto) {
+  async findAll(
+    @Query() query: QueryCollectionsDto,
+  ): Promise<PaginatedResponseDto<CollectionResponseDto>> {
     return this.collectionsService.findAll(query);
   }
 
@@ -207,7 +210,7 @@ export class CollectionsController {
   @ApiForbiddenResponse({
     description: "Access denied. Admin role required.",
   })
-  async remove(@Param("id") id: string) {
+  async remove(@Param("id") id: string): Promise<void> {
     return this.collectionsService.remove(id);
   }
 
@@ -236,7 +239,16 @@ export class CollectionsController {
   @ApiForbiddenResponse({
     description: "Access denied. Admin role required.",
   })
-  async getProducts(@Param("id") id: string) {
+  async getProducts(@Param("id") id: string): Promise<
+    Array<{
+      id: string;
+      title: string;
+      price: number;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }>
+  > {
     return this.collectionsService.getProducts(id);
   }
 
@@ -360,7 +372,7 @@ export class CollectionsController {
   @ApiForbiddenResponse({
     description: "Access denied. Admin role required.",
   })
-  async preview(@Param("id") id: string) {
+  async preview(@Param("id") id: string): Promise<{ count: number }> {
     return this.collectionsService.preview(id);
   }
 }

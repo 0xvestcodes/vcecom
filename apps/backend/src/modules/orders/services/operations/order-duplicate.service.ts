@@ -416,6 +416,18 @@ export class OrderDuplicateService {
       ...newOrder,
       gstBreakdown,
       items,
-    } as OrderResponseDto;
+      paymentFeeBreakdown:
+        (newOrder.paymentFeeBreakdown as {
+          method: string;
+          chargeType: string;
+          calculatedFee: number;
+          flatAmount?: number;
+          percentage?: number;
+          mixMin?: number;
+          mixCap?: number;
+        } | null) || null,
+      discountCode: newOrder.discountCode ?? undefined,
+      discountAmount: newOrder.discountAmount ?? undefined,
+    };
   }
 }

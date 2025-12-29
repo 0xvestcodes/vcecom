@@ -57,7 +57,10 @@ import { PriceListService } from "../pricing/services/price-list.service";
 import { StorageService } from "../storage/storage.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { FilterProductsDto, SortField, SortOrder } from "./dto/filter.dto";
-import { ProductResponseDto } from "./dto/product-response.dto";
+import {
+  PaginatedProductsResponseDto,
+  ProductResponseDto,
+} from "./dto/product-response.dto";
 import { QueryProductsDto } from "./dto/query-products.dto";
 import {
   SearchProductsDto,
@@ -129,7 +132,9 @@ export class ProductsService {
    * Get all products with pagination, search, and filters
    */
   @Trace({ operation: "ProductsService.findAll" })
-  async findAll(query: QueryProductsDto) {
+  async findAll(
+    query: QueryProductsDto,
+  ): Promise<PaginatedProductsResponseDto> {
     const { page, limit, offset } = normalizePaginationParams(
       query.page,
       query.limit,
@@ -338,7 +343,9 @@ export class ProductsService {
    * Supports filtering by category, price range, availability, and status
    * Supports sorting by price, name, or date
    */
-  async filter(filterDto: FilterProductsDto) {
+  async filter(
+    filterDto: FilterProductsDto,
+  ): Promise<PaginatedProductsResponseDto> {
     const { page, limit, offset } = normalizePaginationParams(
       filterDto.page,
       filterDto.limit,
@@ -455,8 +462,15 @@ export class ProductsService {
 
     const pagination = generatePaginationMetadata(Number(total), page, limit);
 
+    // Get first images for all products
+    const productIds = allProducts.map((p) => p.id);
+    const firstImages = await this.getFirstImagesForProducts(productIds);
+
     return {
-      data: allProducts.map((product) => this.enrichProductWithGst(product)),
+      data: allProducts.map((product) => ({
+        ...this.enrichProductWithGst(product),
+        thumbnailUrl: firstImages.get(product.id) || null,
+      })),
       total: pagination.total,
       page: pagination.page,
       limit: pagination.limit,
@@ -470,7 +484,7 @@ export class ProductsService {
    * Get product by ID
    */
   @Trace({ operation: "ProductsService.findOne" })
-  async findOne(id: string) {
+  async findOne(id: string): Promise<ProductResponseDto> {
     const [product] = await this.db
       .select()
       .from(products)

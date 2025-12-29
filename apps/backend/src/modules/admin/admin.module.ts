@@ -1,5 +1,6 @@
 import { Module } from "@nestjs/common";
 import { CartsModule } from "../carts/carts.module";
+import { DatabaseModule } from "../database/database.module";
 import { DiscountsModule } from "../discounts/discounts.module";
 import { AdminOrdersController } from "../orders/admin-orders.controller";
 import { OrdersModule } from "../orders/orders.module";
@@ -10,6 +11,7 @@ import { AdminController } from "./admin.controller";
 import { AdminService } from "./admin.service";
 import { AdminActivityLogsController } from "./admin-activity-logs.controller";
 import { AdminActivityLogsService } from "./admin-activity-logs.service";
+import { AdminBackupController } from "./admin-backup.controller";
 import { AdminDashboardsController } from "./admin-dashboards.controller";
 import { AdminJobsController } from "./admin-jobs.controller";
 import { AdminRedisController } from "./admin-redis.controller";
@@ -25,6 +27,7 @@ import { RedisHealthService } from "./services/redis-health.service";
     OrdersModule,
     DiscountsModule,
     PricingModule,
+    DatabaseModule, // Import DatabaseModule to access DatabaseBackupService
   ],
   controllers: [
     AdminController,
@@ -33,6 +36,7 @@ import { RedisHealthService } from "./services/redis-health.service";
     AdminJobsController,
     AdminOrdersController,
     AdminDashboardsController,
+    AdminBackupController,
   ],
   providers: [
     AdminService,

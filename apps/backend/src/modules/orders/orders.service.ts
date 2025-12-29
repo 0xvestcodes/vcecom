@@ -101,7 +101,7 @@ export class OrdersService {
    * Get order by ID (for authenticated customer)
    */
   @Trace({ operation: "OrdersService.findOne" })
-  async findOne(userId: string, orderId: string) {
+  async findOne(userId: string, orderId: string): Promise<OrderResponseDto> {
     return this.queryService.findOne(userId, orderId);
   }
 
@@ -109,7 +109,7 @@ export class OrdersService {
    * Get order by ID (for public access - e.g., order tracking)
    */
   @Trace({ operation: "OrdersService.findOnePublic" })
-  async findOnePublic(orderId: string) {
+  async findOnePublic(orderId: string): Promise<OrderResponseDto> {
     return this.queryService.findOnePublic(orderId);
   }
 
@@ -117,7 +117,10 @@ export class OrdersService {
    * Get all orders for a customer
    */
   @Trace({ operation: "OrdersService.findAll" })
-  async findAll(userId: string, status?: OrderStatus) {
+  async findAll(
+    userId: string,
+    status?: OrderStatus,
+  ): Promise<OrderResponseDto[]> {
     return this.queryService.findAll(userId, status);
   }
 
@@ -133,7 +136,7 @@ export class OrdersService {
     userId: string,
     orderId: string,
     updateStatusDto: UpdateOrderStatusDto,
-  ) {
+  ): Promise<OrderResponseDto> {
     return this.statusService.updateStatus(userId, orderId, updateStatusDto);
   }
 

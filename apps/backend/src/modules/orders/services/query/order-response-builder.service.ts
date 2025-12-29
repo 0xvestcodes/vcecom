@@ -119,30 +119,49 @@ export class OrderResponseBuilderService {
       shippingAddressId,
     );
 
+    // Get order to retrieve timestamps and other fields
+    const [order] = await this.db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, orderId))
+      .limit(1);
+
     // Build order response
     const orderResponse: OrderResponseDto = {
       id: orderId,
       customerId,
       orderNumber,
-      status: "pending",
+      status: order?.status || "pending",
       subtotal,
       gstAmount: totalGstAmount,
       gstBreakdown,
       shippingCost,
       paymentFee: paymentFee > 0 ? paymentFee : undefined,
       paymentMethod: paymentMethod || null,
-      paymentFeeBreakdown: paymentFeeBreakdown || null,
+      paymentFeeBreakdown:
+        (paymentFeeBreakdown as {
+          method: string;
+          chargeType: string;
+          calculatedFee: number;
+          flatAmount?: number;
+          percentage?: number;
+          mixMin?: number;
+          mixCap?: number;
+        } | null) || null,
       total,
       razorpayOrderId: paymentIntentId || null,
-      shippingProvider: null,
+      shippingProvider: order?.shippingProvider || null,
       shippingAddressId,
       billingAddressId,
-      discountCode,
-      discountAmount,
       items: orderItemsList,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    } as OrderResponseDto;
+      createdAt: order?.createdAt || new Date(),
+      updatedAt: order?.updatedAt || new Date(),
+      archived: order?.archived || false,
+      archivedAt: order?.archivedAt || null,
+      archivedBy: order?.archivedBy || null,
+      discountCode: discountCode ?? undefined,
+      discountAmount: discountAmount ?? undefined,
+    };
 
     return orderResponse;
   }

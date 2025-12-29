@@ -24,13 +24,21 @@ import { ExtendedRequest } from "../logging/types";
 @Injectable()
 export class TracingInterceptor implements NestInterceptor {
   private readonly tracer = trace.getTracer("vcecom-backend");
+  private readonly isTracingEnabled: boolean;
 
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
-  ) {}
+  ) {
+    // Check if tracing is enabled
+    this.isTracingEnabled = !!process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT;
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
+    // Skip tracing if not enabled
+    if (!this.isTracingEnabled) {
+      return next.handle();
+    }
     const request = context.switchToHttp().getRequest<ExtendedRequest>();
     const response = context.switchToHttp().getResponse();
     const handler = context.getHandler();

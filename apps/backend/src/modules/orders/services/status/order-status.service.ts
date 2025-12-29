@@ -136,7 +136,19 @@ export class OrderStatusService {
       ...updatedOrder,
       gstBreakdown,
       items,
-    } as OrderResponseDto;
+      paymentFeeBreakdown:
+        (updatedOrder.paymentFeeBreakdown as {
+          method: string;
+          chargeType: string;
+          calculatedFee: number;
+          flatAmount?: number;
+          percentage?: number;
+          mixMin?: number;
+          mixCap?: number;
+        } | null) || null,
+      discountCode: updatedOrder.discountCode ?? undefined,
+      discountAmount: updatedOrder.discountAmount ?? undefined,
+    };
   }
 
   /**
@@ -203,7 +215,19 @@ export class OrderStatusService {
       ...updatedOrder,
       gstBreakdown,
       items,
-    } as OrderResponseDto;
+      paymentFeeBreakdown:
+        (updatedOrder.paymentFeeBreakdown as {
+          method: string;
+          chargeType: string;
+          calculatedFee: number;
+          flatAmount?: number;
+          percentage?: number;
+          mixMin?: number;
+          mixCap?: number;
+        } | null) || null,
+      discountCode: updatedOrder.discountCode ?? undefined,
+      discountAmount: updatedOrder.discountAmount ?? undefined,
+    };
   }
 
   /**

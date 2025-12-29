@@ -439,12 +439,12 @@ export class AdminController {
     @Request() req: AuthenticatedRequest,
     @Param("orderId") orderId: string,
   ): Promise<MarkOrderPaidResponseDto> {
-    return (await this.orderPaymentService.markAsPaid(
+    return await this.orderPaymentService.markAsPaid(
       orderId,
       req.user.userId,
       req.user.email.split("@")[0],
       req.user.email,
-    )) as unknown as MarkOrderPaidResponseDto;
+    );
   }
 
   @Post("orders/:orderId/refund")
@@ -472,11 +472,11 @@ export class AdminController {
     @Param("orderId") orderId: string,
     @Body() createRefundDto: CreateRefundDto,
   ): Promise<RefundResponseDto> {
-    return (await this.refundsService.create(
+    return await this.refundsService.create(
       orderId,
       createRefundDto.amount,
       createRefundDto.reason,
-    )) as unknown as RefundResponseDto;
+    );
   }
 
   @Get("orders/:orderId/refunds")
@@ -497,9 +497,7 @@ export class AdminController {
   async getRefunds(
     @Param("orderId") orderId: string,
   ): Promise<RefundResponseDto[]> {
-    return (await this.refundsService.findByOrderId(
-      orderId,
-    )) as unknown as RefundResponseDto[];
+    return await this.refundsService.findByOrderId(orderId);
   }
 
   @Get("orders/:orderId/notes")
@@ -521,9 +519,7 @@ export class AdminController {
   async getOrderNotes(
     @Param("orderId") orderId: string,
   ): Promise<OrderNoteResponseDto[]> {
-    return (await this.orderNotesService.findByOrderId(
-      orderId,
-    )) as unknown as OrderNoteResponseDto[];
+    return await this.orderNotesService.findByOrderId(orderId);
   }
 
   @Post("orders/:orderId/notes")
@@ -551,14 +547,14 @@ export class AdminController {
     @Param("orderId") orderId: string,
     @Body() createNoteDto: CreateOrderNoteDto,
   ): Promise<OrderNoteResponseDto> {
-    return (await this.orderNotesService.create(
+    return await this.orderNotesService.create(
       orderId,
       createNoteDto.note,
       createNoteDto.isPublic || false,
       req.user.userId,
       req.user.email.split("@")[0],
       req.user.email,
-    )) as unknown as OrderNoteResponseDto;
+    );
   }
 
   @Patch("orders/:orderId/addresses")
@@ -586,7 +582,7 @@ export class AdminController {
     @Param("orderId") orderId: string,
     @Body() updateAddressDto: UpdateOrderAddressDto,
   ): Promise<MarkOrderPaidResponseDto> {
-    return (await this.orderAddressService.updateAddress(
+    return await this.orderAddressService.updateAddress(
       orderId,
       updateAddressDto.addressType,
       {
@@ -598,6 +594,6 @@ export class AdminController {
         district: updateAddressDto.district,
       },
       req.user.userId,
-    )) as unknown as MarkOrderPaidResponseDto;
+    );
   }
 }

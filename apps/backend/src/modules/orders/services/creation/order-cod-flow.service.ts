@@ -320,6 +320,18 @@ export class OrderCodFlowService {
       ...order,
       gstBreakdown,
       items: orderItemsList,
-    } as OrderResponseDto;
+      paymentFeeBreakdown:
+        (order.paymentFeeBreakdown as {
+          method: string;
+          chargeType: string;
+          calculatedFee: number;
+          flatAmount?: number;
+          percentage?: number;
+          mixMin?: number;
+          mixCap?: number;
+        } | null) || null,
+      discountCode: order.discountCode ?? undefined,
+      discountAmount: order.discountAmount ?? undefined,
+    };
   }
 }
