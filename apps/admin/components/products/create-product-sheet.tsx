@@ -58,7 +58,7 @@ export function CreateProductSheet({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<CreateProductFormValues>({
-    resolver: zodResolver(createProductFormSchema),
+    resolver: zodResolver(createProductFormSchema) as any,
     defaultValues: {
       title: "",
       description: "",
@@ -107,7 +107,7 @@ export function CreateProductSheet({
           >
             {/* Basic Information Section */}
             <CollapsibleSection title="Basic Information" defaultOpen>
-              <FormField
+              <FormField<CreateProductFormValues>
                 control={form.control}
                 name="title"
                 render={({ field }) => (
@@ -121,7 +121,7 @@ export function CreateProductSheet({
                 )}
               />
 
-              <FormField
+              <FormField<CreateProductFormValues>
                 control={form.control}
                 name="description"
                 render={({ field }) => (
@@ -140,7 +140,7 @@ export function CreateProductSheet({
               />
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField
+                <FormField<CreateProductFormValues>
                   control={form.control}
                   name="status"
                   render={({ field }) => (
@@ -148,7 +148,9 @@ export function CreateProductSheet({
                       <FormLabel>Status</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        defaultValue={
+                          field.value ? String(field.value) : undefined
+                        }
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -166,7 +168,7 @@ export function CreateProductSheet({
                   )}
                 />
 
-                <FormField
+                <FormField<CreateProductFormValues>
                   control={form.control}
                   name="categoryId"
                   render={({ field }) => (
@@ -188,7 +190,7 @@ export function CreateProductSheet({
 
             {/* Pricing Section */}
             <CollapsibleSection title="Pricing" defaultOpen>
-              <FormField
+              <FormField<CreateProductFormValues>
                 control={form.control}
                 name="price"
                 render={({ field }) => (
@@ -211,7 +213,7 @@ export function CreateProductSheet({
               />
 
               <div className="grid grid-cols-2 gap-4">
-                <FormField
+                <FormField<CreateProductFormValues>
                   control={form.control}
                   name="pricingType"
                   render={({ field }) => (
@@ -219,7 +221,9 @@ export function CreateProductSheet({
                       <FormLabel>Pricing Type</FormLabel>
                       <Select
                         onValueChange={field.onChange}
-                        defaultValue={field.value}
+                        defaultValue={
+                          field.value ? String(field.value) : "exclusive"
+                        }
                       >
                         <FormControl>
                           <SelectTrigger>
@@ -240,7 +244,7 @@ export function CreateProductSheet({
                   )}
                 />
 
-                <FormField
+                <FormField<CreateProductFormValues>
                   control={form.control}
                   name="gstRate"
                   render={({ field }) => (
@@ -270,7 +274,7 @@ export function CreateProductSheet({
 
             {/* Advanced Section */}
             <CollapsibleSection title="Advanced" defaultOpen={false}>
-              <FormField
+              <FormField<CreateProductFormValues>
                 control={form.control}
                 name="hsnCode"
                 render={({ field }) => (

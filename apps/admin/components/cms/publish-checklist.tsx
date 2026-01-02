@@ -161,7 +161,7 @@ function transformToChecklistItems(
     );
   } else {
     // Add valid items for common checks that aren't mentioned
-    const mentionedFields = new Set(
+    const _mentionedFields = new Set(
       items.map((item) => item.fieldName).filter(Boolean),
     );
     const mentionedLabels = items.map((item) => item.label.toLowerCase());
@@ -235,24 +235,18 @@ export function PublishChecklist({
         <div className="space-y-2">
           {items.map((item) => {
             const isClickable = item.fieldName || item.onClick;
+            const Component = isClickable ? "button" : "div";
             return (
-              <div
+              <Component
                 key={item.id}
+                type={isClickable ? "button" : undefined}
                 className={cn(
-                  "flex items-start gap-2 p-2 rounded-md transition-colors",
+                  "flex items-start gap-2 p-2 rounded-md transition-colors w-full text-left",
                   isClickable && "hover:bg-muted/50 cursor-pointer",
                   item.status === "error" && "bg-destructive/5",
                   item.status === "warning" && "bg-yellow-500/5",
                 )}
                 onClick={() => isClickable && handleItemClick(item)}
-                onKeyDown={(e) => {
-                  if (isClickable && (e.key === "Enter" || e.key === " ")) {
-                    e.preventDefault();
-                    handleItemClick(item);
-                  }
-                }}
-                role={isClickable ? "button" : undefined}
-                tabIndex={isClickable ? 0 : undefined}
               >
                 {item.status === "valid" && (
                   <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-500 mt-0.5 flex-shrink-0" />
@@ -275,7 +269,7 @@ export function PublishChecklist({
                 >
                   {item.label}
                 </span>
-              </div>
+              </Component>
             );
           })}
         </div>

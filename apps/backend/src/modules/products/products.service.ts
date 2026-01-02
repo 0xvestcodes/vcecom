@@ -3,7 +3,6 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  Optional,
 } from "@nestjs/common";
 import {
   and,
@@ -682,7 +681,7 @@ export class ProductsService {
 
     // Generate slug if title changed or slug explicitly provided
     let newSlug: string | undefined;
-    const oldSlug = existing.slug;
+    const _oldSlug = existing.slug;
     if (updateProductDto.slug !== undefined) {
       newSlug = updateProductDto.slug;
     } else if (updateProductDto.title !== undefined && !existing.slug) {

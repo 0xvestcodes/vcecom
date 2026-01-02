@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Edit, Plus, Tag, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -219,7 +219,7 @@ export function DiscountsListClientRefactored() {
           emptyComponent={<EmptyDiscountsState />}
           onRetry={() => refetch()}
         >
-          <DataTable
+          <DataTable<Discount>
             columns={columns}
             data={discountsData?.data || []}
             rowActions={rowActions}

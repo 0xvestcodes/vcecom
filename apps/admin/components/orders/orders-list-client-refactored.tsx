@@ -24,7 +24,6 @@ import type {
   OrderStatus,
   PaymentStatus,
 } from "@/lib/types/orders";
-import { formatCurrency } from "@/lib/utils";
 import { PaginationControls } from "../common/pagination-controls";
 import { DateTime } from "./date-time";
 import { EmptyOrdersState } from "./empty-orders-state";
@@ -52,7 +51,17 @@ export function OrdersListClientRefactored() {
     setOrderFilters((prev) => ({ ...prev, page: newPage }));
   }, []);
 
-  const pagination = usePagination(ordersData, handlePageChange);
+  const paginationData = ordersData
+    ? {
+        page: ordersData.page,
+        limit: ordersData.limit,
+        total: ordersData.total,
+        totalPages: ordersData.totalPages,
+        hasNextPage: ordersData.page < ordersData.totalPages,
+        hasPreviousPage: ordersData.page > 1,
+      }
+    : undefined;
+  const pagination = usePagination(paginationData, handlePageChange);
 
   const handleClearFilters = useCallback(() => {
     setOrderFilters({
@@ -281,7 +290,7 @@ export function OrdersListClientRefactored() {
         emptyComponent={<EmptyOrdersState />}
         onRetry={() => window.location.reload()}
       >
-        <DataTable
+        <DataTable<Order>
           columns={columns}
           data={ordersData?.data || []}
           rowActions={rowActions}

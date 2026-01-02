@@ -6,7 +6,6 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { CollapsibleSection } from "@/components/common/collapsible-section";
 import { EditorPanel } from "@/components/layout/editor-panel";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -92,20 +91,7 @@ export function CollectionEditorPanel({
   return (
     <>
       <EditorPanel
-        title={
-          <div className="flex items-center gap-2">
-            {collection.name}
-            {collection.type && (
-              <Badge
-                variant={
-                  collection.type === "automatic" ? "default" : "secondary"
-                }
-              >
-                {collection.type === "automatic" ? "Automatic" : "Manual"}
-              </Badge>
-            )}
-          </div>
-        }
+        title={`${collection.name}${collection.type ? ` (${collection.type === "automatic" ? "Automatic" : "Manual"})` : ""}`}
         breadcrumbs={[
           { label: "Products", href: "/products" },
           { label: "Collections", href: "/products/collections" },
@@ -119,32 +105,30 @@ export function CollectionEditorPanel({
         isSaving={updateCollection.isPending}
         backHref="/products/collections"
         sidebar={
-          <>
-            <Card>
-              <CardContent className="pt-6 space-y-4">
-                <div>
-                  <div className="text-sm text-muted-foreground">Type</div>
-                  <div className="font-medium">
-                    {collection.type === "automatic" ? "Automatic" : "Manual"}
-                  </div>
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div>
+                <div className="text-sm text-muted-foreground">Type</div>
+                <div className="font-medium">
+                  {collection.type === "automatic" ? "Automatic" : "Manual"}
                 </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Products</div>
-                  <div className="font-medium">
-                    {collection.productCount || 0}
-                  </div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Products</div>
+                <div className="font-medium">
+                  {collection.productCount || 0}
                 </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Created</div>
-                  <DateTime date={collection.createdAt} />
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Updated</div>
-                  <DateTime date={collection.updatedAt} />
-                </div>
-              </CardContent>
-            </Card>
-          </>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Created</div>
+                <DateTime date={collection.createdAt} />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Updated</div>
+                <DateTime date={collection.updatedAt} />
+              </div>
+            </CardContent>
+          </Card>
         }
         warningActions={
           <Button

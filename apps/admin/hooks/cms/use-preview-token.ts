@@ -22,7 +22,7 @@ export function useGeneratePreviewToken() {
         endpoints.cms.preview.generateToken,
         data,
       );
-      return response.data;
+      return response as PreviewTokenResponse;
     },
   });
 }
@@ -38,7 +38,7 @@ export function useValidatePreviewToken(token: string | null) {
       const response = await api.get(
         endpoints.cms.preview.validateToken(token),
       );
-      return response.data;
+      return response as PreviewTokenResponse;
     },
     enabled: !!token,
   });

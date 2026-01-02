@@ -21,9 +21,15 @@ export function RichTextForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-1">Content</label>
+        <label
+          htmlFor="rich-text-content"
+          className="block text-sm font-medium mb-1"
+        >
+          Content
+        </label>
         <textarea
-          {...form.register("content", { valueAsString: true })}
+          id="rich-text-content"
+          {...form.register("content")}
           className="w-full px-3 py-2 border rounded-md"
           placeholder="Enter rich text content"
           rows={10}
@@ -61,7 +67,7 @@ export function RichTextForm({
  */
 export function createRichTextForm(defaultValues?: RichTextFormData) {
   return useForm<RichTextFormData>({
-    resolver: zodResolver(richTextBlock.propsSchema),
+    resolver: zodResolver(richTextBlock.propsSchema as any) as any,
     defaultValues: defaultValues || richTextBlock.defaultProps,
   });
 }

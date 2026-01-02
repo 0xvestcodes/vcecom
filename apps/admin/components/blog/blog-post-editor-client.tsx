@@ -115,7 +115,7 @@ export function BlogPostEditorClient({ postId }: BlogPostEditorClientProps) {
       toast.success(
         post?.published ? "Blog post unpublished" : "Blog post published",
       );
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update publish status");
     }
   };

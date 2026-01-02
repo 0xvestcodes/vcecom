@@ -120,36 +120,32 @@ export function PriceListEditorPanel({
           isSaving={updatePriceList.isPending}
           backHref="/price-lists"
           sidebar={
-            <>
-              <Card>
-                <CardContent className="pt-6 space-y-4">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Type</div>
-                    <div className="font-medium">{priceList.type}</div>
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">Type</div>
+                  <div className="font-medium">{priceList.type}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Priority</div>
+                  <div className="font-medium">{priceList.priority}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Items</div>
+                  <div className="font-medium">
+                    {priceList.items?.length || 0}
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">
-                      Priority
-                    </div>
-                    <div className="font-medium">{priceList.priority}</div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Items</div>
-                    <div className="font-medium">
-                      {priceList.items?.length || 0}
-                    </div>
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Created</div>
-                    <DateTime date={priceList.createdAt} />
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Updated</div>
-                    <DateTime date={priceList.updatedAt} />
-                  </div>
-                </CardContent>
-              </Card>
-            </>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Created</div>
+                  <DateTime date={priceList.createdAt} />
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Updated</div>
+                  <DateTime date={priceList.updatedAt} />
+                </div>
+              </CardContent>
+            </Card>
           }
           warningActions={
             <Button

@@ -187,7 +187,7 @@ export function BundlesListClientRefactored() {
           emptyComponent={<EmptyBundlesState onCreate={handleCreate} />}
           onRetry={() => refetch()}
         >
-          <DataTable
+          <DataTable<Bundle>
             columns={columns}
             data={bundlesData?.data || []}
             rowActions={rowActions}

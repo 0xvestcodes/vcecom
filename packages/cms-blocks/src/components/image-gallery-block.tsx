@@ -51,21 +51,32 @@ export function ImageGalleryBlock({
   if (layout === "carousel") {
     return (
       <div className={blockClasses}>
-        {images.map((image, index) => (
-          <div key={index} className="min-w-[300px] flex-shrink-0">
-            <img
-              src={image.src}
-              alt={image.alt || `Gallery image ${index + 1}`}
-              className="h-full w-full rounded-lg object-cover"
-              onClick={() => lightbox && setSelectedImage(index)}
-            />
-            {image.caption && (
-              <p className="mt-2 text-center text-sm text-muted-foreground">
-                {image.caption}
-              </p>
-            )}
-          </div>
-        ))}
+        {images.map((image, imageIndex) => {
+          const imageKey = image.src || `gallery-carousel-${imageIndex}`;
+          return (
+            <div key={imageKey} className="min-w-[300px] flex-shrink-0">
+              {/* biome-ignore lint/performance/noImgElement: External gallery images, Next.js Image not available in shared package */}
+              <img
+                src={image.src}
+                alt={image.alt || `Gallery image ${imageIndex + 1}`}
+                className="h-full w-full rounded-lg object-cover cursor-pointer"
+                onClick={() => lightbox && setSelectedImage(imageIndex)}
+                onKeyDown={(e) => {
+                  if (lightbox && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    setSelectedImage(imageIndex);
+                  }
+                }}
+                tabIndex={lightbox ? 0 : undefined}
+              />
+              {image.caption && (
+                <p className="mt-2 text-center text-sm text-muted-foreground">
+                  {image.caption}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -73,27 +84,47 @@ export function ImageGalleryBlock({
   return (
     <>
       <div className={blockClasses}>
-        {images.map((image, index) => (
-          <div key={index}>
-            <img
-              src={image.src}
-              alt={image.alt || `Gallery image ${index + 1}`}
-              className="h-full w-full cursor-pointer rounded-lg object-cover transition-transform hover:scale-105"
-              onClick={() => lightbox && setSelectedImage(index)}
-            />
-            {image.caption && (
-              <p className="mt-2 text-center text-sm text-muted-foreground">
-                {image.caption}
-              </p>
-            )}
-          </div>
-        ))}
+        {images.map((image, imageIndex) => {
+          const imageKey = image.src || `gallery-grid-${imageIndex}`;
+          return (
+            <div key={imageKey}>
+              {/* biome-ignore lint/performance/noImgElement: External gallery images, Next.js Image not available in shared package */}
+              <img
+                src={image.src}
+                alt={image.alt || `Gallery image ${imageIndex + 1}`}
+                className="h-full w-full cursor-pointer rounded-lg object-cover transition-transform hover:scale-105"
+                onClick={() => lightbox && setSelectedImage(imageIndex)}
+                onKeyDown={(e) => {
+                  if (lightbox && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    setSelectedImage(imageIndex);
+                  }
+                }}
+                tabIndex={lightbox ? 0 : undefined}
+              />
+              {image.caption && (
+                <p className="mt-2 text-center text-sm text-muted-foreground">
+                  {image.caption}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
       {lightbox && selectedImage !== null && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
           onClick={() => setSelectedImage(null)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setSelectedImage(null);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Image lightbox"
         >
+          {/* biome-ignore lint/performance/noImgElement: Lightbox image, Next.js Image not available in shared package */}
           <img
             src={images[selectedImage]?.src}
             alt={images[selectedImage]?.alt || "Gallery image"}

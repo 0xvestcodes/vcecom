@@ -40,7 +40,17 @@ export function CustomersListClientRefactored() {
     setCustomerFilters((prev) => ({ ...prev, page: newPage }));
   }, []);
 
-  const pagination = usePagination(customersData, handlePageChange);
+  const paginationData = customersData
+    ? {
+        page: customersData.page,
+        limit: customersData.limit,
+        total: customersData.total,
+        totalPages: customersData.totalPages,
+        hasNextPage: customersData.page < customersData.totalPages,
+        hasPreviousPage: customersData.page > 1,
+      }
+    : undefined;
+  const pagination = usePagination(paginationData, handlePageChange);
 
   const handleClearFilters = useCallback(() => {
     setCustomerFilters({
@@ -119,13 +129,15 @@ export function CustomersListClientRefactored() {
         error={error}
         data={customersData}
         loadingComponent={<CustomersTableSkeleton />}
-        emptyComponent={<EmptyCustomersState />}
+        emptyComponent={
+          <EmptyCustomersState hasSearchFilter={!!customerFilters.search} />
+        }
         onRetry={() => refetch()}
       >
-        <DataTable
+        <DataTable<Customer>
           columns={columns}
           data={customersData?.data || []}
-          onRowClick={(customer) => {
+          onRowClick={(_customer) => {
             // TODO: Navigate to customer detail if exists
             // router.push(`/customers/${customer.id}`);
           }}

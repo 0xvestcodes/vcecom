@@ -95,22 +95,15 @@ export class BlogPostsService {
         .where(and(...conditions));
 
       // Apply sorting and pagination
-      let query;
-      switch (options.sortBy) {
-        case "oldest":
-          query = baseQuery.orderBy(asc(blogPosts.createdAt));
-          break;
-        case "alphabetical":
-          query = baseQuery.orderBy(asc(blogPosts.title));
-          break;
-        case "newest":
-        default:
-          query = baseQuery.orderBy(
-            desc(blogPosts.publishedAt),
-            desc(blogPosts.createdAt),
-          );
-          break;
-      }
+      const query =
+        options.sortBy === "oldest"
+          ? baseQuery.orderBy(asc(blogPosts.createdAt))
+          : options.sortBy === "alphabetical"
+            ? baseQuery.orderBy(asc(blogPosts.title))
+            : baseQuery.orderBy(
+                desc(blogPosts.publishedAt),
+                desc(blogPosts.createdAt),
+              );
 
       const posts = await query.limit(limit).offset(offset);
 
@@ -376,7 +369,7 @@ export class BlogPostsService {
    * Delete blog post
    */
   async deleteBlogPost(id: string) {
-    const existing = await this.getBlogPostById(id);
+    const _existing = await this.getBlogPostById(id);
 
     try {
       await this.db.delete(blogPosts).where(eq(blogPosts.id, id));
@@ -409,7 +402,7 @@ export class BlogPostsService {
    * Publish/unpublish blog post
    */
   async publishBlogPost(id: string, published: boolean, userId: string) {
-    const existing = await this.getBlogPostById(id);
+    const _existing = await this.getBlogPostById(id);
 
     try {
       const [updated] = await this.db

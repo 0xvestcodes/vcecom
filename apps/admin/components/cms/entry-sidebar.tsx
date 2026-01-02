@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { CheckCircle2, FileText, Link2, ListChecks } from "lucide-react";
+import { ListChecks } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { ContentType, Entry } from "@/lib/types/cms";
 import { cn } from "@/lib/utils";
@@ -162,7 +162,11 @@ export function EntrySidebar({
               valid={publishReadiness.valid}
               errors={publishReadiness.errors}
               warnings={publishReadiness.warnings}
-              onItemClick={onFieldClick}
+              onItemClick={
+                onFieldClick
+                  ? (fieldName?: string) => onFieldClick(fieldName || "")
+                  : undefined
+              }
               className="h-full"
             />
           ) : (

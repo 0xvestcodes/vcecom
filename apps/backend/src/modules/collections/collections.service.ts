@@ -4,7 +4,6 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
-  Optional,
 } from "@nestjs/common";
 import {
   and,
@@ -441,7 +440,7 @@ export class CollectionsService {
 
     // Track slug change for route registry
     const oldSlug = existing.slug;
-    const slugChanged = slug !== undefined && slug !== oldSlug;
+    const _slugChanged = slug !== undefined && slug !== oldSlug;
 
     // Update collection
     const updateData: {

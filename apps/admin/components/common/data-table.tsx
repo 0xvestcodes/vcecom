@@ -21,10 +21,10 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-export interface Column<T> {
+export interface Column<T = any> {
   id: string;
   header: string | ReactNode;
-  accessorKey?: keyof T;
+  accessorKey?: string | keyof T;
   cell?: (row: T) => ReactNode;
   sortable?: boolean;
   width?: string;
@@ -36,9 +36,10 @@ export interface RowAction<T> {
   onClick: (row: T) => void;
   destructive?: boolean;
   disabled?: (row: T) => boolean;
+  roles?: string[];
 }
 
-interface DataTableProps<T> {
+interface DataTableProps<T = any> {
   columns: Column<T>[];
   data: T[];
   rowActions?: RowAction<T>[];
@@ -79,7 +80,7 @@ interface DataTableProps<T> {
  * />
  * ```
  */
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T = any>({
   columns,
   data,
   rowActions = [],
@@ -87,7 +88,7 @@ export function DataTable<T extends Record<string, unknown>>({
   selectable = false,
   selectedRows = [],
   onSelectionChange,
-  getRowId = (row) => (row.id as string) || String(row),
+  getRowId = (row: T) => ((row as any).id as string) || String(row),
   emptyMessage = "No items found",
   isLoading = false,
 }: DataTableProps<T>) {
@@ -122,7 +123,7 @@ export function DataTable<T extends Record<string, unknown>>({
   };
 
   const allSelected = data.length > 0 && selectedRows.length === data.length;
-  const someSelected =
+  const _someSelected =
     selectedRows.length > 0 && selectedRows.length < data.length;
 
   if (isLoading) {
@@ -145,21 +146,23 @@ export function DataTable<T extends Record<string, unknown>>({
             </TableRow>
           </TableHeader>
           <TableBody>
-            {Array.from({ length: 5 }).map((_, i) => (
-              <TableRow key={i}>
-                {selectable && (
-                  <TableCell>
-                    <Checkbox disabled />
-                  </TableCell>
-                )}
-                {columns.map((column) => (
-                  <TableCell key={column.id}>
-                    <div className="h-4 w-24 bg-muted animate-pulse rounded" />
-                  </TableCell>
-                ))}
-                {rowActions.length > 0 && <TableCell />}
-              </TableRow>
-            ))}
+            {Array.from({ length: 5 }, (_, i) => `skeleton-${i}`).map(
+              (skeletonKey) => (
+                <TableRow key={skeletonKey}>
+                  {selectable && (
+                    <TableCell>
+                      <Checkbox disabled />
+                    </TableCell>
+                  )}
+                  {columns.map((column) => (
+                    <TableCell key={column.id}>
+                      <div className="h-4 w-24 bg-muted animate-pulse rounded" />
+                    </TableCell>
+                  ))}
+                  {rowActions.length > 0 && <TableCell />}
+                </TableRow>
+              ),
+            )}
           </TableBody>
         </Table>
       </div>
@@ -242,7 +245,7 @@ export function DataTable<T extends Record<string, unknown>>({
                     {column.cell
                       ? column.cell(row)
                       : column.accessorKey
-                        ? String(row[column.accessorKey] ?? "")
+                        ? String((row as any)[column.accessorKey] ?? "")
                         : null}
                   </TableCell>
                 ))}
@@ -255,11 +258,11 @@ export function DataTable<T extends Record<string, unknown>>({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {normalActions.map((action, index) => {
+                        {normalActions.map((action) => {
                           const disabled = action.disabled?.(row);
                           return (
                             <DropdownMenuItem
-                              key={index}
+                              key={`normal-${action.label}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (!disabled) action.onClick(row);
@@ -275,11 +278,11 @@ export function DataTable<T extends Record<string, unknown>>({
                         })}
                         {destructiveActions.length > 0 &&
                           normalActions.length > 0 && <DropdownMenuSeparator />}
-                        {destructiveActions.map((action, index) => {
+                        {destructiveActions.map((action) => {
                           const disabled = action.disabled?.(row);
                           return (
                             <DropdownMenuItem
-                              key={index}
+                              key={`destructive-${action.label}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (!disabled) action.onClick(row);

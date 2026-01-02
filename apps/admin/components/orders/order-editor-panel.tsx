@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Archive,
-  Copy,
-  Download,
-  MoreHorizontal,
-  RefreshCw,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Archive, Copy, Download, RefreshCw, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { Suspense, useCallback, useState } from "react";
@@ -20,15 +12,8 @@ import {
 import { CollapsibleSection } from "@/components/common/collapsible-section";
 import { EditorPanel } from "@/components/layout/editor-panel";
 import { OrderDetailSkeleton } from "@/components/skeletons/order-detail-skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useAdminOrder } from "@/hooks/orders/use-admin-order";
 import { useAdminOrderTimeline } from "@/hooks/orders/use-admin-order-timeline";
 import { useAdminPaymentReconcile } from "@/hooks/orders/use-admin-payment-reconcile";
@@ -42,7 +27,6 @@ import { NotesCard } from "./notes-card";
 import { OrderActionsSheet } from "./order-actions-sheet";
 import { OrderCustomerCard } from "./order-customer-card";
 import { OrderDiscountSection } from "./order-discount-section";
-import { OrderHeader } from "./order-header";
 import { OrderLineItems } from "./order-line-items";
 import { OrderPaymentSection } from "./order-payment-section";
 import { OrderShippingSection } from "./order-shipping-section";
@@ -120,7 +104,9 @@ export function OrderEditorPanel({ orderId }: OrderEditorPanelProps) {
   const handleDuplicate = async () => {
     if (!order) return;
     try {
-      const duplicated = await duplicateOrderMutation.mutateAsync(order.id);
+      const duplicated = await duplicateOrderMutation.mutateAsync({
+        orderId: order.id,
+      });
       toast.success("Order duplicated successfully");
       router.push(`/orders/${duplicated.id}`);
     } catch (error) {
@@ -146,7 +132,10 @@ export function OrderEditorPanel({ orderId }: OrderEditorPanelProps) {
   const handleCancel = async () => {
     if (!order) return;
     try {
-      await cancelOrderMutation.mutateAsync(order.id);
+      await cancelOrderMutation.mutateAsync({
+        orderId: order.id,
+        cancelDto: {},
+      });
       toast.success("Order cancelled successfully");
       setCancelDialogOpen(false);
     } catch (error) {
@@ -159,7 +148,9 @@ export function OrderEditorPanel({ orderId }: OrderEditorPanelProps) {
   const handleReconcile = async () => {
     if (!order?.razorpayOrderId) return;
     try {
-      await reconcilePaymentMutation.mutateAsync(order.id);
+      await reconcilePaymentMutation.mutateAsync({
+        paymentIntentId: order.razorpayOrderId,
+      });
       toast.success("Payment reconciled successfully");
     } catch (error) {
       toast.error(
@@ -279,7 +270,7 @@ export function OrderEditorPanel({ orderId }: OrderEditorPanelProps) {
                 Cancel Order
               </Button>
             )}
-            {order.status !== "archived" && (
+            {order.status !== "cancelled" && order.status !== "refunded" && (
               <Button
                 type="button"
                 variant="outline"

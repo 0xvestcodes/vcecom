@@ -1,5 +1,4 @@
 import type { BlockCategory, BlockType } from "@vcecom/cms-blocks";
-import { getBlockDefinition } from "@vcecom/cms-blocks";
 import type { BlockMetadata } from "./types";
 
 /**

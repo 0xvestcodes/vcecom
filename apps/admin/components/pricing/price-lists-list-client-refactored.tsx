@@ -20,7 +20,11 @@ import { useAdminDeletePriceList } from "@/hooks/pricing/use-admin-delete-price-
 import { useAdminPriceLists } from "@/hooks/pricing/use-admin-price-lists";
 import { usePagination } from "@/hooks/use-pagination";
 import { endpoints } from "@/lib/endpoints";
-import type { PriceList } from "@/lib/types/price-lists";
+import type {
+  PriceList,
+  PriceListQueryParams,
+  PriceListType,
+} from "@/lib/types/price-lists";
 import { PaginationControls } from "../common/pagination-controls";
 import { DateTime } from "../orders/date-time";
 import { EmptyPriceListsState } from "./empty-price-lists-state";
@@ -110,6 +114,9 @@ export function PriceListsListClientRefactored() {
     setFilters({
       page: DEFAULT_PAGE,
       limit: DEFAULT_LIMIT,
+      search: undefined,
+      isActive: undefined,
+      type: undefined,
     });
   }, []);
 
@@ -224,7 +231,10 @@ export function PriceListsListClientRefactored() {
         newFilters.status === "all"
           ? undefined
           : newFilters.status === "active",
-      type: newFilters.type === "all" ? undefined : (newFilters.type as string),
+      type:
+        newFilters.type === "all"
+          ? undefined
+          : (newFilters.type as PriceListType | undefined),
       page: DEFAULT_PAGE,
     }));
   };
@@ -277,7 +287,7 @@ export function PriceListsListClientRefactored() {
           emptyComponent={<EmptyPriceListsState onCreate={handleCreate} />}
           onRetry={() => refetch()}
         >
-          <DataTable
+          <DataTable<PriceList>
             columns={columns}
             data={priceListsData?.data || []}
             rowActions={rowActions}
@@ -318,7 +328,10 @@ export function PriceListsListClientRefactored() {
 /**
  * Parses search parameters from URL
  */
-function parseFiltersFromSearchParams(searchParams: URLSearchParams) {
+function parseFiltersFromSearchParams(
+  searchParams: URLSearchParams,
+): PriceListQueryParams {
+  const typeParam = searchParams.get("type");
   return {
     page: parseInt(searchParams.get("page") || String(DEFAULT_PAGE), 10),
     limit: parseInt(searchParams.get("limit") || String(DEFAULT_LIMIT), 10),
@@ -329,7 +342,7 @@ function parseFiltersFromSearchParams(searchParams: URLSearchParams) {
         : searchParams.get("isActive") === "false"
           ? false
           : undefined,
-    type: searchParams.get("type") || undefined,
+    type: typeParam ? (typeParam as PriceListType) : undefined,
   };
 }
 

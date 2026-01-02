@@ -14,6 +14,7 @@ export interface Collection {
   rules?: CollectionRule[];
   matchType?: "all" | "any";
   position?: number;
+  isActive?: boolean;
   createdAt: string;
   updatedAt: string;
   productCount?: number;

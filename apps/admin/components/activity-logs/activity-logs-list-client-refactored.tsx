@@ -239,7 +239,7 @@ export function ActivityLogsListClientRefactored() {
         onRetry={() => window.location.reload()}
       >
         {data && (
-          <DataTable
+          <DataTable<ActivityLog>
             columns={columns}
             data={data.data}
             emptyMessage="No activity logs found"
@@ -257,13 +257,11 @@ export function ActivityLogsListClientRefactored() {
 function parseFiltersFromSearchParams(
   searchParams: URLSearchParams,
 ): ActivityLogQueryParams {
+  const pageParam = searchParams.get("page");
+  const limitParam = searchParams.get("limit");
   return {
-    page: searchParams.get("page")
-      ? parseInt(searchParams.get("page")!, 10)
-      : DEFAULT_PAGE,
-    limit: searchParams.get("limit")
-      ? parseInt(searchParams.get("limit")!, 10)
-      : DEFAULT_LIMIT,
+    page: pageParam ? parseInt(pageParam, 10) : DEFAULT_PAGE,
+    limit: limitParam ? parseInt(limitParam, 10) : DEFAULT_LIMIT,
     adminId: searchParams.get("adminId") || undefined,
     action: searchParams.get("action") || undefined,
     resource: searchParams.get("resource") || undefined,

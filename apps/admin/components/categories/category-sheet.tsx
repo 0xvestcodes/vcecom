@@ -1,11 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
@@ -13,7 +8,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
 import { useAdminCategory } from "@/hooks/categories/use-admin-categories";
 import { useAdminCreateCategory } from "@/hooks/categories/use-admin-create-category";
 import { useAdminUpdateCategory } from "@/hooks/categories/use-admin-update-category";
@@ -60,7 +54,7 @@ export function CategorySheet({
         onOpenChange(false);
         router.push(`/products/categories/${created.id}`);
       }
-    } catch (error) {
+    } catch (_error) {
       // Error handled by hooks
     }
   };

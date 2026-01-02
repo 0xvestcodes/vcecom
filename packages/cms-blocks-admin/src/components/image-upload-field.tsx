@@ -80,9 +80,11 @@ export function ImageUploadField({
     setPreviewUrl(value || null);
   }
 
+  const inputId = `image-upload-${label.toLowerCase().replace(/\s+/g, "-")}`;
+
   return (
     <div className={`space-y-2 ${className || ""}`}>
-      <label className="block text-sm font-medium">
+      <label htmlFor={inputId} className="block text-sm font-medium">
         {label}
         {required && <span className="text-red-500 ml-1">*</span>}
       </label>
@@ -127,7 +129,7 @@ export function ImageUploadField({
                   if (file) {
                     handleFileSelect({
                       target: { files: [file] },
-                    } as React.ChangeEvent<HTMLInputElement>);
+                    } as unknown as React.ChangeEvent<HTMLInputElement>);
                   }
                 };
                 input.click();
@@ -139,13 +141,18 @@ export function ImageUploadField({
         </div>
       ) : (
         <div className="flex items-center justify-center w-full h-32 border-2 border-dashed rounded-lg hover:border-blue-500 transition-colors bg-gray-50">
-          <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer">
+          <label
+            htmlFor={inputId}
+            className="flex flex-col items-center justify-center w-full h-full cursor-pointer"
+          >
             <svg
               className="w-8 h-8 text-gray-400 mb-2"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
+              aria-label="Upload icon"
             >
+              <title>Upload icon</title>
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -160,6 +167,7 @@ export function ImageUploadField({
               PNG, JPG, WEBP up to 50MB
             </span>
             <input
+              id={inputId}
               type="file"
               accept="image/*"
               className="hidden"

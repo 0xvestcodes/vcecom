@@ -3,7 +3,6 @@
 import { ArrowLeft, Save } from "lucide-react";
 import Link from "next/link";
 import { ReactNode } from "react";
-import { CollapsibleSection } from "@/components/common/collapsible-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";

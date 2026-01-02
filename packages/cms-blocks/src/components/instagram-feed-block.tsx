@@ -44,7 +44,7 @@ export function InstagramFeedBlock({
 
   // Placeholder - in production, this would fetch from Instagram API
   const placeholderPosts = Array.from(
-    { length: parseInt(postCount) },
+    { length: parseInt(postCount, 10) },
     (_, i) => ({
       id: `post-${i}`,
       image: `https://via.placeholder.com/300x300?text=Instagram+Post+${i + 1}`,
@@ -62,6 +62,7 @@ export function InstagramFeedBlock({
           rel="noopener noreferrer"
           className="aspect-square overflow-hidden rounded-lg"
         >
+          {/* biome-ignore lint/performance/noImgElement: External Instagram images, Next.js Image not available in shared package */}
           <img
             src={post.image}
             alt={`Instagram post ${post.id}`}

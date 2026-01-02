@@ -44,6 +44,24 @@ export function ThemeProvider({
   const [theme, setTheme] = useState<MergedTheme | null>(initialTheme || null);
   const [isLoading, setIsLoading] = useState(!initialTheme);
 
+  const fetchTheme = useCallback(async (id: string) => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+      const response = await fetch(
+        `${apiUrl}/store/cms/themes/${id === "active" ? "active" : id}`,
+      );
+      if (response.ok) {
+        const themeData = await response.json();
+        setTheme(themeData);
+        applyThemeCSS(themeData);
+      }
+    } catch (error) {
+      console.warn("Failed to fetch theme:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   // Fetch theme settings
   useEffect(() => {
     if (initialTheme) {
@@ -62,25 +80,7 @@ export function ThemeProvider({
         setIsLoading(false);
       });
     }
-  }, [themeId, initialTheme]);
-
-  const fetchTheme = async (id: string) => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const response = await fetch(
-        `${apiUrl}/store/cms/themes/${id === "active" ? "active" : id}`,
-      );
-      if (response.ok) {
-        const themeData = await response.json();
-        setTheme(themeData);
-        applyThemeCSS(themeData);
-      }
-    } catch (error) {
-      console.warn("Failed to fetch theme:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [themeId, initialTheme, fetchTheme]);
 
   // Listen for theme updates from admin preview iframe
   useEffect(() => {

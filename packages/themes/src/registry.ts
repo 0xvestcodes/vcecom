@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { minimalTheme } from "./themes/minimal";
 import { modernTheme } from "./themes/modern";
 import type { Theme } from "./types";

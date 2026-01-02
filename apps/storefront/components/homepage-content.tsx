@@ -62,10 +62,14 @@ export function HomepageContent({ homepage }: HomepageContentProps) {
         <section className="py-16 px-4 bg-muted/50">
           <div className="container mx-auto">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {homepage.highlights.map((highlight, index) => (
-                <div key={index} className="text-center">
+              {homepage.highlights.map((highlight) => (
+                <div
+                  key={highlight.title || highlight.icon}
+                  className="text-center"
+                >
                   {highlight.icon && (
                     <div className="mb-4">
+                      {/* biome-ignore lint/performance/noImgElement: Highlight icons, using Next.js Image would require additional props */}
                       <img
                         src={highlight.icon}
                         alt={highlight.title}
@@ -102,6 +106,7 @@ export function HomepageContent({ homepage }: HomepageContentProps) {
                   />
                 )}
                 {section.type === "image" && (
+                  // biome-ignore lint/performance/noImgElement: Section images, using Next.js Image would require additional props
                   <img
                     src={String(section.content)}
                     alt={`Section ${section.id}`}

@@ -251,7 +251,7 @@ export function InventoryListClientRefactored() {
           emptyComponent={<EmptyInventoryState />}
           onRetry={() => window.location.reload()}
         >
-          <DataTable
+          <DataTable<InventoryListItem>
             columns={columns}
             data={inventoryData?.data || []}
             rowActions={rowActions}

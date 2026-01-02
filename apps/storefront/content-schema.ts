@@ -269,7 +269,7 @@ export function validateContent(
 export function exportSchemaAsJSON(): Record<string, unknown> {
   const schemaObj: Record<string, unknown> = {};
 
-  for (const [key, schema] of Object.entries(CONTENT_SCHEMA)) {
+  for (const [key, _schema] of Object.entries(CONTENT_SCHEMA)) {
     // Convert Zod schema to JSON-serializable format
     // This is a simplified representation - in production you might want
     // a more sophisticated schema serialization

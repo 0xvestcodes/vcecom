@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CheckCheck } from "lucide-react";
+import { CheckCheck } from "lucide-react";
 import { QueryState } from "@/components/common/query-state";
 import { ListLayout } from "@/components/layout/list-layout";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import {
   useMarkNotificationRead,
   useNotifications,
 } from "@/hooks/notifications/use-notifications";
+import { FetchError } from "@/lib/api";
 import { EmptyNotificationsState } from "./empty-notifications-state";
 import { NotificationCard } from "./notification-card";
 
@@ -29,8 +30,8 @@ export function NotificationsListClientRefactored() {
     <ListLayout
       title="Notifications"
       description="View and manage your notifications"
-      actions={
-        unreadCount > 0 && (
+      createButton={
+        unreadCount > 0 ? (
           <Button
             variant="outline"
             size="sm"
@@ -40,12 +41,21 @@ export function NotificationsListClientRefactored() {
             <CheckCheck className="mr-2 h-3.5 w-3.5" />
             Mark all as read
           </Button>
-        )
+        ) : undefined
       }
     >
       <QueryState
         isLoading={isLoading}
-        error={error}
+        error={
+          error instanceof Error && "status" in error
+            ? (error as FetchError)
+            : error
+              ? new FetchError(
+                  error instanceof Error ? error.message : "An error occurred",
+                  500,
+                )
+              : null
+        }
         data={notifications}
         emptyComponent={<EmptyNotificationsState />}
         onRetry={() => window.location.reload()}

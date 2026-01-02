@@ -17,6 +17,7 @@ import {
   useDeletePaymentCharge,
   usePaymentCharges,
 } from "@/hooks/payment-charges/use-payment-charges";
+import type { PaymentMethodChargeConfig } from "@/lib/types/payment-charges";
 import { EmptyPaymentFeesState } from "./empty-payment-fees-state";
 import { PaymentFeeSheet } from "./payment-fee-sheet";
 
@@ -62,11 +63,11 @@ export function PaymentFeesRefactored() {
   };
 
   // Convert charges to table format
-  const columns: Column<typeof charges extends Array<infer T> ? T : never>[] = [
+  const columns: Column<PaymentMethodChargeConfig>[] = [
     {
       id: "method",
       header: "Payment Method",
-      cell: (charge: any) => {
+      cell: (charge: PaymentMethodChargeConfig) => {
         const METHOD_LABELS: Record<string, string> = {
           COD: "Cash on Delivery",
           RAZORPAY_UPI: "UPI (Razorpay)",
@@ -86,14 +87,14 @@ export function PaymentFeesRefactored() {
     {
       id: "chargeType",
       header: "Charge Type",
-      cell: (charge: any) => (
+      cell: (charge: PaymentMethodChargeConfig) => (
         <span className="text-sm">{charge.chargeType || "-"}</span>
       ),
     },
     {
       id: "fee",
       header: "Fee",
-      cell: (charge: any) => {
+      cell: (charge: PaymentMethodChargeConfig) => {
         const formatAmount = (rupees: number) => `₹${rupees.toFixed(2)}`;
         if (charge.chargeType === "FLAT") {
           return (
@@ -116,23 +117,24 @@ export function PaymentFeesRefactored() {
     {
       id: "active",
       header: "Status",
-      cell: (charge: any) => (
+      cell: (charge: PaymentMethodChargeConfig) => (
         <span className="text-xs">{charge.active ? "Active" : "Inactive"}</span>
       ),
     },
   ];
 
-  const rowActions: RowAction<any>[] = [
+  const rowActions: RowAction<PaymentMethodChargeConfig>[] = [
     {
       label: "Edit",
       icon: <Edit className="h-4 w-4" />,
-      onClick: (charge: any) => handleEdit(charge.id),
+      onClick: (charge: PaymentMethodChargeConfig) => handleEdit(charge.id),
       roles: ["admin"],
     },
     {
       label: "Delete",
       icon: <Trash2 className="h-4 w-4" />,
-      onClick: (charge: any) => handleDeleteClick(charge.id),
+      onClick: (charge: PaymentMethodChargeConfig) =>
+        handleDeleteClick(charge.id),
       destructive: true,
       roles: ["admin"],
     },
@@ -163,7 +165,7 @@ export function PaymentFeesRefactored() {
           onRetry={() => window.location.reload()}
         >
           {charges && (
-            <DataTable
+            <DataTable<PaymentMethodChargeConfig>
               columns={columns}
               data={charges}
               rowActions={rowActions}

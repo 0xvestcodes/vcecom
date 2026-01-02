@@ -96,22 +96,15 @@ export function PageStructurePane({
             </div>
           ) : (
             blocks.map((block, index) => (
-              <div
+              <button
                 key={block.id}
-                className={`group flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors ${
+                type="button"
+                className={`group flex items-center gap-2 p-2 rounded border cursor-pointer transition-colors w-full text-left ${
                   selectedBlockId === block.id
                     ? "bg-accent border-primary"
                     : "hover:bg-accent/50"
                 }`}
                 onClick={() => onSelectBlock(block.id)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    onSelectBlock(block.id);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
               >
                 <GripVertical className="h-4 w-4 text-muted-foreground cursor-move" />
                 <div className="flex-1 min-w-0">
@@ -172,7 +165,7 @@ export function PageStructurePane({
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              </div>
+              </button>
             ))
           )}
         </div>

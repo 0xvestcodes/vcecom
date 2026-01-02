@@ -24,11 +24,11 @@ interface AuditLogSheetProps {
  * Opens from audit logs list
  */
 export function AuditLogSheet({
-  logId,
+  logId: _logId,
   open,
   onOpenChange,
 }: AuditLogSheetProps) {
-  // TODO: Fetch log details from API using logId
+  // TODO: Fetch log details from API using _logId
   const log = null; // Placeholder
 
   if (!log) {

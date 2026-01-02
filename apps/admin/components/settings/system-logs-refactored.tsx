@@ -46,7 +46,7 @@ export function SystemLogsRefactored() {
   const { data: jobsData, isLoading: isLoadingJobs } = useBackgroundJobs();
   const jobs = jobsData?.jobs || [];
 
-  const handleSave = async () => {
+  const _handleSave = async () => {
     // System logs are read-only, no save needed
     console.log("System logs are read-only");
   };

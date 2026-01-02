@@ -117,34 +117,30 @@ export function BundleEditorPanel({ bundleId }: BundleEditorPanelProps) {
           isSaving={updateBundle.isPending}
           backHref="/bundles"
           sidebar={
-            <>
-              <Card>
-                <CardContent className="pt-6 space-y-4">
-                  <div>
-                    <div className="text-sm text-muted-foreground">Sets</div>
-                    <div className="font-medium">
-                      {bundle.sets?.length || 0}
-                    </div>
+            <Card>
+              <CardContent className="pt-6 space-y-4">
+                <div>
+                  <div className="text-sm text-muted-foreground">Sets</div>
+                  <div className="font-medium">{bundle.sets?.length || 0}</div>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">
+                    Mix & Match
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">
-                      Mix & Match
-                    </div>
-                    <div className="font-medium">
-                      {bundle.allowMixAndMatch ? "Yes" : "No"}
-                    </div>
+                  <div className="font-medium">
+                    {bundle.allowMixAndMatch ? "Yes" : "No"}
                   </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Created</div>
-                    <DateTime date={bundle.createdAt} />
-                  </div>
-                  <div>
-                    <div className="text-sm text-muted-foreground">Updated</div>
-                    <DateTime date={bundle.updatedAt} />
-                  </div>
-                </CardContent>
-              </Card>
-            </>
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Created</div>
+                  <DateTime date={bundle.createdAt} />
+                </div>
+                <div>
+                  <div className="text-sm text-muted-foreground">Updated</div>
+                  <DateTime date={bundle.updatedAt} />
+                </div>
+              </CardContent>
+            </Card>
           }
           warningActions={
             <Button

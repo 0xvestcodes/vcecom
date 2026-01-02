@@ -3,6 +3,7 @@
 import type { BlockType } from "@vcecom/cms-blocks";
 import { getBlockForm, getBlockMetadata } from "@vcecom/cms-blocks-admin";
 import { Trash2 } from "lucide-react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,6 +24,18 @@ export function BlockSettingsPanel({
   onUpdateBlock,
   onDeleteBlock,
 }: BlockSettingsPanelProps) {
+  // Create form with current block props - must be called unconditionally
+  const form = useForm<Record<string, unknown>>({
+    defaultValues: selectedBlock?.props || {},
+  });
+
+  // Reset form when selectedBlock changes - must be called unconditionally
+  useEffect(() => {
+    if (selectedBlock) {
+      form.reset(selectedBlock.props || {});
+    }
+  }, [selectedBlock?.id, selectedBlock?.props, form, selectedBlock]);
+
   if (!selectedBlock) {
     return (
       <div className="flex flex-col h-full border-l">
@@ -40,11 +53,6 @@ export function BlockSettingsPanel({
 
   const metadata = getBlockMetadata(selectedBlock.type as BlockType);
   const FormComponent = getBlockForm(selectedBlock.type as BlockType);
-
-  // Create form with current block props
-  const form = useForm({
-    defaultValues: selectedBlock.props || {},
-  });
 
   const handleSubmit = (data: Record<string, unknown>) => {
     onUpdateBlock(selectedBlock.id, {
@@ -81,7 +89,7 @@ export function BlockSettingsPanel({
       <ScrollArea className="flex-1">
         <div className="p-4">
           {FormComponent ? (
-            <FormComponent form={form} onSubmit={handleSubmit} />
+            <FormComponent form={form as any} onSubmit={handleSubmit} />
           ) : (
             <div className="text-sm text-muted-foreground">
               Form for "{selectedBlock.type}" block is not yet implemented.

@@ -25,6 +25,7 @@ import {
 import { useAdminAssignPriceList } from "@/hooks/customer-groups/use-admin-assign-price-list";
 import { useAdminPriceLists } from "@/hooks/pricing/use-admin-price-lists";
 import type { CustomerGroupPriceList } from "@/lib/types/customer-groups";
+import type { PriceList } from "@/lib/types/price-lists";
 
 interface CustomerGroupPriceListAssignmentProps {
   groupId: string;
@@ -41,12 +42,15 @@ export function CustomerGroupPriceListAssignment({
   const [selectedPriceListId, setSelectedPriceListId] = useState<string>("");
   const [priority, setPriority] = useState<number>(1);
 
-  const { data: availablePriceLists = [] } = useAdminPriceLists();
+  const { data: availablePriceListsResponse } = useAdminPriceLists();
+  const availablePriceLists = availablePriceListsResponse?.data || [];
   const assignPriceList = useAdminAssignPriceList(groupId);
 
   // Filter out already assigned price lists
   const assignedIds = new Set(priceLists.map((pl) => pl.id));
-  const available = availablePriceLists.filter((pl) => !assignedIds.has(pl.id));
+  const available = availablePriceLists.filter(
+    (pl: PriceList) => !assignedIds.has(pl.id),
+  );
 
   const handleAssign = async () => {
     if (!selectedPriceListId) return;

@@ -5,15 +5,15 @@
  * This script is used during build to send schema to backend.
  */
 
-import { writeFileSync } from "fs";
-import { join } from "path";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { exportSchemaAsJSON } from "../content-schema";
 
 const schema = exportSchemaAsJSON();
 const outputPath = join(process.cwd(), ".next", "content-schema.json");
 
 // Ensure .next directory exists
-import { mkdirSync } from "fs";
+import { mkdirSync } from "node:fs";
 
 try {
   mkdirSync(join(process.cwd(), ".next"), { recursive: true });

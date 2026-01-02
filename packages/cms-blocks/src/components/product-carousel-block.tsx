@@ -2,7 +2,6 @@
 
 import { ProductCardBlock } from "./product-card-block";
 import type { BlockComponentProps } from "./types";
-import { cn } from "./utils";
 
 interface ProductCarouselBlockProps {
   title?: string;

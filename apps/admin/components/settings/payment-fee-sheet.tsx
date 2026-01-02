@@ -28,7 +28,7 @@ export function PaymentFeeSheet({
   onOpenChange,
 }: PaymentFeeSheetProps) {
   const isEditMode = !!chargeId;
-  const { data: charge } = usePaymentCharge(chargeId || "");
+  const { data: _charge } = usePaymentCharge(chargeId || "");
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>

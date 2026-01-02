@@ -16,8 +16,8 @@ interface UsePreviewSyncOptions {
  */
 export function usePreviewSync({
   entryId,
-  enabled = true,
-  interval = 2000, // Poll every 2 seconds
+  enabled: _enabled = true,
+  interval: _interval = 2000, // Poll every 2 seconds
   onUpdate,
 }: UsePreviewSyncOptions) {
   const { data: entry } = useAdminEntry(entryId);

@@ -2,7 +2,6 @@
 
 import { ChevronDown } from "lucide-react";
 import { ReactNode, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface CollapsibleSectionProps {
@@ -76,7 +75,13 @@ export function CollapsibleSection({
           )}
         </div>
         {headerActions && (
-          <div onClick={(e) => e.stopPropagation()}>{headerActions}</div>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            role="none"
+          >
+            {headerActions}
+          </div>
         )}
       </button>
       {isOpen && (

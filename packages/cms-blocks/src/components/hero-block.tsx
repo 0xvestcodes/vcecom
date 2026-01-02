@@ -52,6 +52,7 @@ function BlockImage({
 }) {
   return (
     <div className={cn("relative overflow-hidden", className)}>
+      {/* biome-ignore lint/performance/noImgElement: External images, Next.js Image not available in shared package */}
       <img
         src={src}
         alt={alt}

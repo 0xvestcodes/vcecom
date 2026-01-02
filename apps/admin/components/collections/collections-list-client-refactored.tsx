@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, FolderOpen, Plus, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -60,12 +60,12 @@ export function CollectionsListClientRefactored() {
 
   const paginationData = collectionsData
     ? {
-        page: collectionsData.page,
-        limit: collectionsData.limit,
-        total: collectionsData.total,
-        totalPages: collectionsData.totalPages,
-        hasNextPage: collectionsData.page < collectionsData.totalPages,
-        hasPreviousPage: collectionsData.page > 1,
+        page: collectionsData.pagination.page,
+        limit: collectionsData.pagination.limit,
+        total: collectionsData.pagination.total,
+        totalPages: collectionsData.pagination.totalPages,
+        hasNextPage: collectionsData.pagination.hasNextPage,
+        hasPreviousPage: collectionsData.pagination.hasPreviousPage,
       }
     : undefined;
 
@@ -201,7 +201,7 @@ export function CollectionsListClientRefactored() {
           emptyComponent={<EmptyCollectionsState onCreate={handleCreate} />}
           onRetry={() => window.location.reload()}
         >
-          <DataTable
+          <DataTable<Collection>
             columns={columns}
             data={collectionsData?.data || []}
             rowActions={rowActions}

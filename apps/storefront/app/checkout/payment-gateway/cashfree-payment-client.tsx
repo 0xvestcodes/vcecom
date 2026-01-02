@@ -54,11 +54,11 @@ export function CashfreePaymentClient({
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const [_isProcessing, _setIsProcessing] = useState(false);
   const [customerPrefill, setCustomerPrefill] = useState<CustomerPrefill>({});
   const cashfreeLoaded = useRef(false);
   const createCashfreeOrderMutation = useCreateCashfreeOrder();
-  const verifyCashfreePaymentMutation = useVerifyCashfreePayment();
+  const _verifyCashfreePaymentMutation = useVerifyCashfreePayment();
 
   // Fetch customer details for Cashfree prefill
   const fetchCustomerPrefill = useCallback(async () => {
@@ -85,7 +85,7 @@ export function CashfreePaymentClient({
             });
             return;
           }
-        } catch (error) {
+        } catch (_error) {
           console.log("Could not fetch customer from profile, trying cart");
         }
       }
@@ -113,7 +113,7 @@ export function CashfreePaymentClient({
             phone: customer.phone || undefined,
           });
         }
-      } catch (error) {
+      } catch (_error) {
         console.log("Could not fetch customer details for prefill");
       }
     } catch (error) {
@@ -122,7 +122,7 @@ export function CashfreePaymentClient({
   }, [checkoutSessionId]);
 
   // Poll for order creation after payment
-  const waitForOrderCreation = useCallback(async () => {
+  const _waitForOrderCreation = useCallback(async () => {
     const maxAttempts = 30;
     const pollInterval = 2000; // 2 seconds
 
@@ -138,7 +138,7 @@ export function CashfreePaymentClient({
           router.push(`/orders/${orderData.id}`);
           return;
         }
-      } catch (error) {
+      } catch (_error) {
         // Continue polling even on error
         await new Promise((resolve) => setTimeout(resolve, pollInterval));
       }

@@ -61,9 +61,9 @@ export function ActionDropdown({ actions, trigger }: ActionDropdownProps) {
         )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        {normalActions.map((action, index) => (
+        {normalActions.map((action) => (
           <DropdownMenuItem
-            key={index}
+            key={`normal-${action.label}`}
             onClick={action.onClick}
             disabled={action.disabled}
           >
@@ -74,9 +74,9 @@ export function ActionDropdown({ actions, trigger }: ActionDropdownProps) {
         {destructiveActions.length > 0 && normalActions.length > 0 && (
           <DropdownMenuSeparator />
         )}
-        {destructiveActions.map((action, index) => (
+        {destructiveActions.map((action) => (
           <DropdownMenuItem
-            key={index}
+            key={`destructive-${action.label}`}
             onClick={action.onClick}
             disabled={action.disabled}
             className="text-destructive focus:text-destructive"

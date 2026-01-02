@@ -42,7 +42,7 @@ export function BundleSheet({
   const isEditMode = !!bundleId;
   const { data: bundle } = useAdminBundle(
     bundleId || "",
-    isEditMode && open ? true : false,
+    !!(isEditMode && open),
   );
   const createBundle = useAdminCreateBundle();
   const updateBundle = useAdminUpdateBundle(bundleId || "");
@@ -82,7 +82,7 @@ export function BundleSheet({
         onOpenChange(false);
         router.push(`/bundles/${created.id}`);
       }
-    } catch (error) {
+    } catch (_error) {
       // Error handled by hooks
     }
   };

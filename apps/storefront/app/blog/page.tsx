@@ -36,6 +36,7 @@ export default async function BlogPage() {
             <article className="border rounded-lg p-6 hover:shadow-md transition-shadow">
               {post.featuredImage && (
                 <div className="mb-4 aspect-video overflow-hidden rounded-md">
+                  {/* biome-ignore lint/performance/noImgElement: Blog featured images, using Next.js Image would require additional props */}
                   <img
                     src={post.featuredImage}
                     alt={post.title}

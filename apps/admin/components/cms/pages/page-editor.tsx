@@ -35,6 +35,9 @@ export function PageEditor({ pageId }: PageEditorProps) {
     (ct) => ct.name === "page" || ct.displayName.toLowerCase() === "page",
   );
 
+  // State for live preview - must be declared before early returns
+  const [showLivePreview, setShowLivePreview] = useState(false);
+
   // Load structure from entry.data.structure or entry.structure
   const [sections, setSections] = useState<Section[]>(() => {
     const entryWithStructure = entry as Entry & {
@@ -152,8 +155,6 @@ export function PageEditor({ pageId }: PageEditorProps) {
     (entry.data.title as string) ||
     (entry.data.name as string) ||
     "Untitled Page";
-
-  const [showLivePreview, setShowLivePreview] = useState(false);
 
   // Update entry structure when sections change (for live preview)
   const entryWithUpdatedStructure = {

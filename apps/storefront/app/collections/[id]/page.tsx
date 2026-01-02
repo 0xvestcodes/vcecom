@@ -6,7 +6,7 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
+  const { id: _id } = await params;
 
   return {
     title: "Collection",

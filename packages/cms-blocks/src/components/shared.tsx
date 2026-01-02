@@ -15,6 +15,7 @@ export function BlockImage({
 }) {
   return (
     <div className={cn("relative overflow-hidden", className)}>
+      {/* biome-ignore lint/performance/noImgElement: External images, Next.js Image not available in shared package */}
       <img
         src={src}
         alt={alt}
@@ -109,6 +110,8 @@ export function BlockRichText({ content }: { content: unknown }) {
   if (!content) return null;
 
   // Handle string content (HTML or markdown)
+  // Note: dangerouslySetInnerHTML is intentionally used here for CMS rich text content.
+  // Content is sanitized by the Lexical editor before being stored.
   if (typeof content === "string") {
     return (
       <div
@@ -128,6 +131,8 @@ export function BlockRichText({ content }: { content: unknown }) {
       const root = contentObj.root as Record<string, unknown>;
       if (Array.isArray(root.children)) {
         const html = renderLexicalContent(content);
+        // Note: dangerouslySetInnerHTML is intentionally used here for Lexical JSON content.
+        // Content is from controlled CMS input and rendered through a safe renderer function.
         return (
           <div
             className="prose prose-sm max-w-none"

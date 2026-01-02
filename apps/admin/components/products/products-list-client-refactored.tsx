@@ -1,6 +1,7 @@
 "use client";
 
 import { Edit, Trash2 } from "lucide-react";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -83,9 +84,11 @@ export function ProductsListClientRefactored() {
       cell: (product) => (
         <div className="h-10 w-10 rounded border border-border/50 overflow-hidden">
           {product.thumbnailUrl ? (
-            <img
+            <Image
               src={product.thumbnailUrl}
               alt={product.title}
+              width={40}
+              height={40}
               className="h-full w-full object-cover"
             />
           ) : (
@@ -242,7 +245,7 @@ export function ProductsListClientRefactored() {
           emptyComponent={<EmptyProductsState />}
           onRetry={() => window.location.reload()}
         >
-          <DataTable
+          <DataTable<Product>
             columns={columns}
             data={productsData?.data || []}
             rowActions={rowActions}

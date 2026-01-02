@@ -40,8 +40,9 @@ export function AddPriceListItemSheet({
   onOpenChange,
 }: AddPriceListItemSheetProps) {
   const addItem = useAdminAddPriceListItem(priceListId);
-  const [overrideType, setOverrideType] =
-    useState<PriceListOverrideType>("FIXED");
+  const [overrideType, setOverrideType] = useState<PriceListOverrideType>(
+    PriceListOverrideType.FIXED,
+  );
   const [overrideValue, setOverrideValue] = useState<string>("0");
   const [productVariantId, setProductVariantId] = useState<string>("");
   const [productId, setProductId] = useState<string>("");
@@ -68,13 +69,13 @@ export function AddPriceListItemSheet({
         overrideValue: parseFloat(overrideValue),
       });
       // Reset form
-      setOverrideType("FIXED");
+      setOverrideType(PriceListOverrideType.FIXED);
       setOverrideValue("0");
       setProductVariantId("");
       setProductId("");
       setCategoryId("");
       onOpenChange(false);
-    } catch (error) {
+    } catch (_error) {
       // Error handled by hook
     }
   };
@@ -136,7 +137,7 @@ export function AddPriceListItemSheet({
                         ? "category"
                         : ""
                 }
-                onValueChange={(value) => {
+                onValueChange={(_value) => {
                   setProductVariantId("");
                   setProductId("");
                   setCategoryId("");

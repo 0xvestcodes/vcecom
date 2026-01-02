@@ -15,7 +15,6 @@ import { useVerifyPayment } from "@/hooks/use-payments";
 import { get } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 import { getToken } from "@/lib/utils/storage";
-import { CashfreePaymentClient } from "./cashfree-payment-client";
 
 interface PaymentGatewayClientProps {
   paymentIntentId: string;
@@ -78,10 +77,10 @@ interface CustomerPrefill {
 export function PaymentGatewayClient({
   paymentIntentId,
   checkoutSessionId,
-  paymentGateway,
+  paymentGateway: _paymentGateway,
 }: PaymentGatewayClientProps) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(true);
+  const [_isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [customerPrefill, setCustomerPrefill] = useState<CustomerPrefill>({});
@@ -114,7 +113,7 @@ export function PaymentGatewayClient({
             });
             return;
           }
-        } catch (error) {
+        } catch (_error) {
           // If customer endpoint fails, try to get from cart
           console.log("Could not fetch customer from profile, trying cart");
         }
@@ -143,7 +142,7 @@ export function PaymentGatewayClient({
             phone: customer.phone || undefined,
           });
         }
-      } catch (error) {
+      } catch (_error) {
         console.log("Could not fetch customer details for prefill");
       }
     } catch (error) {

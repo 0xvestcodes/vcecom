@@ -118,7 +118,7 @@ export function AuditLogsListClientRefactored() {
 
   const pagination = usePagination(paginationData, handlePageChange);
 
-  const handleFiltersChange = (newFilters: AuditLogsFilters) => {
+  const _handleFiltersChange = (newFilters: AuditLogsFilters) => {
     setFilters(newFilters);
     setPage(DEFAULT_PAGE);
   };
@@ -267,7 +267,7 @@ export function AuditLogsListClientRefactored() {
           onRetry={() => window.location.reload()}
         >
           {data && (
-            <DataTable
+            <DataTable<AuditLog>
               columns={columns}
               data={data.logs}
               rowActions={rowActions}

@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";

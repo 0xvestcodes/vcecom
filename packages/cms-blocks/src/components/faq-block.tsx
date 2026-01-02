@@ -13,7 +13,7 @@ interface FaqBlockProps {
 
 export function FaqBlock({ props }: BlockComponentProps<FaqBlockProps>) {
   const { items, style } = props;
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [openQuestion, setOpenQuestion] = useState<string | null>(null);
 
   const variantClasses = {
     default: "",
@@ -30,17 +30,26 @@ export function FaqBlock({ props }: BlockComponentProps<FaqBlockProps>) {
 
   return (
     <div className={blockClasses}>
-      {items.map((item, index) => (
-        <div key={index} className="border-b">
+      {items.map((item) => (
+        <div
+          key={item.question || `faq-${item.answer?.substring(0, 20)}`}
+          className="border-b"
+        >
           <button
             type="button"
-            onClick={() => setOpenIndex(openIndex === index ? null : index)}
+            onClick={() =>
+              setOpenQuestion(
+                openQuestion === item.question ? null : item.question,
+              )
+            }
             className="flex w-full items-center justify-between py-4 text-left"
           >
             <span className="font-semibold">{item.question}</span>
-            <span className="text-xl">{openIndex === index ? "−" : "+"}</span>
+            <span className="text-xl">
+              {openQuestion === item.question ? "−" : "+"}
+            </span>
           </button>
-          {openIndex === index && (
+          {openQuestion === item.question && (
             <div className="pb-4 text-muted-foreground">{item.answer}</div>
           )}
         </div>

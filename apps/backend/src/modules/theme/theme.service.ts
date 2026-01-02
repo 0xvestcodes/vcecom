@@ -1,5 +1,5 @@
 import { BadRequestException, Inject, Injectable } from "@nestjs/common";
-import { eq, themeSettings } from "@vcecom/db";
+import { eq, type ThemeSettings, themeSettings } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { z } from "zod";
 import { ContextService } from "../../common/logging/context.service";
@@ -25,7 +25,7 @@ export class ThemeService {
     try {
       // For v1, we'll use the first store or create default
       // In multi-store setup, storeId would be required
-      let theme;
+      let theme: ThemeSettings | undefined;
 
       if (storeId) {
         [theme] = await this.db
@@ -72,7 +72,7 @@ export class ThemeService {
       const validated = updateThemeSchema.parse(dto);
 
       // Get or create theme
-      let theme;
+      let theme: ThemeSettings | undefined;
       if (storeId) {
         [theme] = await this.db
           .select()

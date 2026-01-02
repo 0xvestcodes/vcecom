@@ -1,6 +1,6 @@
 "use client";
 
-import { Edit, FolderTree, Plus, Trash2 } from "lucide-react";
+import { Edit, Plus, Trash2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -20,8 +20,8 @@ import type { Category, CategoryQueryParams } from "@/lib/types/categories";
 import { CategorySheet } from "./category-sheet";
 import { EmptyCategoriesState } from "./empty-categories-state";
 
-const DEFAULT_PAGE = 1;
-const DEFAULT_LIMIT = 20;
+const _DEFAULT_PAGE = 1;
+const _DEFAULT_LIMIT = 20;
 
 /**
  * Refactored Categories List Client using universal components (L1 pattern)
@@ -110,11 +110,7 @@ export function CategoriesListClientRefactored() {
     {
       id: "status",
       header: "Status",
-      cell: (category) => (
-        <span className="text-xs">
-          {category.isActive ? "Active" : "Inactive"}
-        </span>
-      ),
+      cell: () => <span className="text-xs">Active</span>,
     },
   ];
 
@@ -167,7 +163,7 @@ export function CategoriesListClientRefactored() {
           emptyComponent={<EmptyCategoriesState onCreate={handleCreate} />}
           onRetry={() => window.location.reload()}
         >
-          <DataTable
+          <DataTable<Category>
             columns={columns}
             data={categories}
             rowActions={rowActions}

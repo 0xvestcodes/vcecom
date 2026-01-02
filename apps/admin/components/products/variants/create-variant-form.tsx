@@ -40,7 +40,7 @@ export function CreateVariantForm({
   productTitle,
   defaultPrice = 0,
 }: CreateVariantFormProps) {
-  const router = useRouter();
+  const _router = useRouter();
   const { data: optionTypes = [] } =
     useAdminProductVariantOptionTypes(productId);
   const createVariant = useAdminCreateVariant(productId);

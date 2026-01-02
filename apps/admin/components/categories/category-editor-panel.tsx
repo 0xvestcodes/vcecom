@@ -88,36 +88,32 @@ export function CategoryEditorPanel({ categoryId }: CategoryEditorPanelProps) {
         isSaving={updateCategory.isPending}
         backHref="/products/categories"
         sidebar={
-          <>
-            <Card>
-              <CardContent className="pt-6 space-y-4">
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <div>
+                <div className="text-sm text-muted-foreground">Slug</div>
+                <div className="font-medium">{category.slug}</div>
+              </div>
+              {category.parentId && (
                 <div>
-                  <div className="text-sm text-muted-foreground">Slug</div>
-                  <div className="font-medium">{category.slug}</div>
+                  <div className="text-sm text-muted-foreground">Parent</div>
+                  <div className="font-medium">{category.parentId}</div>
                 </div>
-                {category.parentId && (
-                  <div>
-                    <div className="text-sm text-muted-foreground">Parent</div>
-                    <div className="font-medium">{category.parentId}</div>
-                  </div>
-                )}
-                <div>
-                  <div className="text-sm text-muted-foreground">Products</div>
-                  <div className="font-medium">
-                    {category.productCount || 0}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Created</div>
-                  <DateTime date={category.createdAt} />
-                </div>
-                <div>
-                  <div className="text-sm text-muted-foreground">Updated</div>
-                  <DateTime date={category.updatedAt} />
-                </div>
-              </CardContent>
-            </Card>
-          </>
+              )}
+              <div>
+                <div className="text-sm text-muted-foreground">Products</div>
+                <div className="font-medium">{category.productCount || 0}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Created</div>
+                <DateTime date={category.createdAt} />
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Updated</div>
+                <DateTime date={category.updatedAt} />
+              </div>
+            </CardContent>
+          </Card>
         }
         warningActions={
           <Button

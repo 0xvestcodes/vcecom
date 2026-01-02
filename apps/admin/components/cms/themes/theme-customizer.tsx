@@ -25,8 +25,11 @@ export function ThemeCustomizer({
   themeId,
   onSettingsChange,
 }: ThemeCustomizerProps) {
-  const { data: themeSettings, isLoading } = useThemeSettings(themeId);
+  const { data: themeSettingsResponse, isLoading } = useThemeSettings(themeId);
   const updateSettings = useUpdateThemeSettings(themeId);
+  const themeSettings = themeSettingsResponse as
+    | { settingsOverrides?: ThemeSettingsDto }
+    | undefined;
 
   const [localSettings, setLocalSettings] = useState<ThemeSettingsDto>({});
 
@@ -95,7 +98,7 @@ export function ThemeCustomizer({
     return <div className="p-4">Loading theme settings...</div>;
   }
 
-  const baseTheme = themeSettings || ({} as any);
+  const baseTheme: ThemeSettingsDto = themeSettings?.settingsOverrides || {};
   const colors = { ...baseTheme.colors, ...localSettings.colors };
   const typography = { ...baseTheme.typography, ...localSettings.typography };
   const buttons = { ...baseTheme.buttons, ...localSettings.buttons };
@@ -106,6 +109,7 @@ export function ThemeCustomizer({
       <div className="p-4 border-b">
         <h3 className="font-semibold text-sm mb-2">Theme Settings</h3>
         <button
+          type="button"
           onClick={handleSave}
           disabled={updateSettings.isPending}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 disabled:opacity-50"

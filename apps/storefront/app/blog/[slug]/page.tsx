@@ -57,6 +57,7 @@ export default async function BlogPostPage({
     <article className="container mx-auto px-4 py-8 max-w-4xl">
       {post.featuredImage && (
         <div className="mb-8 aspect-video overflow-hidden rounded-lg">
+          {/* biome-ignore lint/performance/noImgElement: Blog featured images, using Next.js Image would require additional props */}
           <img
             src={post.featuredImage}
             alt={post.title}

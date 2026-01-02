@@ -19,7 +19,7 @@ interface PreviewPageProps {
  */
 export default async function PreviewPage({ searchParams }: PreviewPageProps) {
   const params = await searchParams;
-  const themeId = params?.theme;
+  const _themeId = params?.theme;
   const isPreview = params?.preview === "true";
   const previewToken = params?.previewToken;
 

@@ -36,12 +36,14 @@ export function ThemeFooter({ footer, children }: ThemeFooterProps) {
       <div className="container mx-auto px-4 py-8">
         {footer.columns && footer.columns.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-            {footer.columns.map((column, index) => (
-              <div key={index}>
+            {footer.columns.map((column) => (
+              <div
+                key={column.title || `footer-column-${column.links?.[0]?.url}`}
+              >
                 <h3 className="font-semibold mb-4">{column.title}</h3>
                 <ul className="space-y-2">
-                  {column.links.map((link, linkIndex) => (
-                    <li key={linkIndex}>
+                  {column.links.map((link) => (
+                    <li key={link.url || link.label}>
                       <Link
                         href={link.url}
                         className="text-sm text-muted-foreground hover:text-foreground"

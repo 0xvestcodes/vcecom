@@ -24,6 +24,8 @@ export function EmbedBlock({ props }: BlockComponentProps<EmbedBlockProps>) {
     variantClasses[style?.variant || "default"],
   );
 
+  // Note: dangerouslySetInnerHTML is intentionally used here for embed content.
+  // Content is from controlled CMS input (oEmbed or custom HTML).
   if (html) {
     return (
       <div
@@ -40,6 +42,7 @@ export function EmbedBlock({ props }: BlockComponentProps<EmbedBlockProps>) {
           src={url}
           className="w-full h-[600px] rounded-lg"
           allowFullScreen
+          title="Embedded content"
         />
       </div>
     );

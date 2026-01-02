@@ -1,8 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { CollapsibleSection } from "@/components/common/collapsible-section";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sheet,
@@ -37,7 +35,7 @@ export function DiscountSheet({
   open,
   onOpenChange,
 }: DiscountSheetProps) {
-  const router = useRouter();
+  const _router = useRouter();
   const isEditMode = !!discountId;
   const { data: discount } = useAdminDiscount(
     discountId || "",
@@ -53,13 +51,13 @@ export function DiscountSheet({
       if (isEditMode) {
         await updateDiscount.mutateAsync(data as UpdateDiscountInput);
       } else {
-        const created = await createDiscount.mutateAsync(
+        const _created = await createDiscount.mutateAsync(
           data as CreateDiscountInput,
         );
         // Optionally navigate to detail or just close
         onOpenChange(false);
       }
-    } catch (error) {
+    } catch (_error) {
       // Error handled by hooks
     }
   };

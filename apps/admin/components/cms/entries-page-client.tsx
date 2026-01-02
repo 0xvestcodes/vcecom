@@ -25,7 +25,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -54,7 +53,6 @@ import { useAdminContentType } from "@/hooks/cms/use-admin-content-types";
 import { useAdminDeleteEntry } from "@/hooks/cms/use-admin-delete-entry";
 import { useAdminEntries } from "@/hooks/cms/use-admin-entries";
 import { useDebounce } from "@/hooks/use-debounce";
-import { CMS_STATUS_LABELS } from "@/lib/constants/cms-actions.constants";
 import type { Entry, ListEntriesQueryParams } from "@/lib/types/cms";
 import { WorkflowStatusIndicator } from "./workflow-status-indicator";
 

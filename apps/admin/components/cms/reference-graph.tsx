@@ -103,7 +103,7 @@ export function ReferenceGraph({
 
   const renderReferenceList = (
     refs: Reference[],
-    title: string,
+    _title: string,
     emptyMessage: string,
   ) => {
     if (refs.length === 0) {

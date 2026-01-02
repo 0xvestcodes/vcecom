@@ -47,7 +47,9 @@ export function resetConfig(): void {
 /**
  * @deprecated Use loadConfig() instead
  * Configuration loader class (kept for backward compatibility)
+ * Note: Static-only class kept for backward compatibility with existing code
  */
+// biome-ignore lint/complexity/noStaticOnlyClass: Backward compatibility - deprecated class
 export class ConfigLoader {
   /**
    * @deprecated Use loadConfig() instead

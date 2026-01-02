@@ -9,11 +9,9 @@ import {
   DataTable,
   type RowAction,
 } from "@/components/common/data-table";
-import { ProtectedButton } from "@/components/common/protected-button";
 import { QueryState } from "@/components/common/query-state";
 import { ListLayout } from "@/components/layout/list-layout";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useAdminApproveReview } from "@/hooks/reviews/use-admin-approve-review";
 import { useAdminDeleteReview } from "@/hooks/reviews/use-admin-delete-review";
@@ -240,7 +238,7 @@ export function ReviewsListClientRefactored() {
           emptyComponent={<EmptyReviewsState />}
           onRetry={() => refetch()}
         >
-          <DataTable
+          <DataTable<Review>
             columns={columns}
             data={reviewsData?.data || []}
             rowActions={rowActions}

@@ -27,7 +27,7 @@ export function VariantSheet({
   open,
   onOpenChange,
 }: VariantSheetProps) {
-  const handleComplete = () => {
+  const _handleComplete = () => {
     onOpenChange(false);
     // Optionally refresh the page or update the variants list
   };

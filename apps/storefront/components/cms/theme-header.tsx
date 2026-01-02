@@ -52,8 +52,8 @@ export function ThemeHeader({ navigation, storeConfig }: ThemeHeaderProps) {
       <nav className="hidden md:flex items-center gap-6">
         {navigation?.items && navigation.items.length > 0 ? (
           <ul className="flex items-center gap-6">
-            {navigation.items.map((item, index) => (
-              <li key={`nav-item-${index}`}>
+            {navigation.items.map((item) => (
+              <li key={item.href || item.label}>
                 <Link
                   href={item.href}
                   className="text-sm font-medium hover:text-primary transition-colors"
@@ -62,8 +62,8 @@ export function ThemeHeader({ navigation, storeConfig }: ThemeHeaderProps) {
                 </Link>
                 {item.children && item.children.length > 0 && (
                   <ul className="absolute mt-2 hidden group-hover:block">
-                    {item.children.map((child, childIndex) => (
-                      <li key={`nav-child-${index}-${childIndex}`}>
+                    {item.children.map((child) => (
+                      <li key={child.href || child.label}>
                         <Link
                           href={child.href}
                           className="block px-4 py-2 text-sm hover:bg-muted"

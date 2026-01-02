@@ -1,12 +1,12 @@
 "use client";
 
 import { ExternalLink, Maximize2, Minimize2, RefreshCw, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { endpoints } from "@/lib/endpoints";
 import type { CmsEntry } from "@/lib/types/cms";
-import { cn } from "@/lib/utils/cn";
+import { cn } from "@/lib/utils";
 
 interface LivePreviewPanelProps {
   entry?: CmsEntry | null;
@@ -39,14 +39,8 @@ export function LivePreviewPanel({
   const storefrontUrl =
     process.env.NEXT_PUBLIC_STOREFRONT_URL || "http://localhost:3002";
 
-  // Generate preview token when entry changes
-  useEffect(() => {
-    if (isOpen && entry) {
-      generatePreviewToken();
-    }
-  }, [isOpen, entry?.id]);
-
-  const generatePreviewToken = async () => {
+  // Generate preview token function - wrapped in useCallback to avoid dependency issues
+  const generatePreviewToken = useCallback(async () => {
     if (!entry) return;
 
     setIsLoading(true);
@@ -58,7 +52,7 @@ export function LivePreviewPanel({
         contentTypeId: entry.contentTypeId,
       });
 
-      setPreviewToken(response.data.token);
+      setPreviewToken((response as { token: string }).token);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Failed to generate preview token",
@@ -67,7 +61,14 @@ export function LivePreviewPanel({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [entry]);
+
+  // Generate preview token when entry changes
+  useEffect(() => {
+    if (isOpen && entry) {
+      generatePreviewToken();
+    }
+  }, [isOpen, entry?.id, entry, generatePreviewToken]);
 
   // Build preview URL
   const getPreviewUrl = (): string => {

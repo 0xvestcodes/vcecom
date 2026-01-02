@@ -51,6 +51,7 @@ export function ProductCardBlock({
           )}
         >
           {product.image ? (
+            // biome-ignore lint/performance/noImgElement: External product images, Next.js Image not available in shared package
             <img
               src={product.image}
               alt={product.title || "Product"}

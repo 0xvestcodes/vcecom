@@ -54,10 +54,10 @@ export function BlockEditorWithStyles({
   const definition = getBlockDefinition(block.type as BlockType);
 
   // Form for block props (validated against block schema)
-  // biome-ignore lint/suspicious/noExplicitAny: zodResolver requires FieldValues type but our schema is generic Record<string, unknown>
   const propsForm = useForm<Record<string, unknown>>({
     resolver: definition?.propsSchema
-      ? zodResolver(definition.propsSchema as any)
+      ? // biome-ignore lint/suspicious/noExplicitAny: zodResolver requires FieldValues type but our schema is generic Record<string, unknown>
+        zodResolver(definition.propsSchema as any)
       : undefined,
     defaultValues: {
       ...definition?.defaultProps,

@@ -26,8 +26,11 @@ export function HeroForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-1">Title</label>
+        <label htmlFor="hero-title" className="block text-sm font-medium mb-1">
+          Title
+        </label>
         <input
+          id="hero-title"
           {...form.register("title")}
           type="text"
           className="w-full px-3 py-2 border rounded-md"
@@ -41,8 +44,14 @@ export function HeroForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Subtitle</label>
+        <label
+          htmlFor="hero-subtitle"
+          className="block text-sm font-medium mb-1"
+        >
+          Subtitle
+        </label>
         <textarea
+          id="hero-subtitle"
           {...form.register("subtitle")}
           className="w-full px-3 py-2 border rounded-md"
           placeholder="Enter hero subtitle"
@@ -70,8 +79,14 @@ export function HeroForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">CTA Text</label>
+        <label
+          htmlFor="hero-cta-text"
+          className="block text-sm font-medium mb-1"
+        >
+          CTA Text
+        </label>
         <input
+          id="hero-cta-text"
           {...form.register("ctaText")}
           type="text"
           className="w-full px-3 py-2 border rounded-md"
@@ -80,8 +95,14 @@ export function HeroForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">CTA Link</label>
+        <label
+          htmlFor="hero-cta-link"
+          className="block text-sm font-medium mb-1"
+        >
+          CTA Link
+        </label>
         <input
+          id="hero-cta-link"
           {...form.register("ctaLink")}
           type="url"
           className="w-full px-3 py-2 border rounded-md"
@@ -115,7 +136,7 @@ export function HeroForm({
  */
 export function createHeroForm(defaultValues?: HeroFormData) {
   return useForm<HeroFormData>({
-    resolver: zodResolver(heroBlock.propsSchema),
+    resolver: zodResolver(heroBlock.propsSchema as any) as any,
     defaultValues: defaultValues || heroBlock.defaultProps,
   });
 }

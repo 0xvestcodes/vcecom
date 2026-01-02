@@ -21,11 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  useBlogPosts,
-  useDeleteBlogPost,
-  usePublishBlogPost,
-} from "@/hooks/blog/use-blog-posts";
+import { useBlogPosts, useDeleteBlogPost } from "@/hooks/blog/use-blog-posts";
 
 export function BlogPostsListClient() {
   const router = useRouter();
@@ -42,7 +38,7 @@ export function BlogPostsListClient() {
     try {
       await deleteMutation.mutateAsync(id);
       toast.success("Blog post deleted");
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to delete blog post");
     }
   };
@@ -66,7 +62,7 @@ export function BlogPostsListClient() {
       );
       // Refetch data
       window.location.reload();
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to update publish status");
     }
   };

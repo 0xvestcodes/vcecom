@@ -2,13 +2,6 @@
 
 import { useState } from "react";
 import { ImageUploadField } from "@/components/cms/image-upload-field";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
@@ -372,7 +365,7 @@ export function SEOFields({
                         if (images[0]) {
                           images[0] = {
                             ...images[0],
-                            width: parseInt(e.target.value) || undefined,
+                            width: parseInt(e.target.value, 10) || undefined,
                           };
                           updateField("ogImages", images);
                         }
@@ -393,7 +386,7 @@ export function SEOFields({
                         if (images[0]) {
                           images[0] = {
                             ...images[0],
-                            height: parseInt(e.target.value) || undefined,
+                            height: parseInt(e.target.value, 10) || undefined,
                           };
                           updateField("ogImages", images);
                         }

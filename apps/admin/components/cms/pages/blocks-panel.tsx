@@ -3,7 +3,6 @@
 import type { BlockType } from "@vcecom/cms-blocks";
 import {
   getBlockCategories,
-  getBlockMetadata,
   getBlocksByCategory,
 } from "@vcecom/cms-blocks-admin";
 import { Search } from "lucide-react";
@@ -46,7 +45,7 @@ export function BlocksPanel({ onAddBlock }: BlocksPanelProps) {
         return { category, blocks };
       })
       .filter(({ blocks }) => blocks.length > 0);
-  }, [searchQuery]);
+  }, [searchQuery, categories.map]);
 
   return (
     <div className="flex flex-col h-full border-r">

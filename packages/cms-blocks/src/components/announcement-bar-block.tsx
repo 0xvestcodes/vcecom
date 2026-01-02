@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import type { BlockComponentProps } from "./types";
-import { cn } from "./utils";
 
 interface AnnouncementBarBlockProps {
   text: string;

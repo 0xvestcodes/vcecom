@@ -43,7 +43,7 @@ function StubBlock({ props }: BlockComponentProps<Record<string, unknown>>) {
 
 export const BLOCK_REGISTRY: Record<
   BlockType,
-  React.ComponentType<BlockComponentProps>
+  React.ComponentType<BlockComponentProps<any>>
 > = {
   // Core
   rich_text: RichTextBlock,

@@ -134,7 +134,7 @@ export function ListLayout({
                 filters={filters}
                 values={filterValues}
                 onChange={onFiltersChange || (() => {})}
-                onClear={onClearFilters}
+                onClear={onClearFilters || (() => {})}
                 onApply={() => setFilterDrawerOpen(false)}
               />
             </SheetContent>

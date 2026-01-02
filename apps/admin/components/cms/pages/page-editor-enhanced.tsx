@@ -8,7 +8,7 @@ import {
 } from "@dnd-kit/sortable";
 import type { BlockType } from "@vcecom/cms-blocks";
 import { getBlockDefinition } from "@vcecom/cms-blocks";
-import { ArrowLeft, Eye, Plus, Save, Send } from "lucide-react";
+import { ArrowLeft, Eye, Save, Send } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -33,9 +33,9 @@ interface PageEditorEnhancedProps {
  * Left: Available blocks, Middle: Live preview, Right: Block settings
  */
 export function PageEditorEnhanced({ pageId }: PageEditorEnhancedProps) {
-  const router = useRouter();
+  const _router = useRouter();
   const { data: entry, isLoading: isLoadingEntry } = useAdminEntry(pageId);
-  const { data: contentTypes } = useAdminContentTypes();
+  const { data: _contentTypes } = useAdminContentTypes();
   const updateEntry = useAdminUpdateEntry(pageId, entry?.contentTypeId || "");
 
   const [sections, setSections] = useState<Section[]>([]);
@@ -293,17 +293,18 @@ export function PageEditorEnhanced({ pageId }: PageEditorEnhancedProps) {
                     {allBlocks
                       .sort((a, b) => a.order - b.order)
                       .map((block) => (
-                        <div
+                        <button
                           key={block.id}
+                          type="button"
                           onClick={() => setSelectedBlockId(block.id)}
-                          className={`cursor-pointer rounded-lg border-2 transition-colors ${
+                          className={`w-full text-left cursor-pointer rounded-lg border-2 transition-colors ${
                             selectedBlockId === block.id
                               ? "border-primary bg-primary/5"
                               : "border-transparent hover:border-muted"
                           }`}
                         >
                           <BlocksPreview blocks={[block]} />
-                        </div>
+                        </button>
                       ))}
                   </div>
                 </SortableContext>

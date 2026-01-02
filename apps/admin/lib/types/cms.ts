@@ -134,3 +134,15 @@ export interface UpdateEntryDto {
   status?: EntryStatus;
   slug?: string | null;
 }
+
+// Alias for Entry (used in some components)
+export type CmsEntry = Entry;
+
+// Block type for CMS pages
+export interface Block {
+  id: string;
+  type: string;
+  props: Record<string, unknown>;
+  style?: Record<string, unknown>;
+  order?: number;
+}

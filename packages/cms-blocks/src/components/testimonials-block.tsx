@@ -42,6 +42,7 @@ export function TestimonialsBlock({
     <div className={blockClasses}>
       <div className="text-center">
         {currentTestimonial.avatar ? (
+          // biome-ignore lint/performance/noImgElement: External avatar URLs, Next.js Image not available in shared package
           <img
             src={currentTestimonial.avatar}
             alt={currentTestimonial.name}
@@ -60,15 +61,16 @@ export function TestimonialsBlock({
       </div>
       {testimonials.length > 1 && (
         <div className="mt-6 flex justify-center gap-2">
-          {testimonials.map((_, index) => (
+          {testimonials.map((testimonial, index) => (
             <button
-              key={index}
+              key={`testimonial-${testimonial.name}-${index}`}
               type="button"
               onClick={() => setCurrentIndex(index)}
               className={cn(
                 "h-2 w-2 rounded-full transition-colors",
                 index === currentIndex ? "bg-primary" : "bg-muted",
               )}
+              aria-label={`Go to testimonial ${index + 1} by ${testimonial.name}`}
             />
           ))}
         </div>

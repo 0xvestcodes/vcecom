@@ -72,7 +72,7 @@ export function AddProductsSheet({
       });
       setSelectedProductIds(new Set());
       onOpenChange(false);
-    } catch (error) {
+    } catch (_error) {
       // Error handled by hook
     }
   };

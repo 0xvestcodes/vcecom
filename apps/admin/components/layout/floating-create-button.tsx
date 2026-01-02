@@ -39,7 +39,7 @@ interface CreateOption {
  */
 export function FloatingCreateButton() {
   const router = useRouter();
-  const pathname = usePathname();
+  const _pathname = usePathname();
   const [open, setOpen] = useState(false);
   const hasAdmin = useHasRole("admin");
   const hasMarketing = useHasRole("marketing");
@@ -144,9 +144,9 @@ export function FloatingCreateButton() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-56">
-          {options.map((option, index) => (
+          {options.map((option) => (
             <DropdownMenuItem
-              key={index}
+              key={option.href || option.label}
               onClick={() => handleOptionClick(option)}
             >
               {option.label}

@@ -36,10 +36,7 @@ export function CollectionSheet({
 }: CollectionSheetProps) {
   const router = useRouter();
   const isEditMode = !!collectionId;
-  const { data: collection } = useAdminCollection(
-    collectionId || "",
-    isEditMode && open ? true : false,
-  );
+  const { data: collection } = useAdminCollection(collectionId || "");
   const createCollection = useAdminCreateCollection();
   const updateCollection = useAdminUpdateCollection(collectionId || "");
 
@@ -57,7 +54,7 @@ export function CollectionSheet({
         onOpenChange(false);
         router.push(`/products/collections/${created.id}`);
       }
-    } catch (error) {
+    } catch (_error) {
       // Error handled by hooks
     }
   };

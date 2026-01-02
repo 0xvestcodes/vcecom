@@ -1,10 +1,12 @@
 import type { BlockCategory, BlockType } from "@vcecom/cms-blocks";
-import type { UseFormReturn } from "react-hook-form";
+import type { FieldValues, UseFormReturn } from "react-hook-form";
 
 /**
  * Form component props for block forms
  */
-export interface BlockFormProps<T = Record<string, unknown>> {
+export interface BlockFormProps<
+  T extends FieldValues = Record<string, unknown>,
+> {
   form: UseFormReturn<T>;
   onSubmit?: (data: T) => void;
   onCancel?: () => void;
@@ -25,5 +27,6 @@ export interface BlockMetadata {
 /**
  * Block form component type
  */
-export type BlockFormComponent<T = Record<string, unknown>> =
-  React.ComponentType<BlockFormProps<T>>;
+export type BlockFormComponent<
+  T extends FieldValues = Record<string, unknown>,
+> = React.ComponentType<BlockFormProps<T>>;

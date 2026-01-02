@@ -31,9 +31,9 @@ export function UspHighlightsBlock({
 
   return (
     <div className={blockClasses}>
-      {items.map((item, index) => (
+      {items.map((item) => (
         <div
-          key={index}
+          key={item.title || `usp-${item.icon || "item"}`}
           className="flex flex-col items-center space-y-2 text-center"
         >
           {item.icon ? <div className="mb-2 text-4xl">{item.icon}</div> : null}

@@ -79,7 +79,9 @@ export function ImageForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium mb-1">Image</label>
+        <label htmlFor="image-src" className="block text-sm font-medium mb-1">
+          Image
+        </label>
         {previewUrl ? (
           <div className="space-y-2">
             <div className="relative w-full h-48 rounded-lg border overflow-hidden bg-gray-100">
@@ -92,6 +94,7 @@ export function ImageForm({
             </div>
             <div className="flex gap-2">
               <input
+                id="image-src"
                 {...form.register("src")}
                 type="text"
                 className="flex-1 px-3 py-2 border rounded-md"
@@ -135,7 +138,7 @@ export function ImageForm({
                     if (file) {
                       handleFileSelect({
                         target: { files: [file] },
-                      } as React.ChangeEvent<HTMLInputElement>);
+                      } as unknown as React.ChangeEvent<HTMLInputElement>);
                     }
                   };
                   input.click();
@@ -153,7 +156,9 @@ export function ImageForm({
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                aria-label="Upload icon"
               >
+                <title>Upload icon</title>
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -185,8 +190,11 @@ export function ImageForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Alt Text</label>
+        <label htmlFor="image-alt" className="block text-sm font-medium mb-1">
+          Alt Text
+        </label>
         <input
+          id="image-alt"
           {...form.register("alt")}
           type="text"
           className="w-full px-3 py-2 border rounded-md"
@@ -195,8 +203,14 @@ export function ImageForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1">Caption</label>
+        <label
+          htmlFor="image-caption"
+          className="block text-sm font-medium mb-1"
+        >
+          Caption
+        </label>
         <input
+          id="image-caption"
           {...form.register("caption")}
           type="text"
           className="w-full px-3 py-2 border rounded-md"
@@ -230,7 +244,7 @@ export function ImageForm({
  */
 export function createImageForm(defaultValues?: ImageFormData) {
   return useForm<ImageFormData>({
-    resolver: zodResolver(imageBlock.propsSchema),
+    resolver: zodResolver(imageBlock.propsSchema as any) as any,
     defaultValues: defaultValues || imageBlock.defaultProps,
   });
 }

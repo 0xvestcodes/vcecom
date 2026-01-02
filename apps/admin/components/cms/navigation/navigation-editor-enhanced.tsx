@@ -23,7 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -85,8 +85,9 @@ export function NavigationEditorEnhanced({
         if (items[i].id === id) {
           return [...path, i];
         }
-        if (items[i].children) {
-          const childPath = findItemPath(id, items[i].children!, [...path, i]);
+        const children = items[i].children;
+        if (children) {
+          const childPath = findItemPath(id, children, [...path, i]);
           if (childPath) return childPath;
         }
       }
@@ -347,6 +348,7 @@ function NavigationItemComponent({
 
         {hasChildren && (
           <button
+            type="button"
             onClick={() => onToggleExpanded(item.id)}
             className="p-1 hover:bg-muted rounded"
           >
@@ -414,10 +416,10 @@ function NavigationItemComponent({
       {hasChildren && expanded && (
         <div className="ml-6 space-y-2">
           <SortableContext
-            items={item.children!.map((child) => child.id)}
+            items={item.children?.map((child) => child.id) || []}
             strategy={verticalListSortingStrategy}
           >
-            {item.children!.map((child) => (
+            {item.children?.map((child) => (
               <NavigationItemComponent
                 key={child.id}
                 item={child}

@@ -45,7 +45,7 @@ export function PriceListSheet({
   const isEditMode = !!priceListId;
   const { data: priceList } = useAdminPriceList(
     priceListId || "",
-    isEditMode && open ? true : false,
+    !!(isEditMode && open),
   );
   const createPriceList = useAdminCreatePriceList();
   const updatePriceList = useAdminUpdatePriceList(priceListId || "");
@@ -85,7 +85,7 @@ export function PriceListSheet({
         onOpenChange(false);
         router.push(`/price-lists/${created.id}`);
       }
-    } catch (error) {
+    } catch (_error) {
       // Error handled by hooks
     }
   };
