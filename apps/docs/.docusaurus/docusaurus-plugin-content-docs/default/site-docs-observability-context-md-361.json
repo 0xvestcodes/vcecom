@@ -1,7 +1,7 @@
 {
   "id": "observability/context",
-  "title": "Request Context Propagation",
-  "description": "The context system provides request-scoped data propagation across async operations using AsyncLocalStorage. It enables correlation of logs, traces, and operations throughout the request lifecycle.",
+  "title": "context",
+  "description": "",
   "source": "@site/docs/observability/context.md",
   "sourceDirName": "observability",
   "slug": "/observability/context",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Distributed Tracing",
+    "title": "tracing",
     "permalink": "/docs/observability/tracing"
   },
   "next": {
-    "title": "Log-Trace Correlation",
+    "title": "correlation",
     "permalink": "/docs/observability/correlation"
   }
 }

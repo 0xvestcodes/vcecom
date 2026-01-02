@@ -1,7 +1,7 @@
 {
   "id": "database-schema/erd",
-  "title": "Entity Relationship Diagram",
-  "description": "Core Entities",
+  "title": "erd",
+  "description": "",
   "source": "@site/docs/database-schema/erd.md",
   "sourceDirName": "database-schema",
   "slug": "/database-schema/erd",
@@ -20,7 +20,7 @@
     "permalink": "/docs/database-schema/overview"
   },
   "next": {
-    "title": "Database Tables",
+    "title": "tables",
     "permalink": "/docs/database-schema/tables"
   }
 }

@@ -56,17 +56,17 @@
     },
     "config": "config---api-reference-admin-5-e-9-a74"
   },
-  "/docs-305": {
+  "/docs-1a3": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---docsaba-d7c"
     }
   },
-  "/docs-cb7": {
+  "/docs-017": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---docs-005-788"
   },
-  "/docs-f14": {
+  "/docs-4b4": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/docs/admin/pagination-028": {
@@ -80,10 +80,6 @@
   "/docs/api-reference/store-api-847": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-api-reference-store-api-3-fd-51f"
-  },
-  "/docs/architecture/bugs-026": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-architecture-bugs-56-e-ef8"
   },
   "/docs/architecture/dependencies-83a": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -225,6 +221,10 @@
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-introductiona-09-6b4"
   },
+  "/docs/introduction/-da1": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-introduction-1-cd-026"
+  },
   "/docs/observability/context-c65": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-observability-context-361-33a"
@@ -232,10 +232,6 @@
   "/docs/observability/correlation-726": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-observability-correlationfde-733"
-  },
-  "/docs/observability/health-checks-a25": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-observability-health-checksf-67-af0"
   },
   "/docs/observability/logging-878": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -248,10 +244,6 @@
   "/docs/orders/creation-209": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-orders-creation-57-b-e6a"
-  },
-  "/docs/orders/error-handling-b13": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-orders-error-handling-579-cfb"
   },
   "/docs/orders/fulfillment-37d": {
     "__comp": "__comp---theme-doc-item-178-a40",
@@ -272,10 +264,6 @@
   "/docs/orders/refunds-1d2": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-orders-refunds-2-ef-f91"
-  },
-  "/docs/orders/troubleshooting-f4e": {
-    "__comp": "__comp---theme-doc-item-178-a40",
-    "content": "content---docs-orders-troubleshooting-0-cc-776"
   },
   "/docs/pricing/customer-groups-9c9": {
     "__comp": "__comp---theme-doc-item-178-a40",

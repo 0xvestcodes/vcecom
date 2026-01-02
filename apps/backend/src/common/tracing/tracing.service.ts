@@ -27,7 +27,7 @@ export interface SpanResult<_T> {
 /**
  * Service for creating OpenTelemetry spans with integrated logging
  * Provides utilities for creating spans and ensuring logs include trace/span IDs
- * Only active if OTEL_EXPORTER_ZIPKIN_ENDPOINT is set
+ * Only active if OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set
  */
 @Injectable()
 export class TracingService {
@@ -39,7 +39,10 @@ export class TracingService {
     private readonly contextService: ContextService,
   ) {
     // Check if tracing is enabled
-    this.isTracingEnabled = !!process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT;
+    this.isTracingEnabled = !!(
+      process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT
+    );
   }
 
   /**
@@ -106,11 +109,25 @@ export class TracingService {
     // Set span in context
     const spanContext = trace.setSpan(context.active(), span);
 
-    // Create logger with trace/span IDs
+    // Get trace/span IDs
     const spanContextData = span.spanContext();
+
+    // Validate trace ID - if it's all zeros, tracing SDK is not properly initialized
+    const isValidTraceId =
+      spanContextData.traceId &&
+      spanContextData.traceId !== "00000000000000000000000000000000";
+
+    // Only include trace/span IDs if they're valid
+    const traceContext = isValidTraceId
+      ? {
+          traceId: spanContextData.traceId,
+          spanId: spanContextData.spanId,
+        }
+      : {};
+
+    // Create logger with trace/span IDs (only if valid)
     const childLogger = this.logger.logger.child({
-      traceId: spanContextData.traceId,
-      spanId: spanContextData.spanId,
+      ...traceContext,
       operation,
       ...logContext,
     });
@@ -120,8 +137,7 @@ export class TracingService {
       childLogger.debug(
         {
           ...createLogContext(this.contextService, operation, logContext),
-          traceId: spanContextData.traceId,
-          spanId: spanContextData.spanId,
+          ...traceContext,
         },
         `Starting span: ${operation}`,
       );
@@ -141,8 +157,7 @@ export class TracingService {
             childLogger.debug(
               {
                 ...createLogContext(this.contextService, operation, logContext),
-                traceId: spanContextData.traceId,
-                spanId: spanContextData.spanId,
+                ...traceContext,
               },
               `Completed span: ${operation}`,
             );
@@ -165,8 +180,7 @@ export class TracingService {
           childLogger.error(
             {
               ...createLogContext(this.contextService, operation, logContext),
-              traceId: spanContextData.traceId,
-              spanId: spanContextData.spanId,
+              ...traceContext,
               error:
                 error instanceof Error
                   ? {

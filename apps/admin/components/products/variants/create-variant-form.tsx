@@ -76,8 +76,9 @@ export function CreateVariantForm({
         productId,
         optionValueIds: optionValueIds.length > 0 ? optionValueIds : undefined,
       });
-      const variant = await createVariant.mutateAsync(variantData);
-      router.push(`/products/${productId}/variants/${variant.id}`);
+      await createVariant.mutateAsync(variantData);
+      // Don't navigate - let parent handle completion
+      // router.push(`/products/${productId}/variants/${variant.id}`);
     } catch (_error) {
       // Error is handled by the hook's onError callback
     }

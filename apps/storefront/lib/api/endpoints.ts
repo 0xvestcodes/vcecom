@@ -102,6 +102,8 @@ export const endpoints = {
   payments: {
     createRazorpayOrder: "/store/payments/razorpay/orders",
     verifyPayment: "/store/payments/razorpay/verify",
+    createCashfreeOrder: "/store/payments/cashfree/orders",
+    verifyCashfreePayment: "/store/payments/cashfree/verify",
   },
   addressAutocomplete: {
     states: "/store/address-autocomplete/states",

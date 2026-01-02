@@ -1,26 +1,9 @@
-import { Metadata } from "next";
-import { Suspense } from "react";
-import { AuditLogsPageClient } from "@/components/audit-logs/audit-logs-page-client";
-import { TableSkeleton } from "@/components/common/table-skeleton";
+import { AuditLogsListClientRefactored } from "@/components/audit-logs/audit-logs-list-client-refactored";
 
-export const metadata: Metadata = {
-  title: "Audit Logs",
-  description: "View audit logs and activity history",
-};
-
+/**
+ * Audit Logs page - Server component
+ * Delegates all client-side logic to AuditLogsListClientRefactored component
+ */
 export default function AuditLogsPage() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Audit Logs</h1>
-        <p className="text-muted-foreground">
-          Track all administrative actions and changes
-        </p>
-      </div>
-
-      <Suspense fallback={<TableSkeleton columns={6} />}>
-        <AuditLogsPageClient />
-      </Suspense>
-    </div>
-  );
+  return <AuditLogsListClientRefactored />;
 }

@@ -1,0 +1,17 @@
+{
+  "sections": [
+    {
+      "id": "product",
+      "layout": "container",
+      "padding": "xl",
+      "blocks": [
+        {
+          "id": "featured-product-1",
+          "type": "featured_product",
+          "order": 1,
+          "props": {}
+        }
+      ]
+    }
+  ]
+}

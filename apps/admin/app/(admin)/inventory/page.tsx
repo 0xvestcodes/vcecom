@@ -1,9 +1,9 @@
-import { InventoryPageClient } from "@/components/inventory/inventory-page-client";
+import { InventoryListClientRefactored } from "@/components/inventory/inventory-list-client-refactored";
 
 /**
  * Inventory list page - Server component
- * Delegates all client-side logic to InventoryPageClient component
+ * Delegates all client-side logic to InventoryListClientRefactored component
  */
 export default function InventoryPage() {
-  return <InventoryPageClient />;
+  return <InventoryListClientRefactored />;
 }

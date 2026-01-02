@@ -1,7 +1,7 @@
 {
   "id": "deployment/overview",
   "title": "Deployment Overview",
-  "description": "VCEcom supports multiple deployment strategies for different environments and scaling requirements. This guide covers containerized deployment, cloud platforms, and operational considerations.",
+  "description": "Coming soon...",
   "source": "@site/docs/deployment/overview.md",
   "sourceDirName": "deployment",
   "slug": "/deployment/overview",
@@ -16,7 +16,7 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Database Tables",
+    "title": "tables",
     "permalink": "/docs/database-schema/tables"
   },
   "next": {

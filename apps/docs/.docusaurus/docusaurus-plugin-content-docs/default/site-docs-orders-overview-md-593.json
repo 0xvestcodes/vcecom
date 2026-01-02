@@ -1,7 +1,7 @@
 {
   "id": "orders/overview",
-  "title": "Orders System",
-  "description": "The orders system manages the complete lifecycle of customer orders from creation to fulfillment. It integrates with checkout, payments, inventory, and shipping systems to provide a seamless order processing experience.",
+  "title": "Orders Overview",
+  "description": "Coming soon...",
   "source": "@site/docs/orders/overview.md",
   "sourceDirName": "orders",
   "slug": "/orders/overview",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Checkout Inventory Flow",
+    "title": "inventory-flow",
     "permalink": "/docs/checkout/inventory-flow"
   },
   "next": {
-    "title": "Order Creation",
+    "title": "creation",
     "permalink": "/docs/orders/creation"
   }
 }

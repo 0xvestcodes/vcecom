@@ -18,6 +18,7 @@ import { AddressAutocompleteModule } from "./modules/address-autocomplete/addres
 import { AdminModule } from "./modules/admin/admin.module";
 import { AdminAuthModule } from "./modules/admin-auth/admin-auth.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { BlogModule } from "./modules/blog/blog.module";
 import { BundlesModule } from "./modules/bundles/bundles.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { CheckoutModule } from "./modules/checkout/checkout.module";
@@ -44,6 +45,7 @@ import { ShippingModule } from "./modules/shipping/shipping.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { StoresModule } from "./modules/stores/stores.module";
 import { SystemLogsModule } from "./modules/system-logs/system-logs.module";
+import { ThemeModule } from "./modules/theme/theme.module";
 
 @Module({
   imports: [
@@ -52,9 +54,12 @@ import { SystemLogsModule } from "./modules/system-logs/system-logs.module";
     // Register logging and tracing modules first
     LoggerModule,
     ContextModule,
-    // Tracing modules - only loaded if OTEL_EXPORTER_ZIPKIN_ENDPOINT is set
-    ...(process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT
-      ? [OtelTracingModule.forRoot(), TracingModule.forRoot()]
+    // TracingModule always provides TracingService (handles disabled state internally)
+    // Only OtelTracingModule is conditionally loaded
+    TracingModule.forRoot(),
+    ...(process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT
+      ? [OtelTracingModule.forRoot()]
       : []),
     RateLimitingModule,
     // Prometheus metrics - only loaded if PROMETHEUS_ENABLED=true
@@ -86,7 +91,9 @@ import { SystemLogsModule } from "./modules/system-logs/system-logs.module";
     BundlesModule,
     ReviewsModule,
     NotificationsModule,
+    BlogModule,
     StoresModule,
+    ThemeModule,
     ExportsModule,
     SystemLogsModule,
     ProductAssociationsModule,

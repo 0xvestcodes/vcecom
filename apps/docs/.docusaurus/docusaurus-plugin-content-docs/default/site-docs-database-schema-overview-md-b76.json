@@ -1,7 +1,7 @@
 {
   "id": "database-schema/overview",
   "title": "Database Schema Overview",
-  "description": "VCEcom uses PostgreSQL as the primary data store with a normalized relational schema optimized for ecommerce operations. The schema is designed for performance, data integrity, and scalability.",
+  "description": "Coming soon...",
   "source": "@site/docs/database-schema/overview.md",
   "sourceDirName": "database-schema",
   "slug": "/database-schema/overview",
@@ -20,7 +20,7 @@
     "permalink": "/docs/api-reference/store-api"
   },
   "next": {
-    "title": "Entity Relationship Diagram",
+    "title": "erd",
     "permalink": "/docs/database-schema/erd"
   }
 }

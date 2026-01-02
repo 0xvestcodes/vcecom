@@ -1,5 +1,6 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
+import { TracingModule } from "../../common/tracing/tracing.module";
 import { DatabaseModule } from "../database/database.module";
 import { RedisStoreService } from "./redis-store.service";
 import { InventoryRecoveryService } from "./services/inventory-recovery.service";
@@ -21,6 +22,7 @@ import { StaleMarkerStore } from "./stores/stale-marker-store";
   imports: [
     ScheduleModule.forRoot(),
     forwardRef(() => DatabaseModule), // Use forwardRef to break circular dependency
+    forwardRef(() => TracingModule.forRoot()), // Use forwardRef to break circular dependency with LoggerModule
   ],
   providers: [
     RedisStoreService,

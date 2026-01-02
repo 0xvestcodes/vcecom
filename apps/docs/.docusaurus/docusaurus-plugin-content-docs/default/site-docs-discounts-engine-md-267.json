@@ -1,7 +1,7 @@
 {
   "id": "discounts/engine",
-  "title": "Discount Engine",
-  "description": "Overview",
+  "title": "engine",
+  "description": "",
   "source": "@site/docs/discounts/engine.md",
   "sourceDirName": "discounts",
   "slug": "/discounts/engine",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Discount Definitions",
+    "title": "definitions",
     "permalink": "/docs/discounts/definitions"
   },
   "next": {
-    "title": "Discount Priority & Stacking",
+    "title": "priority-stacking",
     "permalink": "/docs/discounts/priority-stacking"
   }
 }

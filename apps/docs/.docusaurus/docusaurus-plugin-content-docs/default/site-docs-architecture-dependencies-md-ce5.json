@@ -1,7 +1,7 @@
 {
   "id": "architecture/dependencies",
-  "title": "Cross-Module Dependencies",
-  "description": "This document covers both module-level dependencies (within the backend) and workspace-level dependencies (across the monorepo).",
+  "title": "Dependencies",
+  "description": "Coming soon...",
   "source": "@site/docs/architecture/dependencies.md",
   "sourceDirName": "architecture",
   "slug": "/architecture/dependencies",
@@ -16,7 +16,7 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Module Breakdown",
+    "title": "Modules",
     "permalink": "/docs/architecture/modules"
   },
   "next": {

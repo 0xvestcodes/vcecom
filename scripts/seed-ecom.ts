@@ -15,13 +15,14 @@ if (!process.env.DATABASE_URL) {
 }
 
 import * as bcrypt from "bcrypt";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import Redis from "ioredis";
 import { Pool } from "pg";
 import * as schema from "../packages/db/src/schema";
 import {
   addresses,
+  blogPosts,
   bundleSetItems,
   bundleSets,
   bundles,
@@ -36,8 +37,12 @@ import {
   productVariants,
   products,
   reviews,
+  stores,
+  themes,
+  themeSettings,
   users,
 } from "../packages/db/src/schema";
+import { getAllThemes } from "../packages/themes/src/registry";
 
 // Create database connection for seeding
 const pool = new Pool({
@@ -178,6 +183,7 @@ let seededData: {
   customers: { id: string; userId: string }[];
   orders: { id: string; customerId: string; status: string }[];
   discounts: { id: string; code: string }[];
+  blogPosts: { id: string; slug: string }[];
 } = {
   categories: new Map(),
   products: new Map(),
@@ -186,6 +192,7 @@ let seededData: {
   customers: [],
   orders: [],
   discounts: [],
+  blogPosts: [],
 };
 
 // Seed Categories
@@ -1649,6 +1656,299 @@ async function seedDiscounts() {
   }
 }
 
+// Content Registry seeding removed - content is now hardcoded
+
+// Seed Blog Posts
+async function seedBlogPosts() {
+  console.log("\n📄 Seeding blog posts...");
+
+  try {
+    // Get admin user and default store
+    const [adminUser] = await db.select().from(users).limit(1);
+    if (!adminUser) {
+      console.log("⏭️  No admin user found, skipping blog posts...");
+      return;
+    }
+
+    const userId = adminUser.id;
+    const storeId = await getOrCreateDefaultStore();
+
+    // Check if blog posts already exist
+    const existing = await db
+      .select()
+      .from(blogPosts)
+      .where(eq(blogPosts.storeId, storeId))
+      .limit(1);
+
+    if (existing.length > 0) {
+      console.log("⏭️  Blog posts already exist, skipping...");
+      const allPosts = await db
+        .select()
+        .from(blogPosts)
+        .where(eq(blogPosts.storeId, storeId));
+      seededData.blogPosts = allPosts.map((p) => ({ id: p.id, slug: p.slug }));
+      return;
+    }
+
+    // Blog posts data (using Markdown format)
+    const blogPostsData = [
+      {
+        slug: "welcome-to-our-store",
+        title: "Welcome to Our Store",
+        excerpt: "Discover the latest trends in fashion and style.",
+        content: "Welcome to our online store! We're excited to bring you the latest fashion trends and high-quality products.\n\nOur mission is to provide you with the best shopping experience possible.",
+        featuredImage: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800",
+        published: true,
+        publishedAt: new Date(),
+        seo: {
+          title: "Welcome to Our Store",
+          description: "Discover the latest trends in fashion and style.",
+        },
+      },
+      {
+        slug: "spring-collection-2024",
+        title: "Spring Collection 2024",
+        excerpt: "Explore our new spring collection featuring fresh designs.",
+        content: "Spring is here, and so is our new collection! Discover fresh designs and vibrant colors.\n\nFrom casual wear to formal attire, we have something for everyone.",
+        featuredImage: "https://images.unsplash.com/photo-1445205170230-053b83016050?w=800",
+        published: true,
+        publishedAt: new Date(),
+        seo: {
+          title: "Spring Collection 2024",
+          description: "Explore our new spring collection featuring fresh designs.",
+        },
+      },
+      {
+        slug: "sustainable-fashion-tips",
+        title: "Sustainable Fashion Tips",
+        excerpt: "Learn how to build a sustainable wardrobe.",
+        content: "Sustainable fashion is more important than ever. Here are some tips to build an eco-friendly wardrobe.\n\nChoose quality over quantity, and support brands that care about the environment.",
+        featuredImage: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=800",
+        published: true,
+        publishedAt: new Date(),
+        seo: {
+          title: "Sustainable Fashion Tips",
+          description: "Learn how to build a sustainable wardrobe.",
+        },
+      },
+      {
+        slug: "how-to-style-your-outfit",
+        title: "How to Style Your Outfit",
+        excerpt: "Expert tips on creating the perfect look.",
+        content: "Styling your outfit can be challenging. Here are some expert tips to help you create the perfect look.\n\nMix and match different pieces, and don't be afraid to experiment!",
+        featuredImage: "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800",
+        published: true,
+        publishedAt: new Date(),
+        seo: {
+          title: "How to Style Your Outfit",
+          description: "Expert tips on creating the perfect look.",
+        },
+      },
+      {
+        slug: "new-arrivals-this-week",
+        title: "New Arrivals This Week",
+        excerpt: "Check out the latest products added to our store.",
+        content: "We've added exciting new products this week! From trendy accessories to classic essentials.\n\nDon't miss out on these limited-time offers.",
+        featuredImage: "https://images.unsplash.com/photo-1441984904996-e0b6ba687e04?w=800",
+        published: true,
+        publishedAt: new Date(),
+        seo: {
+          title: "New Arrivals This Week",
+          description: "Check out the latest products added to our store.",
+        },
+      },
+    ];
+
+    // Create blog posts
+    for (const postData of blogPostsData) {
+      // Check if blog post already exists
+      const existing = await db
+        .select()
+        .from(blogPosts)
+        .where(
+          and(
+            eq(blogPosts.storeId, storeId),
+            eq(blogPosts.slug, postData.slug),
+          ),
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        console.log(`⏭️  Blog post "${postData.slug}" already exists, skipping...`);
+        seededData.blogPosts.push({
+          id: existing[0].id,
+          slug: existing[0].slug,
+        });
+        continue;
+      }
+
+      // Create blog post
+      const [post] = await db
+        .insert(blogPosts)
+        .values({
+          storeId,
+          slug: postData.slug,
+          title: postData.title,
+          excerpt: postData.excerpt,
+          featuredImage: postData.featuredImage,
+          content: postData.content,
+          published: postData.published,
+          publishedAt: postData.publishedAt,
+          seo: postData.seo,
+          createdBy: userId,
+          updatedBy: userId,
+        })
+        .returning();
+
+      seededData.blogPosts.push({
+        id: post.id,
+        slug: post.slug,
+      });
+
+      console.log(`✅ Created blog post: ${postData.title}`);
+    }
+
+    console.log(`✅ Created ${seededData.blogPosts.length} blog posts`);
+  } catch (error) {
+    console.error("❌ Error seeding blog posts:", error);
+    throw error;
+  }
+}
+
+// Get or create default store
+async function getOrCreateDefaultStore(): Promise<string> {
+  try {
+    // Check if a default store exists
+    const [defaultStore] = await db
+      .select()
+      .from(stores)
+      .where(eq(stores.isDefault, true))
+      .limit(1);
+
+    if (defaultStore) {
+      return defaultStore.id;
+    }
+
+    // Check if any store exists
+    const [firstStore] = await db.select().from(stores).limit(1);
+    if (firstStore) {
+      return firstStore.id;
+    }
+
+    // Create a default store if none exists
+    const storeName =
+      process.env.STORE_NAME ||
+      process.env.NEXT_PUBLIC_STORE_NAME ||
+      "Default Store";
+    const storeDomain =
+      process.env.STORE_DOMAIN ||
+      process.env.NEXT_PUBLIC_STORE_DOMAIN ||
+      "localhost";
+    const storeCurrency =
+      process.env.STORE_CURRENCY ||
+      process.env.NEXT_PUBLIC_STORE_CURRENCY ||
+      "INR";
+
+    const [createdStore] = await db
+      .insert(stores)
+      .values({
+        name: storeName,
+        domain: storeDomain,
+        currency: storeCurrency,
+        isDefault: true,
+      })
+      .returning();
+
+    console.log(`✅ Created default store: ${createdStore.name}`);
+    return createdStore.id;
+  } catch (error) {
+    console.error("❌ Error getting or creating default store:", error);
+    throw error;
+  }
+}
+
+// Seed Themes
+async function seedThemes() {
+  console.log("\n🎨 Seeding themes...");
+
+  try {
+    // Get or create default store
+    const storeId = await getOrCreateDefaultStore();
+
+    // Get all available themes from registry
+    const availableThemes = getAllThemes();
+
+    if (availableThemes.length === 0) {
+      console.log("⏭️  No themes available in registry, skipping...");
+      return;
+    }
+
+    // Check if themes already exist for this store
+    const existingThemes = await db
+      .select()
+      .from(themes)
+      .where(eq(themes.storeId, storeId));
+
+    if (existingThemes.length > 0) {
+      // Check if any theme is active
+      const activeTheme = existingThemes.find((t) => t.isActive);
+      
+      if (!activeTheme) {
+        // Activate the first theme (prefer "modern" if available)
+        const themeToActivate =
+          existingThemes.find((t) => t.themeId === "modern") ||
+          existingThemes[0];
+
+        await db
+          .update(themes)
+          .set({ isActive: true })
+          .where(eq(themes.id, themeToActivate.id));
+
+        console.log(
+          `✅ Activated "${themeToActivate.name}" theme (${existingThemes.length} theme(s) already existed)`,
+        );
+      } else {
+        console.log(
+          `⏭️  ${existingThemes.length} theme(s) already exist and "${activeTheme.name}" is active, skipping...`,
+        );
+      }
+      return;
+    }
+
+    // Seed each theme from registry
+    const themeInstances = availableThemes.map((theme) => ({
+      storeId,
+      themeId: theme.id,
+      name: theme.name,
+      isActive: false, // Will activate one below
+      settings: null, // No overrides initially
+    }));
+
+    await db.insert(themes).values(themeInstances);
+
+    // Activate the first theme (prefer "modern" if available, otherwise first)
+    const themeToActivate =
+      availableThemes.find((t) => t.id === "modern") || availableThemes[0];
+
+    await db
+      .update(themes)
+      .set({ isActive: true })
+      .where(
+        and(
+          eq(themes.storeId, storeId),
+          eq(themes.themeId, themeToActivate.id),
+        ),
+      );
+
+    console.log(
+      `✅ Created ${themeInstances.length} theme instance(s) and activated "${themeToActivate.name}" theme`,
+    );
+  } catch (error) {
+    console.error("❌ Error seeding themes:", error);
+    throw error;
+  }
+}
+
 // Sync inventory from database to Redis
 async function syncInventoryToRedis() {
   console.log("\n🔄 Syncing inventory to Redis...");
@@ -1719,6 +2019,11 @@ async function seed() {
     await seedOrders();
     await seedReviews();
     await seedDiscounts();
+    await seedBlogPosts();
+    await seedThemes();
+
+    // Get themes count for summary
+    const themesCount = await db.select().from(themes);
 
     console.log("\n✅ E-commerce seed completed successfully!");
     console.log("\n📊 Summary:");
@@ -1729,6 +2034,8 @@ async function seed() {
     console.log(`   Customers: ${seededData.customers.length}`);
     console.log(`   Orders: ${seededData.orders.length}`);
     console.log(`   Discounts: ${seededData.discounts.length}`);
+    console.log(`   Blog Posts: ${seededData.blogPosts.length}`);
+    console.log(`   Themes: ${themesCount.length}`);
   } catch (error) {
     console.error("\n❌ Seed failed:", error);
     throw error;

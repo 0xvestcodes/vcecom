@@ -1,7 +1,7 @@
 {
   "id": "pricing/overview",
-  "title": "Pricing System Overview",
-  "description": "Architecture",
+  "title": "Pricing Overview",
+  "description": "Coming soon...",
   "source": "@site/docs/pricing/overview.md",
   "sourceDirName": "pricing",
   "slug": "/pricing/overview",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Inventory Management",
+    "title": "inventory",
     "permalink": "/docs/catalog/inventory"
   },
   "next": {
-    "title": "Price Lists",
+    "title": "price-lists",
     "permalink": "/docs/pricing/price-lists"
   }
 }

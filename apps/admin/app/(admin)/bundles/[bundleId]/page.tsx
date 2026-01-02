@@ -1,29 +1,18 @@
-"use client";
+import { use } from "react";
+import { BundleEditorPanel } from "@/components/bundles/bundle-editor-panel";
 
-import { ArrowLeft, Save } from "lucide-react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { AdminPageLayout } from "@/components/layout/admin-page-layout";
-import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ErrorDisplay } from "@/components/ui/error-display";
-import { FieldError } from "@/components/ui/field-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { LoadingButton } from "@/components/ui/loading-button";
-import { Textarea } from "@/components/ui/textarea";
-import { useAdminBundle } from "@/hooks/bundles/use-admin-bundle";
-import { useAdminDeleteBundle } from "@/hooks/bundles/use-admin-delete-bundle";
-import { useAdminUpdateBundle } from "@/hooks/bundles/use-admin-update-bundle";
-import type { FetchError } from "@/lib/api";
-import type { UpdateBundleInput } from "@/lib/types/bundles";
+interface BundleDetailPageProps {
+  params: Promise<{ bundleId: string }>;
+}
 
-export default function BundleDetailPage() {
-  const params = useParams();
-  const _router = useRouter();
-  const bundleId = params.bundleId as string;
+/**
+ * Bundle detail page - Server component
+ * Extracts bundleId from params and delegates to BundleEditorPanel
+ */
+export default function BundleDetailPage({ params }: BundleDetailPageProps) {
+  const { bundleId } = use(params);
+  return <BundleEditorPanel bundleId={bundleId} />;
+}
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [apiError, setApiError] = useState<FetchError | null>(null);
 

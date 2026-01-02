@@ -25,13 +25,17 @@ import { ExtendedRequest } from "../logging/types";
 export class TracingInterceptor implements NestInterceptor {
   private readonly tracer = trace.getTracer("vcecom-backend");
   private readonly isTracingEnabled: boolean;
+  private hasWarnedAboutInvalidTraceId = false;
 
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
   ) {
     // Check if tracing is enabled
-    this.isTracingEnabled = !!process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT;
+    this.isTracingEnabled = !!(
+      process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT
+    );
   }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
@@ -78,10 +82,35 @@ export class TracingInterceptor implements NestInterceptor {
     // Get trace/span IDs
     const spanContextData = span.spanContext();
 
-    // Create logger with trace/span IDs
+    // Validate trace ID - if it's all zeros, tracing SDK is not properly initialized
+    const isValidTraceId =
+      spanContextData.traceId &&
+      spanContextData.traceId !== "00000000000000000000000000000000";
+
+    // Warn once if tracing is enabled but SDK is not properly initialized
+    if (!isValidTraceId && !this.hasWarnedAboutInvalidTraceId) {
+      this.hasWarnedAboutInvalidTraceId = true;
+      this.logger.warn(
+        {
+          ...createLogContext(this.contextService, "tracingInit"),
+          traceId: spanContextData.traceId,
+          spanId: spanContextData.spanId,
+        },
+        "OpenTelemetry tracing is enabled but SDK is not properly initialized. Trace IDs will not be included in logs. Check OTEL_EXPORTER_OTLP_ENDPOINT and ensure tracing SDK started successfully.",
+      );
+    }
+
+    // Only include trace/span IDs if they're valid
+    const traceContext = isValidTraceId
+      ? {
+          traceId: spanContextData.traceId,
+          spanId: spanContextData.spanId,
+        }
+      : {};
+
+    // Create logger with trace/span IDs (only if valid)
     const childLogger = this.logger.logger.child({
-      traceId: spanContextData.traceId,
-      spanId: spanContextData.spanId,
+      ...traceContext,
       operation: operationName,
       method,
       route,
@@ -95,8 +124,7 @@ export class TracingInterceptor implements NestInterceptor {
           route,
           url: request.url,
         }),
-        traceId: spanContextData.traceId,
-        spanId: spanContextData.spanId,
+        ...traceContext,
       },
       `Handling request: ${operation}`,
     );
@@ -150,8 +178,7 @@ export class TracingInterceptor implements NestInterceptor {
                   }
                 : undefined,
             }),
-            traceId: spanContextData.traceId,
-            spanId: spanContextData.spanId,
+            ...traceContext,
           },
           `Request error: ${operation} (${elapsedMs}ms)`,
         );
@@ -164,8 +191,7 @@ export class TracingInterceptor implements NestInterceptor {
               elapsedMs,
               statusCode,
             }),
-            traceId: spanContextData.traceId,
-            spanId: spanContextData.spanId,
+            ...traceContext,
           },
           `Request completed with status ${statusCode}: ${operation} (${elapsedMs}ms)`,
         );
@@ -178,8 +204,7 @@ export class TracingInterceptor implements NestInterceptor {
               elapsedMs,
               statusCode,
             }),
-            traceId: spanContextData.traceId,
-            spanId: spanContextData.spanId,
+            ...traceContext,
           },
           `Completed request: ${operation} (${elapsedMs}ms)`,
         );

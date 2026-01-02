@@ -1,7 +1,7 @@
 {
   "id": "catalog/inventory",
-  "title": "Inventory Management",
-  "description": "The inventory system provides comprehensive real-time stock tracking, reservation management, audit logging, and automatic reconciliation for product variants. It ensures accurate stock levels across high-concurrency operations and prevents overselling through atomic Redis operations and database synchronization.",
+  "title": "inventory",
+  "description": "",
   "source": "@site/docs/catalog/inventory.md",
   "sourceDirName": "catalog",
   "slug": "/catalog/inventory",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Collections",
+    "title": "collections",
     "permalink": "/docs/catalog/collections"
   },
   "next": {
-    "title": "Pricing System Overview",
+    "title": "Pricing Overview",
     "permalink": "/docs/pricing/overview"
   }
 }

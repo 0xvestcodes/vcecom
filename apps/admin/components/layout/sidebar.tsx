@@ -2,7 +2,13 @@
 
 import { X } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { usePathname } from "next/navigation";
+import { useMemo, useState } from "react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useHasRole } from "@/hooks/admin/use-permissions";
 import { useNavState } from "@/hooks/use-nav-state";
@@ -10,6 +16,7 @@ import type { NavItem, NavSection } from "@/lib/navigation";
 import { navigation } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
 import { useSidebar } from "./admin-shell";
+import { NavLink } from "./nav-link";
 import { SidebarSection } from "./sidebar-section";
 
 interface SidebarProps {
@@ -97,23 +104,128 @@ function FilteredNavigation() {
 
   return (
     <>
-      {filteredNavigation.map((section, sectionIndex) => (
-        <div key={`nav-section-${String(sectionIndex)}`} className="space-y-1">
-          {section.label && (
-            <div className="px-3 py-1.5">
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {section.label}
-              </span>
+      {filteredNavigation.map((section, sectionIndex) => {
+        // Check if this section should use flyout (has label and multiple items)
+        const shouldUseFlyout = section.label && section.items.length > 1;
+
+        if (shouldUseFlyout) {
+          return (
+            <NavFlyoutGroup
+              key={`nav-section-${String(sectionIndex)}`}
+              label={section.label}
+              items={section.items}
+            />
+          );
+        }
+
+        return (
+          <div
+            key={`nav-section-${String(sectionIndex)}`}
+            className="space-y-1"
+          >
+            {section.label && (
+              <div className="px-3 py-1.5">
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                  {section.label}
+                </span>
+              </div>
+            )}
+            <div className="space-y-0.5">
+              {section.items.map((item) => (
+                <SidebarSection key={item.href} item={item} />
+              ))}
             </div>
-          )}
-          <div className="space-y-0.5">
-            {section.items.map((item) => (
-              <SidebarSection key={item.href} item={item} />
-            ))}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </>
+  );
+}
+
+/**
+ * Nav Flyout Group Component
+ *
+ * Major groups with flyout navigation:
+ * - Opens flyout on hover/click
+ * - Shows sub-items in popover
+ * - Clean, predictable structure
+ */
+function NavFlyoutGroup({
+  label,
+  items,
+}: {
+  label?: string;
+  items: NavItem[];
+}) {
+  const [open, setOpen] = useState(false);
+  const pathname = usePathname();
+
+  // Check if any child is active
+  const hasActiveChild = items.some((item) => {
+    if (item.href === pathname) return true;
+    return item.children?.some((child) => child.href === pathname);
+  });
+
+  // Get the main item (first item or item with matching href)
+  const mainItem = items[0];
+  const subItems = items.slice(1);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-200",
+            "text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground",
+            hasActiveChild && "text-foreground bg-accent/50",
+          )}
+        >
+          {mainItem.icon && <mainItem.icon className="h-3.5 w-3.5 shrink-0" />}
+          <span className="flex-1 text-left">{label || mainItem.label}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="right"
+        align="start"
+        className="w-56 p-2"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="space-y-1">
+          {/* Main item */}
+          <NavLink
+            href={mainItem.href}
+            icon={mainItem.icon}
+            label={mainItem.label}
+            badge={mainItem.badge}
+            onClick={() => setOpen(false)}
+          />
+          {/* Sub items */}
+          {subItems.map((item) => (
+            <NavLink
+              key={item.href}
+              href={item.href}
+              icon={item.icon}
+              label={item.label}
+              badge={item.badge}
+              onClick={() => setOpen(false)}
+            />
+          ))}
+          {/* Children items */}
+          {mainItem.children?.map((child) => (
+            <NavLink
+              key={child.href}
+              href={child.href}
+              icon={child.icon}
+              label={child.label}
+              badge={child.badge}
+              isChild
+              onClick={() => setOpen(false)}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

@@ -1,32 +1,18 @@
-"use client";
+import { use } from "react";
+import { PriceListEditorPanel } from "@/components/pricing/price-list-editor-panel";
 
-import { ArrowLeft, Save } from "lucide-react";
-import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { AdminPageLayout } from "@/components/layout/admin-page-layout";
-import { PriceListItemTable } from "@/components/pricing/price-list-item-table";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { ErrorDisplay } from "@/components/ui/error-display";
-import { FieldError } from "@/components/ui/field-error";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { LoadingButton } from "@/components/ui/loading-button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
-import { useAdminDeletePriceList } from "@/hooks/pricing/use-admin-delete-price-list";
-import { useAdminPriceList } from "@/hooks/pricing/use-admin-price-list";
-import { useAdminUpdatePriceList } from "@/hooks/pricing/use-admin-update-price-list";
-import type { FetchError } from "@/lib/api";
-import type { UpdatePriceListInput } from "@/lib/types/price-lists";
+interface PriceListDetailPageProps {
+  params: Promise<{ priceListId: string }>;
+}
 
-export default function PriceListDetailPage() {
-  const params = useParams();
-  const _router = useRouter();
-  const priceListId = params.priceListId as string;
+/**
+ * Price List detail page - Server component
+ * Extracts priceListId from params and delegates to PriceListEditorPanel
+ */
+export default function PriceListDetailPage({ params }: PriceListDetailPageProps) {
+  const { priceListId } = use(params);
+  return <PriceListEditorPanel priceListId={priceListId} />;
+}
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [apiError, setApiError] = useState<FetchError | null>(null);
 

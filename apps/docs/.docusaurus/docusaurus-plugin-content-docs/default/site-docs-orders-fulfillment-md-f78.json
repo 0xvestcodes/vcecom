@@ -1,7 +1,7 @@
 {
   "id": "orders/fulfillment",
-  "title": "Order Fulfillment",
-  "description": "Order fulfillment manages the complete lifecycle of an order from payment confirmation to delivery. It tracks order status, coordinates shipping, and ensures timely delivery to customers.",
+  "title": "fulfillment",
+  "description": "",
   "source": "@site/docs/orders/fulfillment.md",
   "sourceDirName": "orders",
   "slug": "/orders/fulfillment",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Order Creation",
+    "title": "creation",
     "permalink": "/docs/orders/creation"
   },
   "next": {
-    "title": "Order Refunds",
+    "title": "refunds",
     "permalink": "/docs/orders/refunds"
   }
 }

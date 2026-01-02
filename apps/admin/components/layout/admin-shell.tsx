@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
+import { FloatingCreateButton } from "./floating-create-button";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
@@ -31,6 +32,7 @@ export function AdminShell({ children }: AdminShellProps) {
           <Topbar />
           <main className="flex-1 overflow-y-auto p-6">{children}</main>
         </div>
+        <FloatingCreateButton />
       </div>
     </SidebarContext.Provider>
   );

@@ -1,11 +1,17 @@
-import { CategoryDetailPageClient } from "@/components/categories/category-detail-page-client";
+import { use } from "react";
+import { CategoryEditorPanel } from "@/components/categories/category-editor-panel";
 
 interface CategoryDetailPageProps {
   params: Promise<{ categoryId: string }>;
 }
 
-export default async function CategoryDetailPage({
-  params: _params,
+/**
+ * Category detail page - Server component
+ * Extracts categoryId from params and delegates to CategoryEditorPanel
+ */
+export default function CategoryDetailPage({
+  params,
 }: CategoryDetailPageProps) {
-  return <CategoryDetailPageClient />;
+  const { categoryId } = use(params);
+  return <CategoryEditorPanel categoryId={categoryId} />;
 }

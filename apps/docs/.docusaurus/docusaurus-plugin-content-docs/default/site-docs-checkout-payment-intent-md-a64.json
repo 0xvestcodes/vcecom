@@ -1,7 +1,7 @@
 {
   "id": "checkout/payment-intent",
-  "title": "Payment Intent",
-  "description": "Payment intents represent a payment request to the payment gateway (Razorpay). They are created during checkout and serve as the bridge between the checkout session and actual payment processing. Important: Orders are created only after payment confirmation via webhook, not during payment intent creation. Cash on Delivery (COD) orders bypass payment intent creation entirely.",
+  "title": "payment-intent",
+  "description": "",
   "source": "@site/docs/checkout/payment-intent.md",
   "sourceDirName": "checkout",
   "slug": "/checkout/payment-intent",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Checkout State Machine",
+    "title": "state-machine",
     "permalink": "/docs/checkout/state-machine"
   },
   "next": {
-    "title": "Checkout Webhooks",
+    "title": "webhooks",
     "permalink": "/docs/checkout/webhooks"
   }
 }

@@ -78,6 +78,24 @@ const envSchema = z.object({
     .default("10000")
     .transform(Number),
 
+  // Cashfree Configuration
+  CASHFREE_APP_ID: z.string().optional(),
+  CASHFREE_SECRET_KEY: z.string().optional(),
+  CASHFREE_WEBHOOK_SECRET: z.string().optional(),
+  CASHFREE_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+  CASHFREE_TIMEOUT_MS: z
+    .string()
+    .regex(/^\d+$/)
+    .default("10000")
+    .transform(Number),
+
+  // PayU Configuration
+  PAYU_MERCHANT_KEY: z.string().optional(),
+  PAYU_MERCHANT_SALT: z.string().optional(),
+  PAYU_WEBHOOK_SECRET: z.string().optional(),
+  PAYU_ENVIRONMENT: z.enum(["sandbox", "production"]).default("sandbox"),
+  PAYU_TIMEOUT_MS: z.string().regex(/^\d+$/).default("10000").transform(Number),
+
   // Shipping Configuration (Optional)
   SHIPROCKET_EMAIL: z.string().email().optional(),
   SHIPROCKET_PASSWORD: z.string().optional(),
@@ -103,7 +121,8 @@ const envSchema = z.object({
     .regex(/^\d+(\.\d+)?$/)
     .default("0.1")
     .transform(Number),
-  OTEL_EXPORTER_ZIPKIN_ENDPOINT: z.string().url().optional(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: z.string().url().optional(),
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: z.string().url().optional(),
   OTEL_SERVICE_NAME: z.string().default("vcecom-backend"),
 
   // Rate Limiting Configuration

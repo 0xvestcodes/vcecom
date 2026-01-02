@@ -1,7 +1,7 @@
 {
   "id": "reviews/aggregation",
-  "title": "Review Aggregation",
-  "description": "Review aggregation calculates and maintains product review statistics, including average ratings, rating distributions, and review counts. These aggregates are used for product display and search ranking.",
+  "title": "aggregation",
+  "description": "",
   "source": "@site/docs/reviews/aggregation.md",
   "sourceDirName": "reviews",
   "slug": "/reviews/aggregation",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Review Moderation",
+    "title": "moderation",
     "permalink": "/docs/reviews/moderation"
   },
   "next": {
-    "title": "Review Caching",
+    "title": "caching",
     "permalink": "/docs/reviews/caching"
   }
 }

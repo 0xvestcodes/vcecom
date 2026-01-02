@@ -1,7 +1,7 @@
 {
   "id": "introduction",
   "title": "Introduction",
-  "description": "Welcome to VCEcom (Vestcodes Commerce), a lightweight and scalable ecommerce backend built with modern technologies. This documentation provides comprehensive guidance for developers working with the VCEcom platform.",
+  "description": "Welcome to VCEcom Documentation!",
   "source": "@site/docs/introduction.md",
   "sourceDirName": ".",
   "slug": "/introduction",
@@ -16,7 +16,7 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "next": {
-    "title": "System Architecture Overview",
+    "title": "Architecture Overview",
     "permalink": "/docs/architecture/overview"
   }
 }

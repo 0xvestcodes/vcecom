@@ -447,9 +447,9 @@ export function CommandPalette() {
         {/* Navigation */}
         {filteredItems.length > 0 && (
           <CommandGroup heading="Navigation">
-            {filteredItems.map((item) => (
+            {filteredItems.map((item, index) => (
               <CommandItem
-                key={item.href}
+                key={`${item.href}-${item.label}-${index}`}
                 value={item.label}
                 onSelect={() => handleSelect(item.href)}
               >

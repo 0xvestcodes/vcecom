@@ -1,11 +1,17 @@
-import { CollectionDetailPageClient } from "@/components/collections/collection-detail-page-client";
+import { use } from "react";
+import { CollectionEditorPanel } from "@/components/collections/collection-editor-panel";
 
 interface CollectionDetailPageProps {
   params: Promise<{ collectionId: string }>;
 }
 
-export default async function CollectionDetailPage({
-  params: _params,
+/**
+ * Collection detail page - Server component
+ * Extracts collectionId from params and delegates to CollectionEditorPanel
+ */
+export default function CollectionDetailPage({
+  params,
 }: CollectionDetailPageProps) {
-  return <CollectionDetailPageClient />;
+  const { collectionId } = use(params);
+  return <CollectionEditorPanel collectionId={collectionId} />;
 }

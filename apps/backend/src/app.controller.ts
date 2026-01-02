@@ -1,4 +1,4 @@
-import { Controller, Get, VERSION_NEUTRAL, Version } from "@nestjs/common";
+import { Controller, Get } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { BUILD_INFO } from "./build-info";
 import { Public } from "./common/decorators/public.decorator";
@@ -9,7 +9,6 @@ export class AppController {
   private readonly runningSince = new Date().toISOString();
 
   @Public()
-  @Version(VERSION_NEUTRAL)
   @Get()
   getStatus() {
     return {

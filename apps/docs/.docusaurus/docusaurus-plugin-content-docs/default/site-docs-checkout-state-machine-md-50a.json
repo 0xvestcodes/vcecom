@@ -1,7 +1,7 @@
 {
   "id": "checkout/state-machine",
-  "title": "Checkout State Machine",
-  "description": "The checkout system implements a robust state machine that ensures transactional consistency and prevents race conditions during the purchase process. The state machine coordinates cart locking, payment processing, and order creation with atomic transitions.",
+  "title": "state-machine",
+  "description": "",
   "source": "@site/docs/checkout/state-machine.md",
   "sourceDirName": "checkout",
   "slug": "/checkout/state-machine",
@@ -20,7 +20,7 @@
     "permalink": "/docs/checkout/guest-checkout"
   },
   "next": {
-    "title": "Payment Intent",
+    "title": "payment-intent",
     "permalink": "/docs/checkout/payment-intent"
   }
 }

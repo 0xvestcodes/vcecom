@@ -10,7 +10,7 @@ import { NodeSDK } from "@opentelemetry/sdk-node";
  * OpenTelemetry Tracing Module
  * Initializes OTEL SDK and provides tracing capabilities
  * Note: SDK initialization happens in main.ts before NestFactory
- * Only enabled if OTEL_EXPORTER_ZIPKIN_ENDPOINT is set
+ * Only enabled if OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set
  */
 @Module({})
 export class OtelTracingModule implements OnModuleInit, OnModuleDestroy {
@@ -20,7 +20,10 @@ export class OtelTracingModule implements OnModuleInit, OnModuleDestroy {
    * Conditionally register OTEL tracing module based on environment variable
    */
   static forRoot(): DynamicModule {
-    const isEnabled = !!process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT;
+    const isEnabled = !!(
+      process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT
+    );
 
     if (!isEnabled) {
       // Return empty module if tracing is disabled

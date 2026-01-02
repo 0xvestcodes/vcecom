@@ -58,6 +58,36 @@ export const ROUTES = {
     CREATE: "/settings/payment-fees/create",
     DETAIL: (id: string) => `/settings/payment-fees/${id}`,
   },
+  CMS: {
+    DASHBOARD: "/cms/dashboard",
+    CONTENT_TYPES: {
+      LIST: "/cms/content-types",
+      CREATE: "/cms/content-types/create",
+      ENTRIES: (contentTypeId: string) =>
+        `/cms/content-types/${contentTypeId}/entries`,
+      CREATE_ENTRY: (contentTypeId: string) =>
+        `/cms/content-types/${contentTypeId}/entries/create`,
+    },
+    ENTRIES: {
+      EDIT: (id: string) => `/cms/entries/${id}/edit`,
+    },
+    NAVIGATION: {
+      LIST: "/cms/navigation",
+      HEADER: "/cms/navigation/header",
+      FOOTER: "/cms/navigation/footer",
+    },
+    MEDIA: "/cms/media",
+    BLOCKS: {
+      LIST: "/cms/blocks",
+      CREATE: "/cms/blocks/create",
+      EDIT: (id: string) => `/cms/blocks/${id}/edit`,
+    },
+    THEME: "/cms/theme",
+    SEO: "/cms/seo",
+    ROUTE_REGISTRY: "/cms/route-registry",
+    PREVIEW: "/cms/preview",
+    LOGS: "/cms/logs",
+  },
 } as const;
 
 export const BREADCRUMB_LABELS = {

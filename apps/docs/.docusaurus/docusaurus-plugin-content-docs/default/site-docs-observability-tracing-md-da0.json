@@ -1,7 +1,7 @@
 {
   "id": "observability/tracing",
-  "title": "Distributed Tracing",
-  "description": "The system implements OpenTelemetry-based distributed tracing to provide end-to-end visibility across all services and operations. Traces help debug performance issues, understand request flows, and monitor system health.",
+  "title": "tracing",
+  "description": "",
   "source": "@site/docs/observability/tracing.md",
   "sourceDirName": "observability",
   "slug": "/observability/tracing",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Logging System",
+    "title": "Logging",
     "permalink": "/docs/observability/logging"
   },
   "next": {
-    "title": "Request Context Propagation",
+    "title": "context",
     "permalink": "/docs/observability/context"
   }
 }

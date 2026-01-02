@@ -1,7 +1,7 @@
 {
   "id": "bundles/pricing",
-  "title": "Bundle Pricing",
-  "description": "Bundle pricing calculates the total cost of a bundle based on customer selections from choice sets. The system uses a sum-of-parts pricing model where the bundle price equals the sum of individual variant prices for all selected items.",
+  "title": "pricing",
+  "description": "",
   "source": "@site/docs/bundles/pricing.md",
   "sourceDirName": "bundles",
   "slug": "/bundles/pricing",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Choice Sets",
+    "title": "choice-sets",
     "permalink": "/docs/bundles/choice-sets"
   },
   "next": {
-    "title": "Bundle Cart Integration",
+    "title": "cart-integration",
     "permalink": "/docs/bundles/cart-integration"
   }
 }

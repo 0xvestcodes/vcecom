@@ -1,7 +1,7 @@
 {
   "id": "discounts/drift-detection",
-  "title": "Discount Drift Detection",
-  "description": "Overview",
+  "title": "drift-detection",
+  "description": "",
   "source": "@site/docs/discounts/drift-detection.md",
   "sourceDirName": "discounts",
   "slug": "/discounts/drift-detection",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Discount Snapshots",
+    "title": "snapshots",
     "permalink": "/docs/discounts/snapshots"
   },
   "next": {
-    "title": "Bundles Engine Overview",
+    "title": "Bundles Overview",
     "permalink": "/docs/bundles/overview"
   }
 }

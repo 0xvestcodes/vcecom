@@ -26,10 +26,6 @@
               "sidebar": "docsSidebar"
             },
             {
-              "id": "architecture/bugs",
-              "path": "/docs/architecture/bugs"
-            },
-            {
               "id": "architecture/dependencies",
               "path": "/docs/architecture/dependencies",
               "sidebar": "docsSidebar"
@@ -205,6 +201,10 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "introduction/index",
+              "path": "/docs/introduction/"
+            },
+            {
               "id": "observability/context",
               "path": "/docs/observability/context",
               "sidebar": "docsSidebar"
@@ -213,10 +213,6 @@
               "id": "observability/correlation",
               "path": "/docs/observability/correlation",
               "sidebar": "docsSidebar"
-            },
-            {
-              "id": "observability/health-checks",
-              "path": "/docs/observability/health-checks"
             },
             {
               "id": "observability/logging",
@@ -232,10 +228,6 @@
               "id": "orders/creation",
               "path": "/docs/orders/creation",
               "sidebar": "docsSidebar"
-            },
-            {
-              "id": "orders/error-handling",
-              "path": "/docs/orders/error-handling"
             },
             {
               "id": "orders/fulfillment",
@@ -261,10 +253,6 @@
               "id": "orders/refunds",
               "path": "/docs/orders/refunds",
               "sidebar": "docsSidebar"
-            },
-            {
-              "id": "orders/troubleshooting",
-              "path": "/docs/orders/troubleshooting"
             },
             {
               "id": "pricing/customer-groups",

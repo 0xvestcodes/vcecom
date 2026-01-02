@@ -1,7 +1,7 @@
 {
   "id": "orders/creation",
-  "title": "Order Creation",
-  "description": "Overview",
+  "title": "creation",
+  "description": "",
   "source": "@site/docs/orders/creation.md",
   "sourceDirName": "orders",
   "slug": "/orders/creation",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Orders System",
+    "title": "Orders Overview",
     "permalink": "/docs/orders/overview"
   },
   "next": {
-    "title": "Order Fulfillment",
+    "title": "fulfillment",
     "permalink": "/docs/orders/fulfillment"
   }
 }

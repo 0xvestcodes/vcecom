@@ -24,14 +24,32 @@ import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
+import { CashfreeWebhookEventDto } from "./dto/cashfree-webhook-event.dto";
+import {
+  CashfreeOrderResponseDto,
+  CreateCashfreeOrderDto,
+} from "./dto/create-cashfree-order.dto";
+import {
+  CreatePayUOrderDto,
+  PayUOrderResponseDto,
+} from "./dto/create-payu-order.dto";
 import {
   CreateRazorpayOrderDto,
   RazorpayOrderResponseDto,
 } from "./dto/create-razorpay-order.dto";
+import { PayUWebhookEventDto } from "./dto/payu-webhook-event.dto";
+import {
+  CashfreePaymentVerificationResponseDto,
+  VerifyCashfreePaymentDto,
+} from "./dto/verify-cashfree-payment.dto";
 import {
   PaymentVerificationResponseDto,
   VerifyPaymentDto,
 } from "./dto/verify-payment.dto";
+import {
+  PayUPaymentVerificationResponseDto,
+  VerifyPayUPaymentDto,
+} from "./dto/verify-payu-payment.dto";
 import { RazorpayWebhookEventDto } from "./dto/webhook-event.dto";
 import { PaymentsService } from "./payments.service";
 
@@ -247,5 +265,243 @@ export class StorePaymentsController {
     }
 
     return this.paymentsService.handleWebhook(webhookEvent, signature, rawBody);
+  }
+
+  @Post("cashfree/orders")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "customer")
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({
+    summary: "Create Cashfree order for payment",
+    description:
+      "Creates a Cashfree order for an existing system order. This generates a payment order that can be used for Cashfree checkout.",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "Cashfree order created successfully",
+    type: CashfreeOrderResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Bad request (order already has Cashfree order, invalid amount, etc.)",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Order not found",
+  })
+  async createCashfreeOrder(
+    @Body() createCashfreeOrderDto: CreateCashfreeOrderDto,
+  ): Promise<CashfreeOrderResponseDto> {
+    return this.paymentsService.createCashfreeOrder(createCashfreeOrderDto);
+  }
+
+  @Post("cashfree/verify")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "customer")
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({
+    summary: "Verify Cashfree payment signature",
+    description:
+      "Verifies the payment signature received from Cashfree after a successful payment. This ensures the payment is authentic and not tampered with.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Payment verification result",
+    type: CashfreePaymentVerificationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Bad request (invalid signature format, missing key secret, etc.)",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized",
+  })
+  async verifyCashfreePayment(
+    @Body() verifyCashfreePaymentDto: VerifyCashfreePaymentDto,
+  ): Promise<CashfreePaymentVerificationResponseDto> {
+    return this.paymentsService.verifyCashfreePayment(verifyCashfreePaymentDto);
+  }
+
+  @Post("cashfree/webhook")
+  @SetMetadata(IS_PUBLIC_KEY, true)
+  @RateLimit(RATE_LIMIT_PRESETS.WEBHOOK)
+  @ApiOperation({
+    summary: "Handle Cashfree webhook events",
+    description:
+      "Receives and processes webhook events from Cashfree. This endpoint should be configured in Cashfree dashboard. Webhook signature is verified for security.",
+  })
+  @ApiHeader({
+    name: "x-cashfree-signature",
+    description: "Cashfree webhook signature",
+    required: true,
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Webhook processed successfully",
+    schema: {
+      type: "object",
+      properties: {
+        processed: {
+          type: "boolean",
+          example: true,
+        },
+        message: {
+          type: "string",
+          example: "Event PAYMENT_SUCCESS_WEBHOOK processed successfully",
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Bad request (invalid signature, missing webhook secret, etc.)",
+  })
+  async handleCashfreeWebhook(
+    @Req() req: RawBodyRequest<Request>,
+    @Headers("x-cashfree-signature") signature: string,
+  ): Promise<{ processed: boolean; message: string }> {
+    if (!signature) {
+      throw new BadRequestException("Missing x-cashfree-signature header");
+    }
+
+    // Get raw body for signature verification
+    let rawBody: string | Buffer;
+    if (req.rawBody && Buffer.isBuffer(req.rawBody)) {
+      rawBody = req.rawBody;
+    } else if (typeof req.body === "string") {
+      rawBody = req.body;
+    } else {
+      throw new BadRequestException(
+        "Raw request body is required for webhook signature verification",
+      );
+    }
+
+    // Parse body for event processing
+    let webhookEvent: CashfreeWebhookEventDto;
+    if (Buffer.isBuffer(rawBody)) {
+      webhookEvent = JSON.parse(rawBody.toString()) as CashfreeWebhookEventDto;
+    } else {
+      webhookEvent = JSON.parse(rawBody) as CashfreeWebhookEventDto;
+    }
+
+    return this.paymentsService.handleCashfreeWebhook(
+      webhookEvent,
+      signature,
+      rawBody,
+    );
+  }
+
+  @Post("payu/orders")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "customer")
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({
+    summary: "Create PayU order for payment",
+    description:
+      "Creates a PayU payment order for an existing system order. This generates a payment hash and URL that can be used for PayU checkout.",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "PayU order created successfully",
+    type: PayUOrderResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      "Bad request (order already has PayU transaction ID, invalid amount, etc.)",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Order not found",
+  })
+  async createPayUOrder(
+    @Body() createPayUOrderDto: CreatePayUOrderDto,
+  ): Promise<PayUOrderResponseDto> {
+    return this.paymentsService.createPayUOrder(createPayUOrderDto);
+  }
+
+  @Post("payu/verify")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin", "customer")
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({
+    summary: "Verify PayU payment hash",
+    description:
+      "Verifies the payment hash received from PayU after a successful payment. This ensures the payment is authentic and not tampered with.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Payment verification result",
+    type: PayUPaymentVerificationResponseDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Bad request (invalid hash, etc.)",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized",
+  })
+  async verifyPayUPayment(
+    @Body() verifyPayUPaymentDto: VerifyPayUPaymentDto,
+  ): Promise<PayUPaymentVerificationResponseDto> {
+    const result =
+      await this.paymentsService.verifyPayUPayment(verifyPayUPaymentDto);
+    return {
+      verified: result.verified,
+      message: result.message,
+    };
+  }
+
+  @Post("payu/webhook")
+  @SetMetadata(IS_PUBLIC_KEY, true)
+  @RateLimit(RATE_LIMIT_PRESETS.WEBHOOK)
+  @ApiOperation({
+    summary: "Handle PayU webhook events",
+    description:
+      "Receives and processes webhook events from PayU. This endpoint should be configured in PayU dashboard. Webhook hash is verified for security. PayU sends data as form-urlencoded, and the hash is included in the body.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Webhook processed successfully",
+    schema: {
+      type: "object",
+      properties: {
+        processed: {
+          type: "boolean",
+          example: true,
+        },
+        message: {
+          type: "string",
+          example: "Event with status success processed successfully",
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Bad request (invalid hash, missing webhook secret, etc.)",
+  })
+  async handlePayUWebhook(
+    @Body() webhookEvent: PayUWebhookEventDto,
+  ): Promise<{ processed: boolean; message: string }> {
+    // PayU sends hash in the body, not as a header
+    // The hash is included in webhookEvent.hash
+    return this.paymentsService.handlePayUWebhook(
+      webhookEvent,
+      webhookEvent.hash || "",
+    );
   }
 }

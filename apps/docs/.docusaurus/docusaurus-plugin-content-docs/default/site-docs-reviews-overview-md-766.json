@@ -1,7 +1,7 @@
 {
   "id": "reviews/overview",
-  "title": "Reviews System",
-  "description": "The reviews system enables customers to share feedback on purchased products while providing robust content moderation, aggregation, and caching capabilities. It ensures authentic reviews through verified purchase validation and maintains review quality through automated and manual moderation.",
+  "title": "Reviews Overview",
+  "description": "Coming soon...",
   "source": "@site/docs/reviews/overview.md",
   "sourceDirName": "reviews",
   "slug": "/reviews/overview",
@@ -20,7 +20,7 @@
     "permalink": "/docs/orders/inventory-reconciliation"
   },
   "next": {
-    "title": "Verified Purchase Reviews",
+    "title": "verified-purchase",
     "permalink": "/docs/reviews/verified-purchase"
   }
 }

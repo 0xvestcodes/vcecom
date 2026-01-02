@@ -1,5 +1,5 @@
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
-import { ZipkinExporter } from "@opentelemetry/exporter-zipkin";
+import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 import { NodeSDK } from "@opentelemetry/sdk-node";
 import {
   BatchSpanProcessor,
@@ -10,7 +10,7 @@ import { createResource } from "./resource-detectors";
 /**
  * Initialize OpenTelemetry SDK
  * Must be called before NestJS bootstrap
-x * Only initializes if OTEL_EXPORTER_ZIPKIN_ENDPOINT is set
+ * Only initializes if OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set
  */
 export function initializeTracing(): NodeSDK | null {
   // Skip if tracing is explicitly disabled
@@ -18,24 +18,26 @@ export function initializeTracing(): NodeSDK | null {
     return null;
   }
 
-  // Only initialize if Zipkin endpoint is configured
-  const zipkinEndpoint = process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT;
-  if (!zipkinEndpoint) {
+  // Check for OTLP endpoint (supports both standard and traces-specific endpoints)
+  const otlpEndpoint =
+    process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  if (!otlpEndpoint) {
     return null; // Tracing is optional - skip if endpoint not configured
   }
 
   const samplingRate = parseFloat(process.env.OTEL_TRACE_SAMPLING || "1.0");
 
-  // Create Zipkin exporter
-  const zipkinExporter = new ZipkinExporter({
-    url: zipkinEndpoint,
+  // Create OTLP exporter for Victoria Metrics
+  const otlpExporter = new OTLPTraceExporter({
+    url: otlpEndpoint,
   });
 
   // Create sampler based on sampling rate
   const sampler = new TraceIdRatioBasedSampler(samplingRate);
 
   // Create batch span processor
-  const spanProcessor = new BatchSpanProcessor(zipkinExporter, {
+  const spanProcessor = new BatchSpanProcessor(otlpExporter, {
     maxQueueSize: 2048,
     maxExportBatchSize: 512,
     scheduledDelayMillis: 5000,
@@ -45,7 +47,7 @@ export function initializeTracing(): NodeSDK | null {
   // Create SDK with resource detectors
   const sdk = new NodeSDK({
     resource: createResource(),
-    traceExporter: zipkinExporter,
+    traceExporter: otlpExporter,
     // biome-ignore lint/suspicious/noExplicitAny: OpenTelemetry version mismatch requires type assertion
     spanProcessor: spanProcessor as any,
     sampler,

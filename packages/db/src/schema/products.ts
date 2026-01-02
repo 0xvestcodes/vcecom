@@ -32,6 +32,7 @@ export const products = pgTable(
     gstRate: real("gst_rate").notNull().default(0),
     pricingType: pricingTypeEnum("pricing_type").notNull().default("exclusive"),
     hsnCode: text("hsn_code"),
+    slug: text("slug"), // URL-friendly identifier for products
     status: productStatusEnum("status").notNull().default("draft"),
     categoryId: uuid("category_id").references(() => categories.id, {
       onDelete: "set null",
@@ -53,6 +54,7 @@ export const products = pgTable(
     categoryIdIdx: index("products_category_id_idx").on(table.categoryId),
     statusIdx: index("products_status_idx").on(table.status),
     hsnCodeIdx: index("products_hsn_code_idx").on(table.hsnCode),
+    slugIdx: index("products_slug_idx").on(table.slug),
   }),
 );
 

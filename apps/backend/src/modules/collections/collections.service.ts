@@ -4,6 +4,7 @@ import {
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   and,
@@ -191,6 +192,8 @@ export class CollectionsService {
     if (!newCollection) {
       throw new InternalServerErrorException("Failed to create collection");
     }
+
+    // Slug registration removed - no longer using CMS route registry
 
     return {
       ...newCollection,
@@ -436,6 +439,10 @@ export class CollectionsService {
       );
     }
 
+    // Track slug change for route registry
+    const oldSlug = existing.slug;
+    const slugChanged = slug !== undefined && slug !== oldSlug;
+
     // Update collection
     const updateData: {
       name?: string;
@@ -484,6 +491,8 @@ export class CollectionsService {
         createdAt: collections.createdAt,
         updatedAt: collections.updatedAt,
       });
+
+    // Slug registration removed - no longer using CMS route registry
 
     return {
       ...updated,

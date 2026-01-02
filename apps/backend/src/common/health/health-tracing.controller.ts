@@ -24,10 +24,11 @@ export class HealthTracingController {
     // Get sampling rate
     const samplingRate = parseFloat(process.env.OTEL_TRACE_SAMPLING || "1.0");
 
-    // Get Zipkin endpoint
-    const zipkinEndpoint =
-      process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT ||
-      "http://localhost:9411/api/v2/spans";
+    // Get OTLP endpoint
+    const otlpEndpoint =
+      process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT ||
+      "http://localhost:4318/v1/traces";
 
     // Try to create a test span
     let spanStatus = "OK";
@@ -45,8 +46,8 @@ export class HealthTracingController {
         status: tracerProvider ? "OK" : "ERROR",
       },
       exporter: {
-        type: "zipkin",
-        endpoint: zipkinEndpoint,
+        type: "otlp",
+        endpoint: otlpEndpoint,
       },
       sampling: {
         rate: samplingRate,

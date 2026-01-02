@@ -1,7 +1,7 @@
 {
   "id": "bundles/definition",
-  "title": "Bundle Definition",
-  "description": "Bundles enable complex product offerings where customers can choose from multiple options within predefined choice sets. This system supports product bundling, customization, and flexible pricing strategies.",
+  "title": "definition",
+  "description": "",
   "source": "@site/docs/bundles/definition.md",
   "sourceDirName": "bundles",
   "slug": "/bundles/definition",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Bundles Engine Overview",
+    "title": "Bundles Overview",
     "permalink": "/docs/bundles/overview"
   },
   "next": {
-    "title": "Choice Sets",
+    "title": "choice-sets",
     "permalink": "/docs/bundles/choice-sets"
   }
 }

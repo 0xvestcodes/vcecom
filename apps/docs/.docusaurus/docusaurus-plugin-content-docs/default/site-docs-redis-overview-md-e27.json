@@ -1,7 +1,7 @@
 {
   "id": "redis/overview",
-  "title": "Redis Architecture",
-  "description": "Redis serves as the high-performance data layer for real-time operations, caching, session management, and distributed coordination. The architecture implements multiple Redis usage patterns optimized for different operational requirements.",
+  "title": "Redis Overview",
+  "description": "Coming soon...",
   "source": "@site/docs/redis/overview.md",
   "sourceDirName": "redis",
   "slug": "/redis/overview",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Log-Trace Correlation",
+    "title": "correlation",
     "permalink": "/docs/observability/correlation"
   },
   "next": {
-    "title": "Redis Key Patterns",
+    "title": "key-patterns",
     "permalink": "/docs/redis/key-patterns"
   }
 }

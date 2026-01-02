@@ -49,15 +49,15 @@ export default [
   },
   {
     path: '/docs',
-    component: ComponentCreator('/docs', '305'),
+    component: ComponentCreator('/docs', '1a3'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', 'cb7'),
+        component: ComponentCreator('/docs', '017'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', 'f14'),
+            component: ComponentCreator('/docs', '4b4'),
             routes: [
               {
                 path: '/docs/admin/pagination',
@@ -76,11 +76,6 @@ export default [
                 component: ComponentCreator('/docs/api-reference/store-api', '847'),
                 exact: true,
                 sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/architecture/bugs',
-                component: ComponentCreator('/docs/architecture/bugs', '026'),
-                exact: true
               },
               {
                 path: '/docs/architecture/dependencies',
@@ -293,6 +288,11 @@ export default [
                 sidebar: "docsSidebar"
               },
               {
+                path: '/docs/introduction/',
+                component: ComponentCreator('/docs/introduction/', 'da1'),
+                exact: true
+              },
+              {
                 path: '/docs/observability/context',
                 component: ComponentCreator('/docs/observability/context', 'c65'),
                 exact: true,
@@ -303,11 +303,6 @@ export default [
                 component: ComponentCreator('/docs/observability/correlation', '726'),
                 exact: true,
                 sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/observability/health-checks',
-                component: ComponentCreator('/docs/observability/health-checks', 'a25'),
-                exact: true
               },
               {
                 path: '/docs/observability/logging',
@@ -326,11 +321,6 @@ export default [
                 component: ComponentCreator('/docs/orders/creation', '209'),
                 exact: true,
                 sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/orders/error-handling',
-                component: ComponentCreator('/docs/orders/error-handling', 'b13'),
-                exact: true
               },
               {
                 path: '/docs/orders/fulfillment',
@@ -361,11 +351,6 @@ export default [
                 component: ComponentCreator('/docs/orders/refunds', '1d2'),
                 exact: true,
                 sidebar: "docsSidebar"
-              },
-              {
-                path: '/docs/orders/troubleshooting',
-                component: ComponentCreator('/docs/orders/troubleshooting', 'f4e'),
-                exact: true
               },
               {
                 path: '/docs/pricing/customer-groups',

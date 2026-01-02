@@ -1,32 +1,174 @@
 import "dotenv/config";
-import { Injectable } from "@nestjs/common";
+import { Injectable, OnModuleInit } from "@nestjs/common";
+import type { AppConfig, DatabaseConfig, RedisConfig } from "./config.types";
+import { type Env, getEnv } from "./env.validation";
 
 /**
  * Application configuration service
  * Centralizes access to environment variables and configuration values
  * This ensures configurable data is at high levels and follows dependency injection principles
+ * Uses validated environment variables for type safety
  */
 @Injectable()
-export class AppConfigService {
+export class AppConfigService implements OnModuleInit {
+  private env: Env;
+
+  constructor() {
+    // Initialize env immediately in constructor to ensure it's available
+    // This is safe because validateEnv() should be called in main.ts before NestJS bootstrap
+    try {
+      this.env = getEnv();
+    } catch (_error) {
+      // Fallback to process.env if validation hasn't been called yet
+      // This can happen during module initialization
+      console.warn(
+        "Config service: Using unvalidated environment variables. Ensure validateEnv() is called in main.ts",
+      );
+      // Use process.env as fallback (not type-safe but allows app to start)
+      this.env = process.env as unknown as Env;
+    }
+  }
+
+  onModuleInit() {
+    // Re-validate on module init to ensure we have the latest validated env
+    // This ensures that if validation happens after constructor, we update
+    try {
+      this.env = getEnv();
+    } catch (_error) {
+      // If validation still fails, keep using the fallback from constructor
+      console.warn(
+        "Config service: Still using unvalidated environment variables after module init",
+      );
+    }
+  }
+
+  /**
+   * Ensure env is initialized
+   */
+  private ensureEnvInitialized(): void {
+    if (!this.env) {
+      // Fallback initialization if somehow env wasn't set
+      try {
+        this.env = getEnv();
+      } catch {
+        this.env = process.env as unknown as Env;
+      }
+    }
+  }
+
+  /**
+   * Get validated environment variables
+   * @returns Validated environment object
+   */
+  getEnv(): Env {
+    this.ensureEnvInitialized();
+    return this.env;
+  }
+
+  /**
+   * Get complete application configuration
+   * Returns all configuration in a structured format
+   */
+  getConfig(): AppConfig {
+    return {
+      nodeEnv: this.getNodeEnv(),
+      port: this.getPort(),
+      sellerState: this.getSellerState(),
+      database: this.getDatabaseConfig(),
+      redis: this.getRedisConfig(),
+      jwt: this.getJwtConfig(),
+      cors: this.getCorsConfig(),
+      storage: {
+        provider: this.getStorageProvider(),
+        bucket: this.getStorageBucket(),
+      },
+      minio: this.getMinioConfig(),
+      awsS3: this.getAwsS3Config(),
+      supabase: this.getSupabaseConfig(),
+      razorpay: this.getRazorpayConfig(),
+      cashfree: this.getCashfreeConfig(),
+      payu: this.getPayUConfig(),
+      shiprocket: this.getShiprocketConfig(),
+      nimbusPost: this.getNimbusPostConfig(),
+      logging: this.getLoggingConfig(),
+      tracing: this.getTracingConfig(),
+      rateLimit: this.getRateLimitConfig(),
+      deployment: this.getDeploymentConfig(),
+    };
+  }
+
+  /**
+   * Get database configuration
+   */
+  getDatabaseConfig(): DatabaseConfig {
+    return {
+      url: this.getDatabaseUrl(),
+    };
+  }
+
+  /**
+   * Get Redis configuration
+   */
+  getRedisConfig(): RedisConfig {
+    return {
+      url: this.getRedisUrl(),
+    };
+  }
+
+  /**
+   * Get node environment
+   */
+  getNodeEnv(): Env["NODE_ENV"] {
+    this.ensureEnvInitialized();
+    return this.env.NODE_ENV;
+  }
+
+  /**
+   * Get server port
+   */
+  getPort(): number {
+    this.ensureEnvInitialized();
+    return this.env.PORT;
+  }
+
+  /**
+   * Get database URL
+   */
+  getDatabaseUrl(): string {
+    this.ensureEnvInitialized();
+    return this.env.DATABASE_URL;
+  }
+
+  /**
+   * Get Redis URL
+   */
+  getRedisUrl(): string {
+    this.ensureEnvInitialized();
+    return this.env.REDIS_URL;
+  }
+
   /**
    * Get seller state (defaults to Maharashtra)
    */
   getSellerState(): string {
-    return process.env.SELLER_STATE || "Maharashtra";
+    this.ensureEnvInitialized();
+    return this.env.SELLER_STATE;
   }
 
   /**
    * Get storage provider type
    */
-  getStorageProvider(): string {
-    return process.env.STORAGE_PROVIDER || "minio";
+  getStorageProvider(): Env["STORAGE_PROVIDER"] {
+    this.ensureEnvInitialized();
+    return this.env.STORAGE_PROVIDER;
   }
 
   /**
    * Get storage bucket name
    */
   getStorageBucket(): string {
-    return process.env.STORAGE_BUCKET || "vcecom";
+    this.ensureEnvInitialized();
+    return this.env.STORAGE_BUCKET;
   }
 
   /**
@@ -39,13 +181,13 @@ export class AppConfigService {
     bucket: string;
     publicUrl: string | undefined;
   } {
+    this.ensureEnvInitialized();
     return {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-      region:
-        process.env.AWS_REGION || process.env.STORAGE_REGION || "us-east-1",
+      accessKeyId: this.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: this.env.AWS_SECRET_ACCESS_KEY,
+      region: this.env.AWS_REGION,
       bucket: this.getStorageBucket(),
-      publicUrl: process.env.AWS_S3_PUBLIC_URL,
+      publicUrl: this.env.AWS_S3_PUBLIC_URL,
     };
   }
 
@@ -58,10 +200,11 @@ export class AppConfigService {
     anonKey: string | undefined;
     bucket: string;
   } {
+    this.ensureEnvInitialized();
     return {
-      url: process.env.SUPABASE_URL,
-      storageKey: process.env.SUPABASE_STORAGE_KEY,
-      anonKey: process.env.SUPABASE_ANON_KEY,
+      url: this.env.SUPABASE_URL,
+      storageKey: this.env.SUPABASE_STORAGE_KEY,
+      anonKey: this.env.SUPABASE_ANON_KEY,
       bucket: this.getStorageBucket(),
     };
   }
@@ -77,15 +220,16 @@ export class AppConfigService {
     bucket: string;
     publicUrl: string;
   } {
-    const endpoint = process.env.MINIO_ENDPOINT || "localhost:9000";
+    this.ensureEnvInitialized();
+    const endpoint = this.env.MINIO_ENDPOINT || "localhost:9000";
     return {
       endpoint,
-      accessKey: process.env.MINIO_ACCESS_KEY || "minioadmin",
-      secretKey: process.env.MINIO_SECRET_KEY || "minioadmin",
-      useSSL: process.env.MINIO_USE_SSL === "true",
+      accessKey: this.env.MINIO_ACCESS_KEY || "minioadmin",
+      secretKey: this.env.MINIO_SECRET_KEY || "minioadmin",
+      useSSL: this.env.MINIO_USE_SSL,
       bucket: this.getStorageBucket(),
       publicUrl:
-        process.env.MINIO_PUBLIC_URL ||
+        this.env.MINIO_PUBLIC_URL ||
         `http://${endpoint}/${this.getStorageBucket()}`,
     };
   }
@@ -98,8 +242,8 @@ export class AppConfigService {
     password: string | undefined;
   } {
     return {
-      email: process.env.SHIPROCKET_EMAIL,
-      password: process.env.SHIPROCKET_PASSWORD,
+      email: this.env.SHIPROCKET_EMAIL,
+      password: this.env.SHIPROCKET_PASSWORD,
     };
   }
 
@@ -111,8 +255,8 @@ export class AppConfigService {
     apiSecret: string | undefined;
   } {
     return {
-      apiKey: process.env.NIMBUS_POST_API_KEY,
-      apiSecret: process.env.NIMBUS_POST_API_SECRET,
+      apiKey: this.env.NIMBUS_POST_API_KEY,
+      apiSecret: this.env.NIMBUS_POST_API_SECRET,
     };
   }
 
@@ -122,18 +266,145 @@ export class AppConfigService {
   getRazorpayConfig(): {
     keyId: string | undefined;
     keySecret: string | undefined;
+    webhookSecret: string | undefined;
     timeout: number;
   } {
-    // Default timeout: 10 seconds (10000ms)
-    // Can be overridden via RAZORPAY_TIMEOUT_MS environment variable
-    const timeout = process.env.RAZORPAY_TIMEOUT_MS
-      ? parseInt(process.env.RAZORPAY_TIMEOUT_MS, 10)
-      : 10000;
-
     return {
-      keyId: process.env.RAZORPAY_KEY_ID,
-      keySecret: process.env.RAZORPAY_KEY_SECRET,
-      timeout,
+      keyId: this.env.RAZORPAY_KEY_ID,
+      keySecret: this.env.RAZORPAY_KEY_SECRET,
+      webhookSecret: this.env.RAZORPAY_WEBHOOK_SECRET,
+      timeout: this.env.RAZORPAY_TIMEOUT_MS,
+    };
+  }
+
+  /**
+   * Get Cashfree configuration
+   */
+  getCashfreeConfig(): {
+    appId: string | undefined;
+    secretKey: string | undefined;
+    webhookSecret: string | undefined;
+    environment: "sandbox" | "production";
+    timeout: number;
+  } {
+    return {
+      appId: this.env.CASHFREE_APP_ID,
+      secretKey: this.env.CASHFREE_SECRET_KEY,
+      webhookSecret: this.env.CASHFREE_WEBHOOK_SECRET,
+      environment: this.env.CASHFREE_ENVIRONMENT,
+      timeout: this.env.CASHFREE_TIMEOUT_MS,
+    };
+  }
+
+  /**
+   * Get PayU configuration
+   */
+  getPayUConfig(): {
+    merchantKey: string | undefined;
+    merchantSalt: string | undefined;
+    webhookSecret: string | undefined;
+    environment: "sandbox" | "production";
+    timeout: number;
+  } {
+    return {
+      merchantKey: this.env.PAYU_MERCHANT_KEY,
+      merchantSalt: this.env.PAYU_MERCHANT_SALT,
+      webhookSecret: this.env.PAYU_WEBHOOK_SECRET,
+      environment: this.env.PAYU_ENVIRONMENT,
+      timeout: this.env.PAYU_TIMEOUT_MS,
+    };
+  }
+
+  /**
+   * Get JWT configuration
+   */
+  getJwtConfig(): {
+    secret: string;
+    expiresIn: string;
+    refreshSecret: string | undefined;
+    refreshExpiresIn: string;
+    adminExpiresIn: string;
+  } {
+    return {
+      secret: this.env.JWT_SECRET,
+      expiresIn: this.env.JWT_EXPIRES_IN,
+      refreshSecret: this.env.JWT_REFRESH_SECRET,
+      refreshExpiresIn: this.env.JWT_REFRESH_EXPIRES_IN,
+      adminExpiresIn: this.env.ADMIN_ACCESS_TOKEN_EXPIRES_IN,
+    };
+  }
+
+  /**
+   * Get CORS configuration
+   */
+  getCorsConfig(): {
+    backendUrl: string | undefined;
+    storefrontUrl: string | undefined;
+    adminUrl: string | undefined;
+    allowedOrigins: string | undefined;
+  } {
+    return {
+      backendUrl: this.env.BACKEND_URL,
+      storefrontUrl: this.env.STOREFRONT_URL,
+      adminUrl: this.env.ADMIN_URL,
+      allowedOrigins: this.env.ALLOWED_ORIGINS,
+    };
+  }
+
+  /**
+   * Get logging configuration
+   */
+  getLoggingConfig(): {
+    level: Env["LOG_LEVEL"];
+    pretty: boolean;
+  } {
+    return {
+      level: this.env.LOG_LEVEL,
+      pretty: this.env.LOG_PRETTY,
+    };
+  }
+
+  /**
+   * Get OpenTelemetry tracing configuration
+   */
+  getTracingConfig(): {
+    enabled: boolean;
+    sampling: number;
+    otlpEndpoint: string | undefined;
+    serviceName: string;
+  } {
+    return {
+      enabled: this.env.OTEL_TRACE_ENABLED,
+      sampling: this.env.OTEL_TRACE_SAMPLING,
+      otlpEndpoint:
+        this.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+        this.env.OTEL_EXPORTER_OTLP_ENDPOINT,
+      serviceName: this.env.OTEL_SERVICE_NAME,
+    };
+  }
+
+  /**
+   * Get rate limiting configuration
+   */
+  getRateLimitConfig(): {
+    adminLoginLimit: number;
+    adminLoginWindow: number;
+  } {
+    return {
+      adminLoginLimit: this.env.ADMIN_LOGIN_RATE_LIMIT,
+      adminLoginWindow: this.env.ADMIN_LOGIN_RATE_WINDOW,
+    };
+  }
+
+  /**
+   * Get deployment configuration
+   */
+  getDeploymentConfig(): {
+    region: string | undefined;
+  } {
+    this.ensureEnvInitialized();
+    return {
+      region: this.env.DEPLOYMENT_REGION,
     };
   }
 
@@ -141,6 +412,23 @@ export class AppConfigService {
    * Check if running in test environment
    */
   isTestEnvironment(): boolean {
-    return process.env.NODE_ENV === "test";
+    this.ensureEnvInitialized();
+    return this.env.NODE_ENV === "test";
+  }
+
+  /**
+   * Check if running in development environment
+   */
+  isDevelopmentEnvironment(): boolean {
+    this.ensureEnvInitialized();
+    return this.env.NODE_ENV === "development";
+  }
+
+  /**
+   * Check if running in production environment
+   */
+  isProductionEnvironment(): boolean {
+    this.ensureEnvInitialized();
+    return this.env.NODE_ENV === "production";
   }
 }

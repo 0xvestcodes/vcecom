@@ -1,7 +1,7 @@
 {
   "id": "observability/logging",
-  "title": "Logging System",
-  "description": "The logging system provides comprehensive application observability through structured logging, request correlation, and context propagation. It uses Pino for high-performance logging with automatic request tracing and sensitive data redaction.",
+  "title": "Logging",
+  "description": "Coming soon...",
   "source": "@site/docs/observability/logging.md",
   "sourceDirName": "observability",
   "slug": "/observability/logging",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Review Caching",
+    "title": "caching",
     "permalink": "/docs/reviews/caching"
   },
   "next": {
-    "title": "Distributed Tracing",
+    "title": "tracing",
     "permalink": "/docs/observability/tracing"
   }
 }

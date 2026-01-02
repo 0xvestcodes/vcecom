@@ -1,7 +1,7 @@
 {
   "id": "redis/expirations",
-  "title": "Redis TTL and Expiration Strategy",
-  "description": "The system implements sophisticated TTL (Time-To-Live) strategies to manage data lifecycle, memory usage, and cache consistency across different operational requirements.",
+  "title": "expirations",
+  "description": "",
   "source": "@site/docs/redis/expirations.md",
   "sourceDirName": "redis",
   "slug": "/redis/expirations",
@@ -16,7 +16,7 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Redis Caching Layers",
+    "title": "caching-layers",
     "permalink": "/docs/redis/caching-layers"
   },
   "next": {

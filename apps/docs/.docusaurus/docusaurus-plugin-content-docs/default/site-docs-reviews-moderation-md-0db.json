@@ -1,7 +1,7 @@
 {
   "id": "reviews/moderation",
-  "title": "Review Moderation",
-  "description": "Review moderation ensures that only appropriate, authentic reviews are published. The system supports both automated and manual moderation workflows to maintain review quality and prevent spam.",
+  "title": "moderation",
+  "description": "",
   "source": "@site/docs/reviews/moderation.md",
   "sourceDirName": "reviews",
   "slug": "/reviews/moderation",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Verified Purchase Reviews",
+    "title": "verified-purchase",
     "permalink": "/docs/reviews/verified-purchase"
   },
   "next": {
-    "title": "Review Aggregation",
+    "title": "aggregation",
     "permalink": "/docs/reviews/aggregation"
   }
 }

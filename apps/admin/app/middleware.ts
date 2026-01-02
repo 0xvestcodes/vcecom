@@ -49,7 +49,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/api") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
-    pathname === "/favicon.ico"
+    pathname === "/favicon.ico" ||
+    pathname === "/metrics" // Allow metrics endpoint for monitoring tools
   ) {
     return NextResponse.next();
   }

@@ -1,0 +1,38 @@
+{
+  "sections": [
+    {
+      "id": "hero",
+      "layout": "container",
+      "padding": "xl",
+      "blocks": [
+        {
+          "id": "hero-1",
+          "type": "hero",
+          "order": 1,
+          "props": {
+            "title": "Welcome",
+            "subtitle": "Shop our collection",
+            "ctaText": "Explore",
+            "ctaLink": "/products"
+          }
+        }
+      ]
+    },
+    {
+      "id": "products",
+      "layout": "container",
+      "padding": "lg",
+      "blocks": [
+        {
+          "id": "product-grid-1",
+          "type": "product_grid",
+          "order": 1,
+          "props": {
+            "title": "Products",
+            "limit": 12
+          }
+        }
+      ]
+    }
+  ]
+}
