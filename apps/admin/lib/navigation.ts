@@ -237,6 +237,37 @@ export const navigation: NavSection[] = [
     ],
   },
   {
+    label: "Content",
+    items: [
+      {
+        label: "Blog Posts",
+        href: "/cms/blog",
+        icon: BookOpen,
+        requiredRoles: ["admin", "support", "reviewer", "marketing"],
+        children: [
+          {
+            label: "All Posts",
+            href: "/cms/blog",
+            icon: BookOpen,
+            requiredRoles: ["admin", "support", "reviewer", "marketing"],
+          },
+          {
+            label: "Create Post",
+            href: "/cms/blog/create",
+            icon: Plus,
+            requiredRoles: ["admin", "marketing"],
+          },
+        ],
+      },
+      {
+        label: "Media",
+        href: "/cms/media",
+        icon: FolderOpen,
+        requiredRoles: ["admin", "support", "reviewer", "marketing"],
+      },
+    ],
+  },
+  {
     label: "Settings",
     items: [
       {

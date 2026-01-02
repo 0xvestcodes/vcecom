@@ -1,7 +1,7 @@
 {
   "id": "discounts/snapshots",
-  "title": "Discount Snapshots",
-  "description": "Overview",
+  "title": "snapshots",
+  "description": "",
   "source": "@site/docs/discounts/snapshots.md",
   "sourceDirName": "discounts",
   "slug": "/discounts/snapshots",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Discount Priority & Stacking",
+    "title": "priority-stacking",
     "permalink": "/docs/discounts/priority-stacking"
   },
   "next": {
-    "title": "Discount Drift Detection",
+    "title": "drift-detection",
     "permalink": "/docs/discounts/drift-detection"
   }
 }

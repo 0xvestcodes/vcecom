@@ -1,0 +1,85 @@
+{
+  "id": "minimal",
+  "name": "Minimal",
+  "description": "A clean, minimalist theme with subtle colors and ample whitespace",
+  "version": "1.0.0",
+  "colors": {
+    "primary": "#1A1A1A",
+    "secondary": "#808080",
+    "accent": "#000000",
+    "background": "#FFFFFF",
+    "foreground": "#1A1A1A",
+    "muted": "#FAFAFA",
+    "mutedForeground": "#6B6B6B",
+    "border": "#E0E0E0",
+    "input": "#FFFFFF",
+    "ring": "#1A1A1A",
+    "card": "#FFFFFF",
+    "cardForeground": "#1A1A1A",
+    "destructive": "#DC2626",
+    "destructiveForeground": "#FFFFFF"
+  },
+  "typography": {
+    "fontFamily": "'Helvetica Neue', Helvetica, Arial, sans-serif",
+    "fontFamilyHeading": "'Helvetica Neue', Helvetica, Arial, sans-serif",
+    "fontSizes": {
+      "xs": "0.75rem",
+      "sm": "0.875rem",
+      "base": "1rem",
+      "lg": "1.125rem",
+      "xl": "1.25rem",
+      "2xl": "1.5rem",
+      "3xl": "1.875rem",
+      "4xl": "2.25rem",
+      "5xl": "3rem"
+    },
+    "fontWeights": {
+      "normal": 400,
+      "medium": 500,
+      "semibold": 600,
+      "bold": 700
+    },
+    "lineHeights": {
+      "tight": 1.2,
+      "normal": 1.5,
+      "relaxed": 1.8
+    }
+  },
+  "spacing": {
+    "base": "1rem",
+    "xs": "0.25rem",
+    "sm": "0.5rem",
+    "md": "1rem",
+    "lg": "1.5rem",
+    "xl": "2rem",
+    "2xl": "3rem",
+    "3xl": "4rem"
+  },
+  "buttons": {
+    "borderRadius": "sm",
+    "padding": {
+      "sm": "0.5rem 1rem",
+      "md": "0.75rem 1.5rem",
+      "lg": "1rem 2rem"
+    },
+    "variants": {
+      "default": {
+        "background": "#1A1A1A",
+        "color": "#FFFFFF"
+      },
+      "outline": {
+        "border": "#1A1A1A",
+        "color": "#1A1A1A"
+      },
+      "ghost": {
+        "color": "#1A1A1A"
+      }
+    }
+  },
+  "layout": {
+    "containerMaxWidth": "1200px",
+    "headerHeight": "3.5rem",
+    "footerHeight": "auto",
+    "cartDrawerWidth": "380px"
+  }
+}

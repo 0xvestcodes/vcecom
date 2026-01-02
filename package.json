@@ -35,7 +35,7 @@
     "commitlint": "commitlint",
     "changelog": "git-cliff",
     "changelog:unreleased": "git-cliff --unreleased",
-    "seed:ecom": "tsx scripts/seed-ecom.ts",
+    "seed:ecom": "turbo run build --filter=@vcecom/db^... && tsx scripts/seed-ecom.ts",
     "semantic-release": "semantic-release",
     "semantic-release:beta": "semantic-release --config .releaserc.beta.js",
     "semantic-release:prod": "semantic-release --config .releaserc.prod.js",

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Transpile workspace packages
+  transpilePackages: ["@vcecom/cms-blocks"],
   // Enable rewrites to proxy API requests and avoid CORS issues
   async rewrites() {
     return [

@@ -1,9 +1,9 @@
-import { CustomersPageClient } from "@/components/customers/customers-page-client";
+import { CustomersListClientRefactored } from "@/components/customers/customers-list-client-refactored";
 
 /**
  * Customers page - Server component
- * Delegates all client-side logic to CustomersPageClient component
+ * Delegates all client-side logic to CustomersListClientRefactored component
  */
 export default function CustomersPage() {
-  return <CustomersPageClient />;
+  return <CustomersListClientRefactored />;
 }

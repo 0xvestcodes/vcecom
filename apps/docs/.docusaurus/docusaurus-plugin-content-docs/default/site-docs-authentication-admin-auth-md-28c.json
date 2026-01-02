@@ -1,7 +1,7 @@
 {
   "id": "authentication/admin-auth",
   "title": "Admin Authentication",
-  "description": "Overview",
+  "description": "Coming soon...",
   "source": "@site/docs/authentication/admin-auth.md",
   "sourceDirName": "authentication",
   "slug": "/authentication/admin-auth",
@@ -16,7 +16,7 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Cross-Module Dependencies",
+    "title": "Dependencies",
     "permalink": "/docs/architecture/dependencies"
   },
   "next": {

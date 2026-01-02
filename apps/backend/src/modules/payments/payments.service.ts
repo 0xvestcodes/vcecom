@@ -8,9 +8,11 @@ import {
   OnModuleInit,
 } from "@nestjs/common";
 import { eq, orders, payments } from "@vcecom/db";
+import { CFOrderRequest, OrdersApi } from "cashfree-pg-sdk-nodejs";
 import { PinoLogger } from "nestjs-pino";
 import Razorpay from "razorpay";
 import { AppConfigService } from "../../common/config/app.config.service";
+import { PayUConfig } from "../../common/config/config.types";
 import { PAISE_PER_RUPEE } from "../../common/constants/currency.constants";
 import { SHORT_RETRY_DELAY_MS } from "../../common/constants/timeout.constants";
 import { ContextService } from "../../common/logging/context.service";
@@ -28,12 +30,26 @@ import {
   PaymentIntentStatus,
 } from "../redis-store/dto/payment-intent.dto";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
+import { CashfreeConfigService } from "./cashfree-config.service";
+import { CashfreeWebhookEventDto } from "./dto/cashfree-webhook-event.dto";
+import {
+  CashfreeOrderResponseDto,
+  CreateCashfreeOrderDto,
+} from "./dto/create-cashfree-order.dto";
+import {
+  CreatePayUOrderDto,
+  PayUOrderResponseDto,
+} from "./dto/create-payu-order.dto";
 import {
   CreateRazorpayOrderDto,
   RazorpayOrderResponseDto,
 } from "./dto/create-razorpay-order.dto";
+import { PayUWebhookEventDto } from "./dto/payu-webhook-event.dto";
+import { VerifyCashfreePaymentDto } from "./dto/verify-cashfree-payment.dto";
 import { VerifyPaymentDto } from "./dto/verify-payment.dto";
+import { VerifyPayUPaymentDto } from "./dto/verify-payu-payment.dto";
 import { RazorpayWebhookEventDto } from "./dto/webhook-event.dto";
+import { PayUConfigService } from "./payu-config.service";
 import { RazorpayConfigService } from "./razorpay-config.service";
 
 // Error type for Node.js errors with code property
@@ -45,9 +61,17 @@ interface NodeError extends Error {
 @Injectable()
 export class PaymentsService implements OnModuleInit {
   private razorpay: Razorpay | null = null;
+  private cashfreeConfig: {
+    appId: string;
+    secretKey: string;
+    environment: "sandbox" | "production";
+  } | null = null;
+  private payuConfig: PayUConfig | null = null;
 
   constructor(
     private readonly razorpayConfigService: RazorpayConfigService,
+    private readonly cashfreeConfigService: CashfreeConfigService,
+    private readonly payuConfigService: PayUConfigService,
     private readonly checkoutStore: CheckoutStore,
     @Inject(forwardRef(() => OrdersService))
     private readonly ordersService: OrdersService,
@@ -58,24 +82,25 @@ export class PaymentsService implements OnModuleInit {
   ) {}
 
   /**
-   * Initialize Razorpay on module initialization
+   * Initialize Razorpay and Cashfree on module initialization
    * Reads configuration from AppConfigService
    */
   onModuleInit() {
-    const config = this.appConfigService.getRazorpayConfig();
+    // Initialize Razorpay
+    const razorpayConfig = this.appConfigService.getRazorpayConfig();
 
-    if (config.keyId && config.keySecret) {
+    if (razorpayConfig.keyId && razorpayConfig.keySecret) {
       try {
         this.razorpay = this.razorpayConfigService.initialize({
-          keyId: config.keyId,
-          keySecret: config.keySecret,
-          timeout: config.timeout,
+          keyId: razorpayConfig.keyId,
+          keySecret: razorpayConfig.keySecret,
+          timeout: razorpayConfig.timeout,
         });
         this.logger.info(
           {
-            keyId: `${config.keyId.substring(0, 10)}...`, // Log partial key for verification
+            keyId: `${razorpayConfig.keyId.substring(0, 10)}...`, // Log partial key for verification
             initialized: true,
-            timeout: config.timeout,
+            timeout: razorpayConfig.timeout,
           },
           "Razorpay initialized successfully with SDK-level timeout",
         );
@@ -83,9 +108,9 @@ export class PaymentsService implements OnModuleInit {
         this.logger.error(
           {
             error: error instanceof Error ? error.message : String(error),
-            hasKeyId: !!config.keyId,
-            hasKeySecret: !!config.keySecret,
-            timeout: config.timeout,
+            hasKeyId: !!razorpayConfig.keyId,
+            hasKeySecret: !!razorpayConfig.keySecret,
+            timeout: razorpayConfig.timeout,
           },
           "Failed to initialize Razorpay",
         );
@@ -93,10 +118,95 @@ export class PaymentsService implements OnModuleInit {
     } else {
       this.logger.warn(
         {
-          hasKeyId: !!config.keyId,
-          hasKeySecret: !!config.keySecret,
+          hasKeyId: !!razorpayConfig.keyId,
+          hasKeySecret: !!razorpayConfig.keySecret,
         },
         "Razorpay not initialized - missing environment variables",
+      );
+    }
+
+    // Initialize Cashfree
+    const cashfreeEnvConfig = this.appConfigService.getCashfreeConfig();
+
+    if (cashfreeEnvConfig.appId && cashfreeEnvConfig.secretKey) {
+      try {
+        this.cashfreeConfig = this.cashfreeConfigService.initialize({
+          appId: cashfreeEnvConfig.appId,
+          secretKey: cashfreeEnvConfig.secretKey,
+          environment: cashfreeEnvConfig.environment,
+          timeout: cashfreeEnvConfig.timeout,
+        });
+        this.logger.info(
+          {
+            appId: `${cashfreeEnvConfig.appId.substring(0, 10)}...`, // Log partial app ID for verification
+            initialized: true,
+            environment: cashfreeEnvConfig.environment,
+            timeout: cashfreeEnvConfig.timeout,
+          },
+          "Cashfree initialized successfully",
+        );
+      } catch (error) {
+        this.logger.error(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            hasAppId: !!cashfreeEnvConfig.appId,
+            hasSecretKey: !!cashfreeEnvConfig.secretKey,
+            environment: cashfreeEnvConfig.environment,
+            timeout: cashfreeEnvConfig.timeout,
+          },
+          "Failed to initialize Cashfree",
+        );
+      }
+    } else {
+      this.logger.warn(
+        {
+          hasAppId: !!cashfreeEnvConfig.appId,
+          hasSecretKey: !!cashfreeEnvConfig.secretKey,
+        },
+        "Cashfree not initialized - missing environment variables",
+      );
+    }
+
+    // Initialize PayU
+    const payuEnvConfig = this.appConfigService.getPayUConfig();
+
+    if (payuEnvConfig.merchantKey && payuEnvConfig.merchantSalt) {
+      try {
+        this.payuConfigService.initialize({
+          merchantKey: payuEnvConfig.merchantKey,
+          merchantSalt: payuEnvConfig.merchantSalt,
+          environment: payuEnvConfig.environment,
+          timeout: payuEnvConfig.timeout,
+        });
+        this.payuConfig = payuEnvConfig; // Store the config for later use
+        this.logger.info(
+          {
+            merchantKey: `${payuEnvConfig.merchantKey.substring(0, 10)}...`, // Log partial key
+            initialized: true,
+            environment: payuEnvConfig.environment,
+            timeout: payuEnvConfig.timeout,
+          },
+          "PayU initialized successfully",
+        );
+      } catch (error) {
+        this.logger.error(
+          {
+            error: error instanceof Error ? error.message : String(error),
+            hasMerchantKey: !!payuEnvConfig.merchantKey,
+            hasMerchantSalt: !!payuEnvConfig.merchantSalt,
+            environment: payuEnvConfig.environment,
+            timeout: payuEnvConfig.timeout,
+          },
+          "Failed to initialize PayU",
+        );
+      }
+    } else {
+      this.logger.warn(
+        {
+          hasMerchantKey: !!payuEnvConfig.merchantKey,
+          hasMerchantSalt: !!payuEnvConfig.merchantSalt,
+        },
+        "PayU not initialized - missing environment variables",
       );
     }
   }
@@ -113,6 +223,34 @@ export class PaymentsService implements OnModuleInit {
       );
     }
     return this.razorpay;
+  }
+
+  /**
+   * Get Cashfree configuration or throw error if not initialized
+   */
+  private getCashfreeConfig(): {
+    appId: string;
+    secretKey: string;
+    environment: "sandbox" | "production";
+  } {
+    if (!this.cashfreeConfig) {
+      throw new BadRequestException(
+        "Cashfree is not initialized. Please configure CASHFREE_APP_ID and CASHFREE_SECRET_KEY environment variables.",
+      );
+    }
+    return this.cashfreeConfig;
+  }
+
+  /**
+   * Get PayU configuration or throw error if not initialized
+   */
+  private getPayUConfig(): PayUConfig {
+    if (!this.payuConfig) {
+      throw new BadRequestException(
+        "PayU is not initialized. Please configure PAYU_MERCHANT_KEY and PAYU_SALT_VERSION_1 environment variables.",
+      );
+    }
+    return this.payuConfig;
   }
 
   /**
@@ -1517,5 +1655,1020 @@ export class PaymentsService implements OnModuleInit {
     };
 
     return methodMap[razorpayMethod.toLowerCase()] || "razorpay";
+  }
+
+  /**
+   * Create Cashfree order for payment
+   * @param createCashfreeOrderDto - Order creation data
+   * @returns Cashfree order response
+   */
+  @Trace({ operation: "PaymentsService.createCashfreeOrder" })
+  async createCashfreeOrder(
+    createCashfreeOrderDto: CreateCashfreeOrderDto,
+  ): Promise<CashfreeOrderResponseDto> {
+    this.getCashfreeConfig(); // Ensure Cashfree is initialized
+
+    // Verify order exists in our system
+    let order: typeof orders.$inferSelect | undefined;
+    try {
+      const orderResult = await this.db
+        .select()
+        .from(orders)
+        .where(eq(orders.id, createCashfreeOrderDto.orderId))
+        .limit(1);
+      order = orderResult[0];
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "PaymentsService.createCashfreeOrder.selectOrder",
+          error,
+          { orderId: createCashfreeOrderDto.orderId },
+        ),
+        "Failed to fetch order",
+      );
+      throw new NotFoundException(
+        `Order with ID ${createCashfreeOrderDto.orderId} not found`,
+      );
+    }
+
+    if (!order) {
+      throw new NotFoundException(
+        `Order with ID ${createCashfreeOrderDto.orderId} not found`,
+      );
+    }
+
+    // Check if order already has a Cashfree order ID
+    if (order.cashfreeOrderId) {
+      throw new BadRequestException(
+        `Order already has a Cashfree order ID: ${order.cashfreeOrderId}`,
+      );
+    }
+
+    // Prepare order request
+    const orderRequest: CFOrderRequest = {
+      orderId: `order_${order.id.replace(/-/g, "")}`,
+      orderAmount: createCashfreeOrderDto.amount / PAISE_PER_RUPEE, // Convert paise to rupees
+      orderCurrency: createCashfreeOrderDto.currency || "INR",
+      orderNote: createCashfreeOrderDto.notes
+        ? JSON.stringify(createCashfreeOrderDto.notes)
+        : `Order ${order.orderNumber}`,
+      customerDetails: {
+        customerId: order.customerId || `customer_${order.id}`,
+        customerName:
+          createCashfreeOrderDto.customer?.customerName || "Customer",
+        customerEmail:
+          createCashfreeOrderDto.customer?.customerEmail ||
+          "customer@example.com",
+        customerPhone:
+          createCashfreeOrderDto.customer?.customerPhone || "9999999999",
+      } as CFOrderRequest["customerDetails"],
+      orderMeta: {
+        returnUrl:
+          createCashfreeOrderDto.returnUrl ||
+          `${process.env.STOREFRONT_URL || "http://localhost:3000"}/checkout/payment/return?orderId=${order.id}`,
+        notifyUrl: `${process.env.BACKEND_URL || "http://localhost:3001"}/store/payments/cashfree/webhook`,
+        paymentMethods: "cc,dc,upi,netbanking,wallet", // All supported payment methods
+      },
+    };
+
+    try {
+      // Create order in Cashfree
+      const cashfreeConfig = this.getCashfreeConfig();
+      const cashfreeEnvConfig = this.appConfigService.getCashfreeConfig();
+      const orderApi = new OrdersApi();
+      const cashfreeOrderResponse = await orderApi.createOrder(
+        cashfreeConfig.appId,
+        cashfreeConfig.secretKey,
+        "2023-08-01", // API version
+        undefined, // xIdempotencyReplayed
+        undefined, // xIdempotencyKey
+        undefined, // xRequestId
+        orderRequest,
+        cashfreeEnvConfig.timeout || 10000, // requestTimeout
+      );
+      const cashfreeOrder = cashfreeOrderResponse.cfOrder;
+
+      // Update our order with Cashfree order ID
+      try {
+        await this.db
+          .update(orders)
+          .set({
+            cashfreeOrderId: cashfreeOrder.orderId || "",
+            updatedAt: new Date(),
+          })
+          .where(eq(orders.id, order.id));
+      } catch (error) {
+        this.logger.error(
+          createErrorContext(
+            this.contextService,
+            "PaymentsService.createCashfreeOrder.updateOrder",
+            error,
+            { orderId: order.id, cashfreeOrderId: cashfreeOrder.orderId },
+          ),
+          "Failed to update order with Cashfree order ID",
+        );
+        // Continue - payment intent is created, order update failure is logged
+      }
+
+      // Update checkout session with payment intent
+      try {
+        const sessionData = await this.checkoutStore.getSessionByOrderId(
+          order.id,
+        );
+        if (sessionData) {
+          const { sessionId } = sessionData;
+          await this.checkoutStore.setPaymentIntent(
+            sessionId,
+            cashfreeOrder.orderId || "",
+          );
+          if (sessionData.session.state === CheckoutState.LOCKED) {
+            await this.checkoutStore.transitionState(
+              sessionId,
+              CheckoutState.LOCKED,
+              CheckoutState.PAYMENT_PENDING,
+            );
+          }
+        }
+      } catch (error) {
+        // Log but don't fail payment creation if state update fails
+        console.error(
+          "Failed to update checkout session with payment intent:",
+          error,
+        );
+      }
+
+      return {
+        orderId: cashfreeOrder.orderId || "",
+        paymentSessionId: cashfreeOrder.paymentSessionId || "",
+        orderToken: cashfreeOrder.orderToken || "",
+        orderAmount: createCashfreeOrderDto.amount,
+        orderCurrency: createCashfreeOrderDto.currency || "INR",
+        orderStatus: cashfreeOrder.orderStatus || "ACTIVE",
+        paymentLink: cashfreeOrder.paymentLink,
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to create Cashfree order: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Verify Cashfree payment signature
+   * @param verifyCashfreePaymentDto - Payment verification data
+   * @returns Verification result
+   */
+  @Trace({ operation: "PaymentsService.verifyCashfreePayment" })
+  async verifyCashfreePayment(
+    verifyCashfreePaymentDto: VerifyCashfreePaymentDto,
+  ): Promise<{ verified: boolean; message: string }> {
+    this.getCashfreeConfig(); // Ensure Cashfree is initialized
+    const secretKey = this.appConfigService.getCashfreeConfig().secretKey;
+
+    if (!secretKey) {
+      throw new BadRequestException("Cashfree secret key is not configured");
+    }
+
+    // Generate signature
+    const text = `${verifyCashfreePaymentDto.orderId}${verifyCashfreePaymentDto.paymentId}`;
+    const generatedSignature = crypto
+      .createHmac("sha256", secretKey)
+      .update(text)
+      .digest("hex");
+
+    // Compare signatures
+    const isValid = generatedSignature === verifyCashfreePaymentDto.signature;
+
+    return {
+      verified: isValid,
+      message: isValid
+        ? "Payment signature verified successfully"
+        : "Payment signature verification failed",
+    };
+  }
+
+  /**
+   * Handle Cashfree webhook event
+   * @param webhookEvent - Webhook event from Cashfree
+   * @param signature - Webhook signature for verification
+   * @param rawBody - Raw request body for signature verification
+   * @returns Processing result
+   */
+  @Trace({ operation: "PaymentsService.handleCashfreeWebhook" })
+  async handleCashfreeWebhook(
+    webhookEvent: CashfreeWebhookEventDto,
+    signature: string,
+    rawBody: string | Buffer,
+  ): Promise<{ processed: boolean; message: string }> {
+    const webhookSecret =
+      this.appConfigService.getCashfreeConfig().webhookSecret;
+
+    if (!webhookSecret) {
+      throw new BadRequestException(
+        "Cashfree webhook secret is not configured",
+      );
+    }
+
+    // Verify webhook signature using raw request body
+    const text = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody);
+    const generatedSignature = crypto
+      .createHmac("sha256", webhookSecret)
+      .update(text)
+      .digest("hex");
+
+    if (generatedSignature !== signature) {
+      throw new BadRequestException("Invalid webhook signature");
+    }
+
+    // Process webhook event based on event type
+    const eventType = webhookEvent.type;
+
+    switch (eventType) {
+      case "PAYMENT_SUCCESS_WEBHOOK":
+        await this.handleCashfreePaymentSuccess(webhookEvent);
+        break;
+      case "PAYMENT_FAILED_WEBHOOK":
+        await this.handleCashfreePaymentFailed(webhookEvent);
+        break;
+      case "PAYMENT_USER_DROPPED_WEBHOOK":
+        await this.handleCashfreePaymentDropped(webhookEvent);
+        break;
+      default:
+        // Log unhandled events but don't fail
+        return {
+          processed: false,
+          message: `Event ${eventType} is not handled`,
+        };
+    }
+
+    return {
+      processed: true,
+      message: `Event ${eventType} processed successfully`,
+    };
+  }
+
+  /**
+   * Handle Cashfree payment success event
+   */
+  private async handleCashfreePaymentSuccess(
+    webhookEvent: CashfreeWebhookEventDto,
+  ): Promise<void> {
+    const orderData = webhookEvent.data.order;
+    const paymentData = webhookEvent.data.payment;
+
+    if (!orderData || !paymentData) {
+      return;
+    }
+
+    // Find order by Cashfree order ID
+    let order: typeof orders.$inferSelect | undefined;
+    try {
+      const orderResult = await this.db
+        .select()
+        .from(orders)
+        .where(eq(orders.cashfreeOrderId, orderData.orderId))
+        .limit(1);
+      order = orderResult[0];
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "PaymentsService.handleCashfreePaymentSuccess.selectOrder",
+          error,
+          { cashfreeOrderId: orderData.orderId },
+        ),
+        "Failed to find order by Cashfree order ID",
+      );
+      return;
+    }
+
+    if (!order) {
+      return;
+    }
+
+    // Create payment record
+    try {
+      const paymentMethod = this.mapCashfreeMethodToEnum(
+        paymentData.paymentMethod?.paymentMethod || "cashfree",
+      );
+      await this.db.insert(payments).values({
+        orderId: order.id,
+        amount: paymentData.paymentAmount * PAISE_PER_RUPEE, // Convert rupees to paise
+        status: "captured",
+        method: paymentMethod,
+        cashfreePaymentId: paymentData.cfPaymentId,
+        cashfreeOrderId: orderData.orderId,
+        paymentGateway: "cashfree",
+        metadata: {
+          paymentStatus: paymentData.paymentStatus,
+          paymentMessage: paymentData.paymentMessage,
+          bankReference: paymentData.bankReference,
+          authId: paymentData.authId,
+          paymentCurrency: paymentData.paymentCurrency || "INR",
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "PaymentsService.handleCashfreePaymentSuccess.createPayment",
+          error,
+          { orderId: order.id, cashfreeOrderId: orderData.orderId },
+        ),
+        "Failed to create payment record",
+      );
+      // Don't throw - webhook processing should continue
+    }
+
+    // Update order status to confirmed
+    if (order.status === "pending") {
+      try {
+        await this.db
+          .update(orders)
+          .set({
+            status: "confirmed",
+            updatedAt: new Date(),
+          })
+          .where(eq(orders.id, order.id));
+      } catch (error) {
+        this.logger.error(
+          createErrorContext(
+            this.contextService,
+            "PaymentsService.handleCashfreePaymentSuccess.updateOrder",
+            error,
+            { orderId: order.id },
+          ),
+          "Failed to update order status",
+        );
+        // Don't throw - webhook processing should continue
+      }
+    }
+  }
+
+  /**
+   * Handle Cashfree payment failed event
+   */
+  private async handleCashfreePaymentFailed(
+    webhookEvent: CashfreeWebhookEventDto,
+  ): Promise<void> {
+    const orderData = webhookEvent.data.order;
+    const paymentData = webhookEvent.data.payment;
+
+    if (!orderData || !paymentData) {
+      return;
+    }
+
+    // Find order by Cashfree order ID
+    let order: typeof orders.$inferSelect | undefined;
+    try {
+      const orderResult = await this.db
+        .select()
+        .from(orders)
+        .where(eq(orders.cashfreeOrderId, orderData.orderId))
+        .limit(1);
+      order = orderResult[0];
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "PaymentsService.handleCashfreePaymentFailed.selectOrder",
+          error,
+          { cashfreeOrderId: orderData.orderId },
+        ),
+        "Failed to find order by Cashfree order ID",
+      );
+      return;
+    }
+
+    if (!order) {
+      return;
+    }
+
+    // Log payment failure
+    this.logger.warn(
+      createLogContext(
+        this.contextService,
+        "PaymentsService.handleCashfreePaymentFailed",
+        {
+          orderId: order.id,
+          cashfreeOrderId: orderData.orderId,
+          paymentId: paymentData.cfPaymentId,
+          failureReason: paymentData.paymentMessage,
+        },
+      ),
+      "Cashfree payment failed",
+    );
+  }
+
+  /**
+   * Handle Cashfree payment dropped event
+   */
+  private async handleCashfreePaymentDropped(
+    webhookEvent: CashfreeWebhookEventDto,
+  ): Promise<void> {
+    const orderData = webhookEvent.data.order;
+
+    if (!orderData) {
+      return;
+    }
+
+    // Find order by Cashfree order ID
+    let order: typeof orders.$inferSelect | undefined;
+    try {
+      const orderResult = await this.db
+        .select()
+        .from(orders)
+        .where(eq(orders.cashfreeOrderId, orderData.orderId))
+        .limit(1);
+      order = orderResult[0];
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "PaymentsService.handleCashfreePaymentDropped.selectOrder",
+          error,
+          { cashfreeOrderId: orderData.orderId },
+        ),
+        "Failed to find order by Cashfree order ID",
+      );
+      return;
+    }
+
+    if (!order) {
+      return;
+    }
+
+    // Log payment dropped
+    this.logger.info(
+      createLogContext(
+        this.contextService,
+        "PaymentsService.handleCashfreePaymentDropped",
+        {
+          orderId: order.id,
+          cashfreeOrderId: orderData.orderId,
+        },
+      ),
+      "Cashfree payment dropped by user",
+    );
+  }
+
+  /**
+   * Map Cashfree payment method to our enum
+   */
+  private mapCashfreeMethodToEnum(
+    cashfreeMethod: string,
+  ):
+    | "razorpay"
+    | "cod"
+    | "upi"
+    | "card"
+    | "netbanking"
+    | "wallet"
+    | "cashfree"
+    | "cashfree_upi"
+    | "cashfree_card" {
+    const methodMap: Record<
+      string,
+      | "razorpay"
+      | "cod"
+      | "upi"
+      | "card"
+      | "netbanking"
+      | "wallet"
+      | "cashfree"
+      | "cashfree_upi"
+      | "cashfree_card"
+    > = {
+      upi: "cashfree_upi",
+      card: "cashfree_card",
+      netbanking: "netbanking",
+      wallet: "wallet",
+      cod: "cod",
+    };
+
+    return methodMap[cashfreeMethod.toLowerCase()] || "cashfree";
+  }
+
+  /**
+   * Create PayU order for payment
+   * @param createPayUOrderDto - Order creation data
+   * @returns PayU order response with payment hash and URL
+   */
+  @Trace({ operation: "PaymentsService.createPayUOrder" })
+  async createPayUOrder(
+    createPayUOrderDto: CreatePayUOrderDto,
+  ): Promise<PayUOrderResponseDto> {
+    this.getPayUConfig(); // Ensure PayU is initialized
+
+    // Verify order exists in our system
+    let order: typeof orders.$inferSelect | undefined;
+    try {
+      const orderResult = await this.db
+        .select()
+        .from(orders)
+        .where(eq(orders.id, createPayUOrderDto.orderId))
+        .limit(1);
+      order = orderResult[0];
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "PaymentsService.createPayUOrder.selectOrder",
+          error,
+          { orderId: createPayUOrderDto.orderId },
+        ),
+        "Failed to fetch order",
+      );
+      throw new NotFoundException(
+        `Order with ID ${createPayUOrderDto.orderId} not found`,
+      );
+    }
+
+    if (!order) {
+      throw new NotFoundException(
+        `Order with ID ${createPayUOrderDto.orderId} not found`,
+      );
+    }
+
+    // Check if order already has a PayU transaction ID
+    if (order.payuTxnId) {
+      throw new BadRequestException(
+        `Order already has a PayU transaction ID: ${order.payuTxnId}`,
+      );
+    }
+
+    // Generate unique transaction ID
+    const txnid = `TXN${Date.now()}${order.id.substring(0, 8).replace(/-/g, "")}`;
+
+    // Get checkout session ID from order or from udf
+    let checkoutSessionId: string | null = null;
+    try {
+      const sessionData = await this.checkoutStore.getSessionByOrderId(
+        order.id,
+      );
+      checkoutSessionId = sessionData?.sessionId || null;
+    } catch (error) {
+      // Log but continue - checkout session might not exist
+      this.logger.warn(
+        createErrorContext(
+          this.contextService,
+          "PaymentsService.createPayUOrder.getSession",
+          error,
+          { orderId: order.id },
+        ),
+        "Failed to get checkout session for order",
+      );
+    }
+
+    // Prepare hash parameters
+    const hashParams = {
+      txnid,
+      amount: createPayUOrderDto.amount / PAISE_PER_RUPEE, // Convert paise to rupees
+      productinfo: createPayUOrderDto.productinfo,
+      firstname: createPayUOrderDto.firstname,
+      email: createPayUOrderDto.email,
+      udf1: createPayUOrderDto.udf?.udf1 || checkoutSessionId || order.id, // Store checkout session ID in udf1
+      udf2: createPayUOrderDto.udf?.udf2 || "",
+      udf3: createPayUOrderDto.udf?.udf3 || "",
+      udf4: createPayUOrderDto.udf?.udf4 || "",
+      udf5: createPayUOrderDto.udf?.udf5 || "",
+      udf6: createPayUOrderDto.udf?.udf6 || "",
+      udf7: createPayUOrderDto.udf?.udf7 || "",
+      udf8: createPayUOrderDto.udf?.udf8 || "",
+      udf9: createPayUOrderDto.udf?.udf9 || "",
+      udf10: createPayUOrderDto.udf?.udf10 || "",
+    };
+
+    try {
+      // Generate payment hash
+      const hash = this.payuConfigService.generateHash(hashParams);
+
+      // Get PayU payment URL
+      const paymentUrl = `${this.payuConfigService.getApiBaseUrl()}/_payment`;
+
+      // Update our order with PayU transaction ID
+      try {
+        await this.db
+          .update(orders)
+          .set({
+            payuTxnId: txnid,
+            updatedAt: new Date(),
+          })
+          .where(eq(orders.id, order.id));
+      } catch (error) {
+        this.logger.error(
+          createErrorContext(
+            this.contextService,
+            "PaymentsService.createPayUOrder.updateOrder",
+            error,
+            { orderId: order.id, payuTxnId: txnid },
+          ),
+          "Failed to update order with PayU transaction ID",
+        );
+        // Continue - payment hash is generated, order update failure is logged
+      }
+
+      // Update checkout session with payment intent
+      try {
+        const sessionData = await this.checkoutStore.getSessionByOrderId(
+          order.id,
+        );
+        if (sessionData) {
+          const { sessionId } = sessionData;
+          await this.checkoutStore.setPaymentIntent(sessionId, txnid);
+          if (sessionData.session.state === CheckoutState.LOCKED) {
+            await this.checkoutStore.transitionState(
+              sessionId,
+              CheckoutState.LOCKED,
+              CheckoutState.PAYMENT_PENDING,
+            );
+          }
+        }
+      } catch (error) {
+        // Log but don't fail payment creation if state update fails
+        console.error(
+          "Failed to update checkout session with payment intent:",
+          error,
+        );
+      }
+
+      return {
+        txnid,
+        hash,
+        paymentUrl,
+        amount: createPayUOrderDto.amount,
+        productinfo: createPayUOrderDto.productinfo,
+        firstname: createPayUOrderDto.firstname,
+        email: createPayUOrderDto.email,
+      };
+    } catch (error) {
+      throw new BadRequestException(
+        `Failed to create PayU order: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    }
+  }
+
+  /**
+   * Verify PayU payment hash
+   * @param verifyPayUPaymentDto - Payment verification data
+   * @returns Verification result
+   */
+  @Trace({ operation: "PaymentsService.verifyPayUPayment" })
+  async verifyPayUPayment(
+    verifyPayUPaymentDto: VerifyPayUPaymentDto,
+  ): Promise<{ verified: boolean; message: string }> {
+    this.getPayUConfig(); // Ensure PayU is initialized
+
+    // Verify hash
+    const isValid = this.payuConfigService.verifyHash(
+      {
+        status: verifyPayUPaymentDto.status,
+        email: verifyPayUPaymentDto.email,
+        firstname: verifyPayUPaymentDto.firstname,
+        productinfo: verifyPayUPaymentDto.productinfo,
+        amount: verifyPayUPaymentDto.amount / PAISE_PER_RUPEE, // Convert paise to rupees
+        txnid: verifyPayUPaymentDto.txnid,
+        udf1: verifyPayUPaymentDto.udf?.udf1 || "",
+        udf2: verifyPayUPaymentDto.udf?.udf2 || "",
+        udf3: verifyPayUPaymentDto.udf?.udf3 || "",
+        udf4: verifyPayUPaymentDto.udf?.udf4 || "",
+        udf5: verifyPayUPaymentDto.udf?.udf5 || "",
+        udf6: verifyPayUPaymentDto.udf?.udf6 || "",
+        udf7: verifyPayUPaymentDto.udf?.udf7 || "",
+        udf8: verifyPayUPaymentDto.udf?.udf8 || "",
+        udf9: verifyPayUPaymentDto.udf?.udf9 || "",
+        udf10: verifyPayUPaymentDto.udf?.udf10 || "",
+      },
+      verifyPayUPaymentDto.hash,
+    );
+
+    return {
+      verified: isValid,
+      message: isValid
+        ? "Payment hash verified successfully"
+        : "Payment hash verification failed",
+    };
+  }
+
+  /**
+   * Handle PayU webhook event
+   * @param webhookEvent - Webhook event from PayU
+   * @param hash - Webhook hash for verification
+   * @returns Processing result
+   */
+  @Trace({ operation: "PaymentsService.handlePayUWebhook" })
+  async handlePayUWebhook(
+    webhookEvent: PayUWebhookEventDto,
+    rawBody: string | Buffer,
+  ): Promise<{ processed: boolean; message: string }> {
+    this.getPayUConfig(); // Ensure PayU is initialized
+
+    // Verify webhook hash using PayU's webhook hash verification
+    // PayU webhook hash format: status|salt|txnid|amount|productinfo|firstname|email|udf1|udf2|...
+    const hashParams = {
+      status: webhookEvent.status,
+      txnid: webhookEvent.txnid,
+      amount: webhookEvent.amount, // PayU sends amount in rupees
+      productinfo: webhookEvent.productinfo,
+      firstname: webhookEvent.firstname,
+      email: webhookEvent.email,
+      udf1: webhookEvent.udf?.udf1,
+      udf2: webhookEvent.udf?.udf2,
+      udf3: webhookEvent.udf?.udf3,
+      udf4: webhookEvent.udf?.udf4,
+      udf5: webhookEvent.udf?.udf5,
+    };
+
+    const receivedHash = webhookEvent.hash || ""; // PayU sends hash in the body
+    if (!receivedHash) {
+      throw new BadRequestException("Missing hash in PayU webhook payload");
+    }
+    const isValid = this.payuConfigService.verifyWebhookHash(
+      hashParams,
+      receivedHash,
+    );
+
+    if (!isValid) {
+      throw new BadRequestException("Invalid PayU webhook hash");
+    }
+
+    // Process webhook event based on status
+    if (webhookEvent.status === "success") {
+      await this.handlePayUPaymentSuccess(webhookEvent);
+    } else if (webhookEvent.status === "failure") {
+      await this.handlePayUPaymentFailed(webhookEvent);
+    } else {
+      // Log unhandled statuses but don't fail
+      return {
+        processed: false,
+        message: `Status ${webhookEvent.status} is not handled`,
+      };
+    }
+
+    return {
+      processed: true,
+      message: `Event with status ${webhookEvent.status} processed successfully`,
+    };
+  }
+
+  /**
+   * Handle PayU payment success event
+   */
+  private async handlePayUPaymentSuccess(
+    webhookEvent: PayUWebhookEventDto,
+  ): Promise<void> {
+    const paymentIntentId = webhookEvent.txnid; // PayU transaction ID
+
+    // Extract checkout session ID from udf1 (we stored it there during order creation)
+    const checkoutSessionId = webhookEvent.udf?.udf1;
+
+    if (!checkoutSessionId) {
+      this.logger.error(
+        createLogContext(
+          this.contextService,
+          "PaymentsService.handlePayUPaymentSuccess",
+          {
+            paymentIntentId,
+            payuMoneyId: webhookEvent.payuMoneyId,
+          },
+        ),
+        "Checkout session ID not found in PayU webhook (udf1), cannot create order",
+      );
+      return;
+    }
+
+    // Get checkout session to check state
+    const session = await this.checkoutStore.getSession(checkoutSessionId);
+    if (!session) {
+      this.logger.error(
+        createLogContext(
+          this.contextService,
+          "PaymentsService.handlePayUPaymentSuccess",
+          {
+            checkoutSessionId,
+            paymentIntentId,
+          },
+        ),
+        "Checkout session not found",
+      );
+      return;
+    }
+
+    // Late event handling: ignore if checkout is already COMPLETED
+    if (session.state === CheckoutState.COMPLETED) {
+      this.logger.info(
+        createLogContext(
+          this.contextService,
+          "PaymentsService.handlePayUPaymentSuccess",
+          {
+            checkoutSessionId,
+            paymentIntentId,
+            state: session.state,
+          },
+        ),
+        "Ignoring late PayU webhook for completed checkout",
+      );
+      // Still create payment record if order exists
+      const existingOrderId = await this.checkoutStore.getOrderByPaymentIntent(
+        "payu",
+        paymentIntentId,
+      );
+      if (existingOrderId) {
+        await this.createPayUPaymentRecord(webhookEvent, existingOrderId);
+      }
+      return;
+    }
+
+    // Ignore if checkout is FAILED
+    if (session.state === CheckoutState.FAILED) {
+      this.logger.info(
+        createLogContext(
+          this.contextService,
+          "PaymentsService.handlePayUPaymentSuccess",
+          {
+            checkoutSessionId,
+            paymentIntentId,
+            state: session.state,
+          },
+        ),
+        "Ignoring PayU webhook for failed checkout",
+      );
+      return;
+    }
+
+    // Transition checkout session to PAYMENT_CONFIRMED
+    await this.checkoutStore.transitionState(
+      checkoutSessionId,
+      session.state,
+      CheckoutState.PAYMENT_CONFIRMED,
+    );
+
+    // Create order from payment confirmation (webhook-driven)
+    const order = await this.ordersService.finalizeOrderFromPayment(
+      checkoutSessionId,
+      paymentIntentId,
+      "payu",
+    );
+
+    // Create payment record
+    await this.createPayUPaymentRecord(webhookEvent, order.id);
+  }
+
+  /**
+   * Create PayU payment record
+   */
+  private async createPayUPaymentRecord(
+    webhookEvent: PayUWebhookEventDto,
+    orderId: string,
+  ): Promise<void> {
+    try {
+      const paymentMethod = this.mapPayUMethodToEnum(
+        webhookEvent.mode || "payu",
+      );
+      await this.db.insert(payments).values({
+        orderId,
+        amount: webhookEvent.amount * PAISE_PER_RUPEE, // Convert rupees to paise
+        status: "captured",
+        method: paymentMethod,
+        payuPaymentId: webhookEvent.payuMoneyId,
+        payuTxnId: webhookEvent.txnid,
+        paymentGateway: "payu",
+        metadata: {
+          status: webhookEvent.status,
+          mode: webhookEvent.mode,
+          bankRefNum: webhookEvent.bank_ref_num,
+          bankCode: webhookEvent.bankcode,
+        },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "PaymentsService.createPayUPaymentRecord",
+          error,
+          { orderId, payuTxnId: webhookEvent.txnid },
+        ),
+        "Failed to create PayU payment record",
+      );
+      // Don't throw - webhook processing should continue
+    }
+  }
+
+  /**
+   * Handle PayU payment failed event
+   */
+  private async handlePayUPaymentFailed(
+    webhookEvent: PayUWebhookEventDto,
+  ): Promise<void> {
+    // Extract order ID from udf1
+    const orderId = webhookEvent.udf?.udf1;
+
+    if (!orderId) {
+      this.logger.warn(
+        createLogContext(
+          this.contextService,
+          "PaymentsService.handlePayUPaymentFailed",
+          {
+            txnid: webhookEvent.txnid,
+          },
+        ),
+        "Order ID not found in PayU webhook (udf1)",
+      );
+      return;
+    }
+
+    // Find order by ID
+    let order: typeof orders.$inferSelect | undefined;
+    try {
+      const orderResult = await this.db
+        .select()
+        .from(orders)
+        .where(eq(orders.id, orderId))
+        .limit(1);
+      order = orderResult[0];
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "PaymentsService.handlePayUPaymentFailed.selectOrder",
+          error,
+          { orderId, payuTxnId: webhookEvent.txnid },
+        ),
+        "Failed to find order by ID",
+      );
+      return;
+    }
+
+    if (!order) {
+      return;
+    }
+
+    // Log payment failure
+    this.logger.warn(
+      createLogContext(
+        this.contextService,
+        "PaymentsService.handlePayUPaymentFailed",
+        {
+          orderId: order.id,
+          payuTxnId: webhookEvent.txnid,
+          status: webhookEvent.status,
+        },
+      ),
+      "PayU payment failed",
+    );
+  }
+
+  /**
+   * Map PayU payment method to our enum
+   */
+  private mapPayUMethodToEnum(
+    payuMethod: string,
+  ):
+    | "razorpay"
+    | "cod"
+    | "upi"
+    | "card"
+    | "netbanking"
+    | "wallet"
+    | "cashfree"
+    | "cashfree_upi"
+    | "cashfree_card"
+    | "payu"
+    | "payu_card"
+    | "payu_upi"
+    | "payu_netbanking"
+    | "payu_wallet" {
+    const methodMap: Record<
+      string,
+      | "razorpay"
+      | "cod"
+      | "upi"
+      | "card"
+      | "netbanking"
+      | "wallet"
+      | "cashfree"
+      | "cashfree_upi"
+      | "cashfree_card"
+      | "payu"
+      | "payu_card"
+      | "payu_upi"
+      | "payu_netbanking"
+      | "payu_wallet"
+    > = {
+      cc: "payu_card", // Credit Card
+      dc: "payu_card", // Debit Card
+      nb: "payu_netbanking", // Net Banking
+      upi: "payu_upi", // UPI
+      wallet: "payu_wallet", // Wallet
+      cash: "cod", // Cash (for COD)
+      // Default to 'payu' if not explicitly mapped
+    };
+
+    return methodMap[payuMethod.toLowerCase()] || "payu";
   }
 }

@@ -1,7 +1,7 @@
 {
   "id": "architecture/overview",
-  "title": "System Architecture Overview",
-  "description": "VCEcom is built using a modular, scalable architecture that separates concerns while maintaining high performance and developer productivity. This document provides a comprehensive overview of the system architecture, design patterns, and technical decisions.",
+  "title": "Architecture Overview",
+  "description": "Coming soon...",
   "source": "@site/docs/architecture/overview.md",
   "sourceDirName": "architecture",
   "slug": "/architecture/overview",
@@ -20,7 +20,7 @@
     "permalink": "/docs/introduction"
   },
   "next": {
-    "title": "Monorepo Architecture & Philosophy",
+    "title": "Monorepo Structure",
     "permalink": "/docs/architecture/monorepo"
   }
 }

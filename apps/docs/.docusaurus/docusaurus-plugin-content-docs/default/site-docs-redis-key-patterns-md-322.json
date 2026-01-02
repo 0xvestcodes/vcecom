@@ -1,7 +1,7 @@
 {
   "id": "redis/key-patterns",
-  "title": "Redis Key Patterns",
-  "description": "Pattern Structure",
+  "title": "key-patterns",
+  "description": "",
   "source": "@site/docs/redis/key-patterns.md",
   "sourceDirName": "redis",
   "slug": "/redis/key-patterns",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Redis Architecture",
+    "title": "Redis Overview",
     "permalink": "/docs/redis/overview"
   },
   "next": {
-    "title": "Redis Caching Layers",
+    "title": "caching-layers",
     "permalink": "/docs/redis/caching-layers"
   }
 }

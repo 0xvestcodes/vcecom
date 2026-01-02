@@ -1,7 +1,7 @@
 {
   "id": "api-reference/admin-api",
   "title": "Admin API Reference",
-  "description": "The Admin API provides comprehensive management capabilities for the VCEcom platform. All endpoints require authentication with admin privileges and follow RESTful conventions.",
+  "description": "Coming soon...",
   "source": "@site/docs/api-reference/admin-api.md",
   "sourceDirName": "api-reference",
   "slug": "/api-reference/admin-api",

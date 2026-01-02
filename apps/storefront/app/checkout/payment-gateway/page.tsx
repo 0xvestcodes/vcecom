@@ -22,14 +22,18 @@ export default async function PaymentGatewayPage({
   searchParams,
 }: {
   searchParams:
-    | Promise<{ paymentIntentId?: string; session?: string }>
-    | { paymentIntentId?: string; session?: string };
+    | Promise<{ paymentIntentId?: string; session?: string; gateway?: string }>
+    | { paymentIntentId?: string; session?: string; gateway?: string };
 }) {
   // Handle both Promise and direct object (Next.js 14 vs 15)
   const resolvedSearchParams =
     searchParams instanceof Promise ? await searchParams : searchParams;
   const paymentIntentId = resolvedSearchParams.paymentIntentId;
   const checkoutSessionId = resolvedSearchParams.session;
+  const paymentGateway = resolvedSearchParams.gateway as
+    | "razorpay"
+    | "cashfree"
+    | undefined;
 
   if (!paymentIntentId) {
     return (
@@ -68,6 +72,7 @@ export default async function PaymentGatewayPage({
       <PaymentGatewayClient
         paymentIntentId={paymentIntentId}
         checkoutSessionId={checkoutSessionId}
+        paymentGateway={paymentGateway}
       />
     </Suspense>
   );

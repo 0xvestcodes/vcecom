@@ -1,7 +1,7 @@
 {
   "id": "pricing/pricing-engine",
-  "title": "Pricing Engine",
-  "description": "Overview",
+  "title": "pricing-engine",
+  "description": "",
   "source": "@site/docs/pricing/pricing-engine.md",
   "sourceDirName": "pricing",
   "slug": "/pricing/pricing-engine",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Customer Groups",
+    "title": "customer-groups",
     "permalink": "/docs/pricing/customer-groups"
   },
   "next": {
-    "title": "Pricing Snapshots",
+    "title": "snapshots",
     "permalink": "/docs/pricing/snapshots"
   }
 }

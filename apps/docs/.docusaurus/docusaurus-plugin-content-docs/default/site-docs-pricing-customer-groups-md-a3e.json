@@ -1,7 +1,7 @@
 {
   "id": "pricing/customer-groups",
-  "title": "Customer Groups",
-  "description": "Overview",
+  "title": "customer-groups",
+  "description": "",
   "source": "@site/docs/pricing/customer-groups.md",
   "sourceDirName": "pricing",
   "slug": "/pricing/customer-groups",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Price Lists",
+    "title": "price-lists",
     "permalink": "/docs/pricing/price-lists"
   },
   "next": {
-    "title": "Pricing Engine",
+    "title": "pricing-engine",
     "permalink": "/docs/pricing/pricing-engine"
   }
 }

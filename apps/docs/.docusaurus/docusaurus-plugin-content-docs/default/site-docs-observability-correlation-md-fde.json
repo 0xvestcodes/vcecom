@@ -1,7 +1,7 @@
 {
   "id": "observability/correlation",
-  "title": "Log-Trace Correlation",
-  "description": "The system provides comprehensive correlation between logs, traces, and requests to enable end-to-end observability and debugging across distributed operations.",
+  "title": "correlation",
+  "description": "",
   "source": "@site/docs/observability/correlation.md",
   "sourceDirName": "observability",
   "slug": "/observability/correlation",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Request Context Propagation",
+    "title": "context",
     "permalink": "/docs/observability/context"
   },
   "next": {
-    "title": "Redis Architecture",
+    "title": "Redis Overview",
     "permalink": "/docs/redis/overview"
   }
 }

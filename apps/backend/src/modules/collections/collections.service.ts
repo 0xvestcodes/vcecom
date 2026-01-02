@@ -192,6 +192,8 @@ export class CollectionsService {
       throw new InternalServerErrorException("Failed to create collection");
     }
 
+    // Slug registration removed - no longer using CMS route registry
+
     return {
       ...newCollection,
       type: newCollection.type as CollectionType,
@@ -436,6 +438,10 @@ export class CollectionsService {
       );
     }
 
+    // Track slug change for route registry
+    const oldSlug = existing.slug;
+    const _slugChanged = slug !== undefined && slug !== oldSlug;
+
     // Update collection
     const updateData: {
       name?: string;
@@ -484,6 +490,8 @@ export class CollectionsService {
         createdAt: collections.createdAt,
         updatedAt: collections.updatedAt,
       });
+
+    // Slug registration removed - no longer using CMS route registry
 
     return {
       ...updated,

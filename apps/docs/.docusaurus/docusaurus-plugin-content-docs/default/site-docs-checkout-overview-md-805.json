@@ -1,7 +1,7 @@
 {
   "id": "checkout/overview",
-  "title": "Checkout System Overview",
-  "description": "State Machine",
+  "title": "Checkout Overview",
+  "description": "Coming soon...",
   "source": "@site/docs/checkout/overview.md",
   "sourceDirName": "checkout",
   "slug": "/checkout/overview",
@@ -16,7 +16,7 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Bundle Cart Integration",
+    "title": "cart-integration",
     "permalink": "/docs/bundles/cart-integration"
   },
   "next": {

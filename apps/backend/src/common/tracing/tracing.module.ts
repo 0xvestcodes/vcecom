@@ -8,7 +8,7 @@ import { TracingService } from "./tracing.service";
 /**
  * Global Tracing Module
  * Provides tracing capabilities across the entire application
- * Only enabled if OTEL_EXPORTER_ZIPKIN_ENDPOINT is set
+ * Only enabled if OTEL_EXPORTER_OTLP_ENDPOINT or OTEL_EXPORTER_OTLP_TRACES_ENDPOINT is set
  * - TracingService: Utility for creating spans and span-aware loggers
  * - TracingInterceptor: Automatically creates spans for controller endpoints
  */
@@ -18,30 +18,33 @@ import { TracingService } from "./tracing.service";
 export class TracingModule {
   /**
    * Conditionally register tracing module based on environment variable
+   * Always provides TracingService (it handles disabled state internally)
+   * Only registers TracingInterceptor if tracing is enabled
    */
   static forRoot(): DynamicModule {
-    const isEnabled = !!process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT;
+    const isEnabled = !!(
+      process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT
+    );
 
-    if (!isEnabled) {
-      // Return empty module if tracing is disabled
-      return {
-        module: TracingModule,
-        providers: [],
-        exports: [],
-      };
-    }
+    // Always provide TracingService (it handles disabled state internally)
+    // Only register TracingInterceptor if tracing is enabled
+    const providers = [
+      TracingService,
+      ...(isEnabled
+        ? [
+            {
+              provide: APP_INTERCEPTOR,
+              useClass: TracingInterceptor,
+            },
+          ]
+        : []),
+    ];
 
-    // Return full module with tracing if enabled
     return {
       module: TracingModule,
       imports: [LoggerModule, ContextModule],
-      providers: [
-        TracingService,
-        {
-          provide: APP_INTERCEPTOR,
-          useClass: TracingInterceptor,
-        },
-      ],
+      providers,
       exports: [TracingService],
     };
   }

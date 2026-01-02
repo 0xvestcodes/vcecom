@@ -38,6 +38,7 @@ export interface PriceList {
   startDate: Date | null;
   endDate: Date | null;
   items: PriceListItem[];
+  customerGroupIds?: string[];
   createdAt: Date;
   updatedAt: Date;
 }

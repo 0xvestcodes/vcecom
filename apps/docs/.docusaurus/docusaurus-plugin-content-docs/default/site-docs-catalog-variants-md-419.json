@@ -1,7 +1,7 @@
 {
   "id": "catalog/variants",
-  "title": "Product Variants",
-  "description": "Product variants extend the base product with specific attributes like size, color, price variations, and inventory tracking. Variants enable selling multiple variations of the same product while maintaining a unified product identity.",
+  "title": "variants",
+  "description": "",
   "source": "@site/docs/catalog/variants.md",
   "sourceDirName": "catalog",
   "slug": "/catalog/variants",
@@ -20,7 +20,7 @@
     "permalink": "/docs/catalog/products"
   },
   "next": {
-    "title": "Collections",
+    "title": "collections",
     "permalink": "/docs/catalog/collections"
   }
 }

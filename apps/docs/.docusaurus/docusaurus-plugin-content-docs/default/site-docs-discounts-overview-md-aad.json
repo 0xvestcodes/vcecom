@@ -1,7 +1,7 @@
 {
   "id": "discounts/overview",
-  "title": "Discount Engine Overview",
-  "description": "Architecture",
+  "title": "Discounts Overview",
+  "description": "Coming soon...",
   "source": "@site/docs/discounts/overview.md",
   "sourceDirName": "discounts",
   "slug": "/discounts/overview",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Pricing Drift Detection",
+    "title": "drift-detection",
     "permalink": "/docs/pricing/drift-detection"
   },
   "next": {
-    "title": "Discount Definitions",
+    "title": "definitions",
     "permalink": "/docs/discounts/definitions"
   }
 }

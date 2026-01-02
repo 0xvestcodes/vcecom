@@ -12,11 +12,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useVerifyPayment } from "@/hooks/use-payments";
+import { get } from "@/lib/api/client";
+import { endpoints } from "@/lib/api/endpoints";
 import { getToken } from "@/lib/utils/storage";
 
 interface PaymentGatewayClientProps {
   paymentIntentId: string;
   checkoutSessionId: string;
+  paymentGateway?: "razorpay" | "cashfree"; // Optional: specify gateway, otherwise auto-detect
 }
 
 declare global {
@@ -65,24 +68,96 @@ interface RazorpayInstance {
   ) => void;
 }
 
+interface CustomerPrefill {
+  name?: string;
+  email?: string;
+  phone?: string;
+}
+
 export function PaymentGatewayClient({
   paymentIntentId,
   checkoutSessionId,
+  paymentGateway: _paymentGateway,
 }: PaymentGatewayClientProps) {
   const router = useRouter();
   const [_isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [customerPrefill, setCustomerPrefill] = useState<CustomerPrefill>({});
   const razorpayLoaded = useRef(false);
   const verifyPaymentMutation = useVerifyPayment();
 
+  // Fetch customer details for Razorpay prefill
+  const fetchCustomerPrefill = useCallback(async () => {
+    try {
+      // Try to get customer details from customer profile endpoint
+      const token = getToken();
+      if (token) {
+        try {
+          const customerData = await get<{
+            firstName?: string;
+            lastName?: string;
+            name?: string;
+            email?: string;
+            phone?: string;
+          }>(endpoints.customers.me);
+          if (customerData) {
+            setCustomerPrefill({
+              name:
+                customerData.name ||
+                (customerData.firstName
+                  ? `${customerData.firstName}${customerData.lastName ? ` ${customerData.lastName}` : ""}`
+                  : undefined),
+              email: customerData.email || undefined,
+              phone: customerData.phone || undefined,
+            });
+            return;
+          }
+        } catch (_error) {
+          // If customer endpoint fails, try to get from cart
+          console.log("Could not fetch customer from profile, trying cart");
+        }
+      }
+
+      // Fallback: Try to get customer details from cart
+      try {
+        const cartData = await get<{
+          customer?: {
+            firstName?: string;
+            lastName?: string;
+            name?: string;
+            email?: string;
+            phone?: string;
+          };
+        }>(`${endpoints.cart.get}?checkoutSessionId=${checkoutSessionId}`);
+        if (cartData?.customer) {
+          const customer = cartData.customer;
+          setCustomerPrefill({
+            name:
+              customer.name ||
+              (customer.firstName
+                ? `${customer.firstName}${customer.lastName ? ` ${customer.lastName}` : ""}`
+                : undefined),
+            email: customer.email || undefined,
+            phone: customer.phone || undefined,
+          });
+        }
+      } catch (_error) {
+        console.log("Could not fetch customer details for prefill");
+      }
+    } catch (error) {
+      console.error("Error fetching customer prefill:", error);
+      // Continue without prefill - not critical
+    }
+  }, [checkoutSessionId]);
+
   const waitForOrderCreation = useCallback(async () => {
     // Poll for order creation (webhook may take a few seconds)
-    const maxAttempts = 20; // 20 attempts = 20 seconds max
+    const maxAttempts = 30; // 30 attempts = 30 seconds max (increased for webhook delays)
     const pollInterval = 1000; // 1 second
 
     const token = getToken();
-    const ordersEndpoint = token ? "/store/orders" : "/store/orders"; // Guest users might not have orders endpoint
+    const ordersEndpoint = endpoints.orders.list;
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -136,6 +211,11 @@ export function PaymentGatewayClient({
     );
   }, [paymentIntentId, checkoutSessionId, router]);
 
+  // Fetch customer prefill data on mount
+  useEffect(() => {
+    fetchCustomerPrefill();
+  }, [fetchCustomerPrefill]);
+
   useEffect(() => {
     const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
 
@@ -160,13 +240,15 @@ export function PaymentGatewayClient({
         initializeRazorpay();
       };
       script.onerror = () => {
-        setError("Failed to load Razorpay payment gateway. Please try again.");
+        setError(
+          "Failed to load Razorpay payment gateway. Please refresh the page and try again.",
+        );
         setIsLoading(false);
       };
       document.body.appendChild(script);
     };
 
-    const initializeRazorpay = () => {
+    const initializeRazorpay = async () => {
       if (!window.Razorpay) {
         setError("Razorpay SDK not loaded. Please refresh the page.");
         setIsLoading(false);
@@ -209,13 +291,15 @@ export function PaymentGatewayClient({
               setError(
                 error instanceof Error
                   ? error.message
-                  : "Payment verification failed. Please contact support.",
+                  : "Payment verification failed. Please contact support if the amount was deducted.",
               );
               setIsProcessing(false);
             }
           },
           prefill: {
-            // We could fetch customer details from checkout session if needed
+            name: customerPrefill.name,
+            email: customerPrefill.email,
+            contact: customerPrefill.phone,
           },
           notes: {
             checkout_session_id: checkoutSessionId,
@@ -227,7 +311,7 @@ export function PaymentGatewayClient({
             ondismiss: () => {
               // User closed the payment modal
               router.push(
-                `/checkout/error?message=${encodeURIComponent("Payment was cancelled.")}`,
+                `/checkout/payment?session=${checkoutSessionId}&message=${encodeURIComponent("Payment was cancelled. You can try again.")}`,
               );
             },
           },
@@ -236,14 +320,25 @@ export function PaymentGatewayClient({
         // Handle payment failure
         razorpay.on(
           "payment.failed",
-          (response: { error?: { description?: string } }) => {
-            setError(
+          (response: { error?: { description?: string; code?: string } }) => {
+            const errorMessage =
               response.error?.description ||
-                "Payment failed. Please try again.",
-            );
+              "Payment failed. Please try again or use a different payment method.";
+            console.error("Razorpay payment failed:", response.error);
+            setError(errorMessage);
             setIsProcessing(false);
           },
         );
+
+        // Handle other Razorpay errors
+        razorpay.on("error", (error: { error?: { description?: string } }) => {
+          const errorMessage =
+            error.error?.description ||
+            "An error occurred with the payment gateway. Please try again.";
+          console.error("Razorpay error:", error);
+          setError(errorMessage);
+          setIsProcessing(false);
+        });
 
         // Open Razorpay checkout
         setIsLoading(false);
@@ -253,17 +348,19 @@ export function PaymentGatewayClient({
         setError(
           error instanceof Error
             ? error.message
-            : "Failed to initialize payment gateway. Please try again.",
+            : "Failed to initialize payment gateway. Please refresh the page and try again.",
         );
         setIsLoading(false);
       }
     };
 
-    loadRazorpayScript();
+    // Only initialize after customer prefill is fetched (or timeout)
+    const timeout = setTimeout(() => {
+      loadRazorpayScript();
+    }, 500); // Small delay to allow customer prefill to load
 
-    // Cleanup: remove script on unmount if needed
     return () => {
-      // Script cleanup is handled by browser
+      clearTimeout(timeout);
     };
   }, [
     paymentIntentId,
@@ -271,6 +368,7 @@ export function PaymentGatewayClient({
     router,
     verifyPaymentMutation,
     waitForOrderCreation,
+    customerPrefill,
   ]);
 
   if (error) {

@@ -40,7 +40,7 @@ export function CreateVariantForm({
   productTitle,
   defaultPrice = 0,
 }: CreateVariantFormProps) {
-  const router = useRouter();
+  const _router = useRouter();
   const { data: optionTypes = [] } =
     useAdminProductVariantOptionTypes(productId);
   const createVariant = useAdminCreateVariant(productId);
@@ -76,8 +76,9 @@ export function CreateVariantForm({
         productId,
         optionValueIds: optionValueIds.length > 0 ? optionValueIds : undefined,
       });
-      const variant = await createVariant.mutateAsync(variantData);
-      router.push(`/products/${productId}/variants/${variant.id}`);
+      await createVariant.mutateAsync(variantData);
+      // Don't navigate - let parent handle completion
+      // router.push(`/products/${productId}/variants/${variant.id}`);
     } catch (_error) {
       // Error is handled by the hook's onError callback
     }

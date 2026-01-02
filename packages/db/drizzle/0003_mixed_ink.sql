@@ -1,0 +1,1 @@
+DROP INDEX "entry_edit_locks_entry_id_unique";

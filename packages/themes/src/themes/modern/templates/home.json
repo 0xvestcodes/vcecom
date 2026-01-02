@@ -1,0 +1,38 @@
+{
+  "sections": [
+    {
+      "id": "hero",
+      "layout": "full",
+      "padding": "lg",
+      "blocks": [
+        {
+          "id": "hero-1",
+          "type": "hero",
+          "order": 1,
+          "props": {
+            "title": "Welcome to Our Store",
+            "subtitle": "Discover amazing products",
+            "ctaText": "Shop Now",
+            "ctaLink": "/products"
+          }
+        }
+      ]
+    },
+    {
+      "id": "featured-products",
+      "layout": "container",
+      "padding": "xl",
+      "blocks": [
+        {
+          "id": "product-grid-1",
+          "type": "product_grid",
+          "order": 1,
+          "props": {
+            "title": "Featured Products",
+            "limit": 8
+          }
+        }
+      ]
+    }
+  ]
+}

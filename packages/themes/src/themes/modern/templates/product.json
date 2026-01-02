@@ -1,0 +1,32 @@
+{
+  "sections": [
+    {
+      "id": "product-detail",
+      "layout": "container",
+      "padding": "xl",
+      "blocks": [
+        {
+          "id": "featured-product-1",
+          "type": "featured_product",
+          "order": 1,
+          "props": {}
+        }
+      ]
+    },
+    {
+      "id": "related-products",
+      "layout": "container",
+      "padding": "lg",
+      "blocks": [
+        {
+          "id": "product-carousel-1",
+          "type": "product_carousel",
+          "order": 1,
+          "props": {
+            "title": "You may also like"
+          }
+        }
+      ]
+    }
+  ]
+}

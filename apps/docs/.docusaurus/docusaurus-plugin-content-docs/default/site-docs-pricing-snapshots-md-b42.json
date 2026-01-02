@@ -1,7 +1,7 @@
 {
   "id": "pricing/snapshots",
-  "title": "Pricing Snapshots",
-  "description": "Overview",
+  "title": "snapshots",
+  "description": "",
   "source": "@site/docs/pricing/snapshots.md",
   "sourceDirName": "pricing",
   "slug": "/pricing/snapshots",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Pricing Engine",
+    "title": "pricing-engine",
     "permalink": "/docs/pricing/pricing-engine"
   },
   "next": {
-    "title": "Pricing Drift Detection",
+    "title": "drift-detection",
     "permalink": "/docs/pricing/drift-detection"
   }
 }

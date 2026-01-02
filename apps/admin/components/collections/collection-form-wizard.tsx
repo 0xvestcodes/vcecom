@@ -27,6 +27,7 @@ import { CollectionRuleBuilder } from "./collection-rule-builder";
 import { CollectionTypeSelector } from "./collection-type-selector";
 
 interface CollectionFormWizardProps {
+  initialData?: Collection;
   collection?: Collection;
   onSubmit: (
     data: CreateCollectionInput | UpdateCollectionInput,
@@ -38,11 +39,13 @@ interface CollectionFormWizardProps {
 type Step = 1 | 2 | 3;
 
 export function CollectionFormWizard({
-  collection,
+  collection: collectionProp,
+  initialData,
   onSubmit,
   onCancel,
   isLoading = false,
 }: CollectionFormWizardProps) {
+  const collection = initialData || collectionProp;
   const [currentStep, setCurrentStep] = useState<Step>(1);
   const [imageUrl, setImageUrl] = useState<string | null>(
     collection?.imageUrl || null,

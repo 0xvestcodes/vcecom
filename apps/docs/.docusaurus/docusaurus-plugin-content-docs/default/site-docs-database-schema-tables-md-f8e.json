@@ -1,7 +1,7 @@
 {
   "id": "database-schema/tables",
-  "title": "Database Tables",
-  "description": "Core Tables",
+  "title": "tables",
+  "description": "",
   "source": "@site/docs/database-schema/tables.md",
   "sourceDirName": "database-schema",
   "slug": "/database-schema/tables",
@@ -16,7 +16,7 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Entity Relationship Diagram",
+    "title": "erd",
     "permalink": "/docs/database-schema/erd"
   },
   "next": {

@@ -1,9 +1,9 @@
-import { OrdersPageClient } from "@/components/orders/orders-page-client";
+import { OrdersListClientRefactored } from "@/components/orders/orders-list-client-refactored";
 
 /**
  * Orders page - Server component
- * Delegates all client-side logic to OrdersPageClient component
+ * Delegates all client-side logic to OrdersListClientRefactored component
  */
 export default function OrdersPage() {
-  return <OrdersPageClient />;
+  return <OrdersListClientRefactored />;
 }

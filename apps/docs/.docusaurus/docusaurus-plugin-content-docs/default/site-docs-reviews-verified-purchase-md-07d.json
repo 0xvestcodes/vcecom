@@ -1,7 +1,7 @@
 {
   "id": "reviews/verified-purchase",
-  "title": "Verified Purchase Reviews",
-  "description": "Overview",
+  "title": "verified-purchase",
+  "description": "",
   "source": "@site/docs/reviews/verified-purchase.md",
   "sourceDirName": "reviews",
   "slug": "/reviews/verified-purchase",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Reviews System",
+    "title": "Reviews Overview",
     "permalink": "/docs/reviews/overview"
   },
   "next": {
-    "title": "Review Moderation",
+    "title": "moderation",
     "permalink": "/docs/reviews/moderation"
   }
 }

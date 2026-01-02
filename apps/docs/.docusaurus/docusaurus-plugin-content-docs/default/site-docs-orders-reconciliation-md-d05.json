@@ -1,7 +1,7 @@
 {
   "id": "orders/reconciliation",
-  "title": "Order Inventory Reconciliation",
-  "description": "Overview",
+  "title": "reconciliation",
+  "description": "",
   "source": "@site/docs/orders/reconciliation.md",
   "sourceDirName": "orders",
   "slug": "/orders/reconciliation",
@@ -16,7 +16,7 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Order Refunds",
+    "title": "refunds",
     "permalink": "/docs/orders/refunds"
   },
   "next": {

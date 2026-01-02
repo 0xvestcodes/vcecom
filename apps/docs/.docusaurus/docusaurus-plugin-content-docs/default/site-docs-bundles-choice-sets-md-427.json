@@ -1,7 +1,7 @@
 {
   "id": "bundles/choice-sets",
-  "title": "Choice Sets",
-  "description": "Overview",
+  "title": "choice-sets",
+  "description": "",
   "source": "@site/docs/bundles/choice-sets.md",
   "sourceDirName": "bundles",
   "slug": "/bundles/choice-sets",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Bundle Definition",
+    "title": "definition",
     "permalink": "/docs/bundles/definition"
   },
   "next": {
-    "title": "Bundle Pricing",
+    "title": "pricing",
     "permalink": "/docs/bundles/pricing"
   }
 }

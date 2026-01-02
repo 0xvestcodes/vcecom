@@ -65,6 +65,41 @@ export class MinioProvider implements StorageProvider {
         "Created bucket",
       );
     }
+
+    // Always set bucket policy to public (allow read access to all objects)
+    // This ensures the bucket is public even if it was created before
+    try {
+      const publicPolicy = {
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Effect: "Allow",
+            Principal: { AWS: ["*"] },
+            Action: ["s3:GetObject"],
+            Resource: [`arn:aws:s3:::${this.bucket}/*`],
+          },
+        ],
+      };
+
+      await this.client.setBucketPolicy(
+        this.bucket,
+        JSON.stringify(publicPolicy),
+      );
+      this.logger.info(
+        createLogContext(this.contextService, "ensureBucketExists", {
+          bucket: this.bucket,
+        }),
+        "Set bucket policy to public",
+      );
+    } catch (error) {
+      // Log warning but don't fail - bucket might already have policy set or permissions issue
+      this.logger.warn(
+        createErrorContext(this.contextService, "ensureBucketExists", error, {
+          bucket: this.bucket,
+        }),
+        "Failed to set bucket policy to public (this is non-critical)",
+      );
+    }
   }
 
   async upload(

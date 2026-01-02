@@ -1,7 +1,7 @@
 {
   "id": "redis/caching-layers",
-  "title": "Redis Caching Layers",
-  "description": "The system implements sophisticated multi-layer caching with Redis to optimize performance across different data access patterns and consistency requirements.",
+  "title": "caching-layers",
+  "description": "",
   "source": "@site/docs/redis/caching-layers.md",
   "sourceDirName": "redis",
   "slug": "/redis/caching-layers",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Redis Key Patterns",
+    "title": "key-patterns",
     "permalink": "/docs/redis/key-patterns"
   },
   "next": {
-    "title": "Redis TTL and Expiration Strategy",
+    "title": "expirations",
     "permalink": "/docs/redis/expirations"
   }
 }

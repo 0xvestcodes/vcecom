@@ -23,6 +23,17 @@ export class CreateProductDto {
   title: string;
 
   @ApiProperty({
+    description: "Product slug (auto-generated from title if not provided)",
+    example: "wireless-bluetooth-headphones",
+    required: false,
+    maxLength: 255,
+  })
+  @IsOptional()
+  @IsString({ message: "Slug must be a string" })
+  @MaxLength(255, { message: "Slug must not exceed 255 characters" })
+  slug?: string;
+
+  @ApiProperty({
     description: "Product description",
     example: "High-quality wireless headphones with noise cancellation",
     required: false,

@@ -1,7 +1,7 @@
 {
   "id": "checkout/inventory-flow",
-  "title": "Checkout Inventory Flow",
-  "description": "The inventory flow during checkout ensures that products are reserved when checkout starts and committed when payment is confirmed. This prevents overselling and ensures inventory consistency.",
+  "title": "inventory-flow",
+  "description": "",
   "source": "@site/docs/checkout/inventory-flow.md",
   "sourceDirName": "checkout",
   "slug": "/checkout/inventory-flow",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Checkout Webhooks",
+    "title": "webhooks",
     "permalink": "/docs/checkout/webhooks"
   },
   "next": {
-    "title": "Orders System",
+    "title": "Orders Overview",
     "permalink": "/docs/orders/overview"
   }
 }

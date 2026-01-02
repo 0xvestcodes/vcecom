@@ -1,7 +1,7 @@
 {
   "id": "catalog/products",
   "title": "Products",
-  "description": "The products catalog is the core of the ecommerce system, providing comprehensive product management with features like GST calculation, category organization, image management, and advanced search capabilities.",
+  "description": "Coming soon...",
   "source": "@site/docs/catalog/products.md",
   "sourceDirName": "catalog",
   "slug": "/catalog/products",
@@ -20,7 +20,7 @@
     "permalink": "/docs/authentication/storefront-auth"
   },
   "next": {
-    "title": "Product Variants",
+    "title": "variants",
     "permalink": "/docs/catalog/variants"
   }
 }

@@ -10,6 +10,8 @@ export interface Customer {
   phone: string;
   name: string;
   gstin: string | null;
+  totalOrders?: number;
+  totalSpent?: number;
   createdAt: Date;
   updatedAt: Date;
 }

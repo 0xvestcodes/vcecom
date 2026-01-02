@@ -1,7 +1,7 @@
 {
   "id": "bundles/cart-integration",
-  "title": "Bundle Cart Integration",
-  "description": "Bundles integrate seamlessly with the cart system, allowing customers to add custom bundle configurations to their shopping cart. The system handles bundle selections, pricing, inventory, and cart operations.",
+  "title": "cart-integration",
+  "description": "",
   "source": "@site/docs/bundles/cart-integration.md",
   "sourceDirName": "bundles",
   "slug": "/bundles/cart-integration",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Bundle Pricing",
+    "title": "pricing",
     "permalink": "/docs/bundles/pricing"
   },
   "next": {
-    "title": "Checkout System Overview",
+    "title": "Checkout Overview",
     "permalink": "/docs/checkout/overview"
   }
 }

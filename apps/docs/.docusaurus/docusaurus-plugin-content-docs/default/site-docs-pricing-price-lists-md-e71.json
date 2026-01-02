@@ -1,7 +1,7 @@
 {
   "id": "pricing/price-lists",
-  "title": "Price Lists",
-  "description": "Overview",
+  "title": "price-lists",
+  "description": "",
   "source": "@site/docs/pricing/price-lists.md",
   "sourceDirName": "pricing",
   "slug": "/pricing/price-lists",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Pricing System Overview",
+    "title": "Pricing Overview",
     "permalink": "/docs/pricing/overview"
   },
   "next": {
-    "title": "Customer Groups",
+    "title": "customer-groups",
     "permalink": "/docs/pricing/customer-groups"
   }
 }

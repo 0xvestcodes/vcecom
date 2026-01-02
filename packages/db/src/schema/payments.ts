@@ -1,6 +1,7 @@
 import { relations } from "drizzle-orm";
 import {
   index,
+  jsonb,
   pgEnum,
   pgTable,
   real,
@@ -29,6 +30,14 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "razorpay_upi",
   "razorpay_card",
   "stripe_card",
+  "cashfree",
+  "cashfree_upi",
+  "cashfree_card",
+  "payu",
+  "payu_upi",
+  "payu_card",
+  "payu_netbanking",
+  "payu_wallet",
   "bnpl",
 ]);
 
@@ -41,6 +50,12 @@ export const payments = pgTable(
       .references(() => orders.id, { onDelete: "restrict" }),
     razorpayPaymentId: text("razorpay_payment_id").unique(),
     razorpayOrderId: text("razorpay_order_id"),
+    cashfreePaymentId: text("cashfree_payment_id").unique(),
+    cashfreeOrderId: text("cashfree_order_id"),
+    payuPaymentId: text("payu_payment_id").unique(),
+    payuTxnId: text("payu_txn_id"),
+    paymentGateway: text("payment_gateway"), // 'razorpay' | 'cashfree' | 'payu' | etc.
+    metadata: jsonb("metadata"), // Additional payment gateway specific data
     amount: real("amount").notNull(),
     status: paymentStatusEnum("status").notNull().default("pending"),
     method: paymentMethodEnum("method").notNull(),
@@ -55,6 +70,16 @@ export const payments = pgTable(
     razorpayOrderIdIdx: index("payments_razorpay_order_id_idx").on(
       table.razorpayOrderId,
     ),
+    cashfreePaymentIdIdx: index("payments_cashfree_payment_id_idx").on(
+      table.cashfreePaymentId,
+    ),
+    cashfreeOrderIdIdx: index("payments_cashfree_order_id_idx").on(
+      table.cashfreeOrderId,
+    ),
+    payuPaymentIdIdx: index("payments_payu_payment_id_idx").on(
+      table.payuPaymentId,
+    ),
+    payuTxnIdIdx: index("payments_payu_txn_id_idx").on(table.payuTxnId),
     statusIdx: index("payments_status_idx").on(table.status),
   }),
 );

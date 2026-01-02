@@ -1,5 +1,5 @@
 import { use } from "react";
-import { OrderDetailClient } from "@/components/orders/order-detail-client";
+import { OrderEditorPanel } from "@/components/orders/order-editor-panel";
 
 interface OrderDetailPageProps {
   params: Promise<{ orderId: string }>;
@@ -7,9 +7,9 @@ interface OrderDetailPageProps {
 
 /**
  * Order detail page - Server component
- * Extracts orderId from params and delegates to client component
+ * Extracts orderId from params and delegates to OrderEditorPanel
  */
 export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const { orderId } = use(params);
-  return <OrderDetailClient orderId={orderId} />;
+  return <OrderEditorPanel orderId={orderId} />;
 }

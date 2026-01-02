@@ -32,7 +32,13 @@ export function PriceListsPageClient() {
   const [priceListToDelete, setPriceListToDelete] = useState<string | null>(
     null,
   );
-  const { data: priceLists, isLoading, error, refetch } = useAdminPriceLists();
+  const {
+    data: priceListsResponse,
+    isLoading,
+    error,
+    refetch,
+  } = useAdminPriceLists();
+  const priceLists = priceListsResponse?.data || [];
 
   const deletePriceList = useAdminDeletePriceList(priceListToDelete || "");
 

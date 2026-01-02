@@ -1,7 +1,7 @@
 {
   "id": "orders/refunds",
-  "title": "Order Refunds",
-  "description": "The refund system handles processing refunds for orders, including full and partial refunds, payment gateway integration, and refund status tracking.",
+  "title": "refunds",
+  "description": "",
   "source": "@site/docs/orders/refunds.md",
   "sourceDirName": "orders",
   "slug": "/orders/refunds",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Order Fulfillment",
+    "title": "fulfillment",
     "permalink": "/docs/orders/fulfillment"
   },
   "next": {
-    "title": "Order Inventory Reconciliation",
+    "title": "reconciliation",
     "permalink": "/docs/orders/reconciliation"
   }
 }

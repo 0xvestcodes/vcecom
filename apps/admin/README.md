@@ -102,7 +102,11 @@ Create a `.env.local` file:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
+NEXT_PUBLIC_STOREFRONT_URL=http://localhost:3002
 ```
+
+- `NEXT_PUBLIC_API_URL` - Backend API URL
+- `NEXT_PUBLIC_STOREFRONT_URL` - Storefront URL for CMS preview functionality
 
 ## Adding shadcn/ui Components
 

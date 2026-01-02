@@ -50,6 +50,10 @@ import {
   isLikelySku,
   parseSearchQuery,
 } from "../../common/utils/search.utils";
+import {
+  generateSlug,
+  generateUniqueSlug,
+} from "../../common/utils/slug.utils";
 import { DB_TOKEN } from "../database/database.module";
 import type { Database } from "../database/db";
 import { calculatePriceAfterOverride } from "../pricing/engine/override-strategies/price-override.strategy";
@@ -110,6 +114,20 @@ export class ProductsService {
       );
     }
 
+    // Generate slug if not provided
+    let slug = createProductDto.slug;
+    if (!slug) {
+      slug = generateSlug(createProductDto.title);
+      // Ensure uniqueness
+      const existingSlugs = await this.db
+        .select({ slug: products.slug })
+        .from(products)
+        .where(eq(products.slug, slug))
+        .limit(10);
+      const slugList = existingSlugs.map((p) => p.slug || "").filter(Boolean);
+      slug = generateUniqueSlug(slug, slugList);
+    }
+
     // Create product
     const [newProduct] = await this.db
       .insert(products)
@@ -120,10 +138,13 @@ export class ProductsService {
         gstRate,
         pricingType: createProductDto.pricingType || "exclusive",
         hsnCode: createProductDto.hsnCode || null,
+        slug: slug || null,
         status: createProductDto.status || "draft",
         categoryId: createProductDto.categoryId || null,
       })
       .returning();
+
+    // Slug registration removed - no longer using CMS route registry
 
     return this.enrichProductWithGst(newProduct);
   }
@@ -658,6 +679,24 @@ export class ProductsService {
       }
     }
 
+    // Generate slug if title changed or slug explicitly provided
+    let newSlug: string | undefined;
+    const _oldSlug = existing.slug;
+    if (updateProductDto.slug !== undefined) {
+      newSlug = updateProductDto.slug;
+    } else if (updateProductDto.title !== undefined && !existing.slug) {
+      // Generate slug if title changed and no slug exists
+      newSlug = generateSlug(updateProductDto.title);
+      // Ensure uniqueness
+      const existingSlugs = await this.db
+        .select({ slug: products.slug })
+        .from(products)
+        .where(and(eq(products.slug, newSlug), sql`${products.id} != ${id}`))
+        .limit(10);
+      const slugList = existingSlugs.map((p) => p.slug || "").filter(Boolean);
+      newSlug = generateUniqueSlug(newSlug, slugList);
+    }
+
     // Build update data
     const updateData: Partial<typeof products.$inferInsert> = {};
     if (updateProductDto.title !== undefined)
@@ -674,6 +713,7 @@ export class ProductsService {
       updateData.status = updateProductDto.status;
     if (updateProductDto.categoryId !== undefined)
       updateData.categoryId = updateProductDto.categoryId || null;
+    if (newSlug !== undefined) updateData.slug = newSlug || null;
 
     // Update product
     const [updated] = await this.db
@@ -681,6 +721,8 @@ export class ProductsService {
       .set(updateData)
       .where(eq(products.id, id))
       .returning();
+
+    // Slug registration removed - no longer using CMS route registry
 
     return this.enrichProductWithGst(updated);
   }

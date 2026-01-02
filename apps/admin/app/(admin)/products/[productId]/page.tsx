@@ -1,5 +1,5 @@
 import { use } from "react";
-import { ProductDetailClient } from "@/components/products/product-detail-client";
+import { ProductEditorPanel } from "@/components/products/product-editor-panel";
 
 interface ProductDetailPageProps {
   params: Promise<{ productId: string }>;
@@ -7,9 +7,9 @@ interface ProductDetailPageProps {
 
 /**
  * Product detail page - Server component
- * Extracts productId from params and delegates to ProductDetailClient
+ * Extracts productId from params and delegates to ProductEditorPanel
  */
 export default function ProductDetailPage({ params }: ProductDetailPageProps) {
   const { productId } = use(params);
-  return <ProductDetailClient productId={productId} />;
+  return <ProductEditorPanel productId={productId} />;
 }

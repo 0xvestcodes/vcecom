@@ -1,7 +1,7 @@
 {
   "id": "discounts/definitions",
-  "title": "Discount Definitions",
-  "description": "The discount system supports multiple discount types and complex targeting rules for flexible pricing strategies. Discounts can be applied automatically or manually, with support for various value types and application scopes.",
+  "title": "definitions",
+  "description": "",
   "source": "@site/docs/discounts/definitions.md",
   "sourceDirName": "discounts",
   "slug": "/discounts/definitions",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Discount Engine Overview",
+    "title": "Discounts Overview",
     "permalink": "/docs/discounts/overview"
   },
   "next": {
-    "title": "Discount Engine",
+    "title": "engine",
     "permalink": "/docs/discounts/engine"
   }
 }

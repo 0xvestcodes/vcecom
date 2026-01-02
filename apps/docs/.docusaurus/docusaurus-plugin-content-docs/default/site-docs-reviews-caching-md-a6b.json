@@ -1,7 +1,7 @@
 {
   "id": "reviews/caching",
-  "title": "Review Caching",
-  "description": "Review caching optimizes performance by storing frequently accessed review data in Redis. This reduces database load and improves response times for product pages and review listings.",
+  "title": "caching",
+  "description": "",
   "source": "@site/docs/reviews/caching.md",
   "sourceDirName": "reviews",
   "slug": "/reviews/caching",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Review Aggregation",
+    "title": "aggregation",
     "permalink": "/docs/reviews/aggregation"
   },
   "next": {
-    "title": "Logging System",
+    "title": "Logging",
     "permalink": "/docs/observability/logging"
   }
 }

@@ -1,7 +1,7 @@
 {
   "id": "discounts/priority-stacking",
-  "title": "Discount Priority & Stacking",
-  "description": "Priority System",
+  "title": "priority-stacking",
+  "description": "",
   "source": "@site/docs/discounts/priority-stacking.md",
   "sourceDirName": "discounts",
   "slug": "/discounts/priority-stacking",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Discount Engine",
+    "title": "engine",
     "permalink": "/docs/discounts/engine"
   },
   "next": {
-    "title": "Discount Snapshots",
+    "title": "snapshots",
     "permalink": "/docs/discounts/snapshots"
   }
 }

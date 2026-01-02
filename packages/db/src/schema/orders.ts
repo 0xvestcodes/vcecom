@@ -64,6 +64,8 @@ export const orders = pgTable(
     paymentFeeCurrency: text("payment_fee_currency").notNull().default("INR"),
     total: real("total").notNull().default(0),
     razorpayOrderId: text("razorpay_order_id").unique(),
+    cashfreeOrderId: text("cashfree_order_id").unique(),
+    payuTxnId: text("payu_txn_id").unique(),
     shippingProvider: text("shipping_provider"),
     shippingAddressId: uuid("shipping_address_id")
       .notNull()
@@ -96,6 +98,10 @@ export const orders = pgTable(
     razorpayOrderIdIdx: index("orders_razorpay_order_id_idx").on(
       table.razorpayOrderId,
     ),
+    cashfreeOrderIdIdx: index("orders_cashfree_order_id_idx").on(
+      table.cashfreeOrderId,
+    ),
+    payuTxnIdIdx: index("orders_payu_txn_id_idx").on(table.payuTxnId),
     shippingAddressIdIdx: index("orders_shipping_address_id_idx").on(
       table.shippingAddressId,
     ),

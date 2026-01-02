@@ -20,9 +20,12 @@ import { initializeTracing } from "./common/tracing/tracing.config";
 // Get early logger for use before NestJS bootstrap
 const earlyLogger = getEarlyLogger();
 
-// Initialize OpenTelemetry tracing only if Zipkin endpoint is configured
+// Initialize OpenTelemetry tracing only if OTLP endpoint is configured
 let tracingSdk: ReturnType<typeof initializeTracing> | null = null;
-if (process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT) {
+const otlpEndpoint =
+  process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ||
+  process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+if (otlpEndpoint) {
   try {
     tracingSdk = initializeTracing();
     if (tracingSdk) {
@@ -45,7 +48,7 @@ if (process.env.OTEL_EXPORTER_ZIPKIN_ENDPOINT) {
 } else {
   earlyLogger.debug(
     createBootstrapContext("tracingInit"),
-    "OpenTelemetry tracing skipped - OTEL_EXPORTER_ZIPKIN_ENDPOINT not set",
+    "OpenTelemetry tracing skipped - OTEL_EXPORTER_OTLP_ENDPOINT not set",
   );
 }
 
@@ -62,10 +65,7 @@ import cookieParser from "cookie-parser";
 import { json, urlencoded } from "express";
 import helmet from "helmet";
 import { AppModule } from "./app.module";
-import {
-  validateEnv,
-  validateStorageProviderEnv,
-} from "./common/config/env.validation";
+import { loadConfig } from "./common/config/config.loader";
 import {
   CORS_PREFLIGHT_SUCCESS_STATUS,
   SERVER_HEADERS_TIMEOUT_MS,
@@ -185,8 +185,8 @@ async function bootstrap() {
 
   // Validate environment variables at startup (fail fast if invalid)
   try {
-    const env = validateEnv();
-    validateStorageProviderEnv(env);
+    // Load and validate configuration
+    loadConfig();
     earlyLogger.info(
       createBootstrapContext("envValidation"),
       "Environment variables validated successfully",
@@ -587,15 +587,6 @@ async function bootstrap() {
       ],
       preflightContinue: false,
       optionsSuccessStatus: CORS_PREFLIGHT_SUCCESS_STATUS,
-    });
-
-    // Enable API versioning
-    // This allows routes to be versioned (e.g., /v1/store/orders) while maintaining backward compatibility
-    // Routes with @Version(VERSION_NEUTRAL) are accessible without version prefix
-    app.enableVersioning({
-      type: (await import("@nestjs/common")).VersioningType.URI,
-      defaultVersion: "1", // Default to v1
-      prefix: "v", // Prefix routes with 'v'
     });
 
     // Enable validation globally

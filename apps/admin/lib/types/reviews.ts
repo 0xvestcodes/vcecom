@@ -13,6 +13,10 @@ export interface Review {
   title: string | null;
   comment: string | null;
   status: ReviewStatus;
+  productTitle?: string;
+  productVariantTitle?: string;
+  customerName?: string;
+  customerEmail?: string;
   createdAt: Date;
   updatedAt: Date;
 }

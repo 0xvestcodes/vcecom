@@ -13,6 +13,7 @@ interface NavLinkProps {
   label: string;
   badge?: number | string;
   isChild?: boolean;
+  onClick?: () => void;
 }
 
 export function NavLink({
@@ -21,6 +22,7 @@ export function NavLink({
   label,
   badge,
   isChild = false,
+  onClick,
 }: NavLinkProps) {
   const pathname = usePathname();
   const sidebar = useSidebar();
@@ -34,6 +36,7 @@ export function NavLink({
     if (sidebar && window.innerWidth < 1024) {
       sidebar.setIsMobileOpen(false);
     }
+    onClick?.();
   };
 
   return (

@@ -1,7 +1,7 @@
 {
   "id": "pricing/drift-detection",
-  "title": "Pricing Drift Detection",
-  "description": "Overview",
+  "title": "drift-detection",
+  "description": "",
   "source": "@site/docs/pricing/drift-detection.md",
   "sourceDirName": "pricing",
   "slug": "/pricing/drift-detection",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Pricing Snapshots",
+    "title": "snapshots",
     "permalink": "/docs/pricing/snapshots"
   },
   "next": {
-    "title": "Discount Engine Overview",
+    "title": "Discounts Overview",
     "permalink": "/docs/discounts/overview"
   }
 }

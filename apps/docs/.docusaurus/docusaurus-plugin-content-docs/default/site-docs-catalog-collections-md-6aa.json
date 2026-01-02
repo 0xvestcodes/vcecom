@@ -1,7 +1,7 @@
 {
   "id": "catalog/collections",
-  "title": "Collections",
-  "description": "Collections provide a way to group products for marketing, navigation, and discount targeting. Unlike categories which are hierarchical, collections are flat groupings that can contain products from multiple categories.",
+  "title": "collections",
+  "description": "",
   "source": "@site/docs/catalog/collections.md",
   "sourceDirName": "catalog",
   "slug": "/catalog/collections",
@@ -16,11 +16,11 @@
   "frontMatter": {},
   "sidebar": "docsSidebar",
   "previous": {
-    "title": "Product Variants",
+    "title": "variants",
     "permalink": "/docs/catalog/variants"
   },
   "next": {
-    "title": "Inventory Management",
+    "title": "inventory",
     "permalink": "/docs/catalog/inventory"
   }
 }
