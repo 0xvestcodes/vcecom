@@ -25,6 +25,13 @@ VCEcom is a complete ecommerce solution designed to evolve into a **SaaS platfor
 ### 🇮🇳 India-First Design
 
 - **Native GST Compliance**: Automatic CGST/SGST/IGST calculation integrated into cart and orders
+- **Advanced Tax Engine**: 
+  - Tax rule overrides at multiple levels (Customer Group, Customer, Category, Product, Variant)
+  - Tax exemptions with certificate tracking
+  - B2B vs B2C pricing differentiation (configurable per customer group)
+  - HSN code management and validation (8-digit format)
+  - Dynamic GST rate resolution with priority-based rule matching
+  - Comprehensive tax audit logs for compliance
 - **GST Invoice Generation**: PDF invoices with complete GST breakdown
 - **GSTIN Validation**: Format and structure validation for business GST numbers
 - **Indian Address Validation**: PIN code validation, state/district autocomplete
@@ -38,6 +45,34 @@ VCEcom is a complete ecommerce solution designed to evolve into a **SaaS platfor
 - **Secure Processing**: PCI-compliant payment handling with webhooks
 - **Payment Tracking**: Complete payment history and status tracking
 
+### 💱 Multi-Currency System
+
+- **FX Rate Management**: Automatic exchange rate fetching from multiple providers (ExchangeRate-API, Fixer.io, CurrencyLayer)
+- **Rate Caching**: Redis-backed caching for exchange rates (1-hour TTL, configurable)
+- **Currency Conversion**: Automatic price conversion based on customer's selected currency
+- **Price List Overrides**: Currency-specific pricing for different markets
+- **Admin Currency Management**: Full CRUD interface for managing currencies
+- **Store & Variant Currency Support**: Hybrid approach supporting store base currency and per-variant currencies
+
+### 🔗 Webhooks System
+
+- **Outgoing Webhooks**: Real-time notifications for order, product, and customer events
+- **Incoming Webhooks**: Support for payment and shipping provider webhooks
+- **Reliable Delivery**: BullMQ-powered queue with exponential backoff retry
+- **Webhook Signing**: HMAC-SHA256 signature verification for security
+- **Delivery Logs**: Complete audit trail of all webhook deliveries
+- **Admin Management**: Full webhook configuration and testing interface
+
+### ⚙️ Job Queue Infrastructure
+
+- **BullMQ Integration**: Redis-backed job queue system for reliable background processing
+- **Scheduled Jobs**: Cron-based job scheduling with automatic enqueueing
+- **Dead-Letter Queue**: Automatic handling of failed jobs that exceed retry limits
+- **Retry Strategy**: Configurable exponential backoff retry mechanism
+- **Worker Monitoring**: Comprehensive admin panel for queue monitoring and management
+- **Queue Management**: Pause/resume queues, retry failed jobs, and remove jobs
+- **Job Processors**: Extensible processor system for different job types
+
 ### 📦 Shipping & Fulfillment
 
 - **Shiprocket Integration**: Seamless integration with Shiprocket for shipping
@@ -49,12 +84,23 @@ VCEcom is a complete ecommerce solution designed to evolve into a **SaaS platfor
 ### 🛍️ Complete Commerce Features
 
 - **Product Catalog**: Full product management with variants, images, and options
-- **Shopping Cart**: Real-time cart calculations with GST
+- **Shopping Cart**: Real-time cart calculations with GST and dynamic tax resolution
 - **Order Management**: Complete order lifecycle with status tracking
 - **Customer Management**: Customer profiles, addresses, and order history
 - **Discount System**: Flexible discount codes and promotions
+- **Tax Management**: Advanced tax engine with rules, exemptions, and HSN code management
 - **Search & Filtering**: Advanced product search and filtering
 - **Admin Dashboard**: Comprehensive admin interface for managing your store
+
+### 🖼️ Advanced Media Pipeline
+
+- **Multi-Size Image Generation**: Automatic generation of thumbnail, small, medium, large, and original sizes
+- **Modern Format Support**: WebP and AVIF format generation with automatic fallback
+- **CDN Optimization**: Cache-Control headers and ETag support for optimal CDN performance
+- **Cache Busting**: Content hash-based cache busting for immutable URLs
+- **Signed URLs**: Secure signed URLs for private media downloads
+- **Multi-Bucket Architecture**: Separate buckets for product-media, uploads, and internal files
+- **Responsive Images**: Frontend components with automatic format and size selection
 
 ### 🤖 AI-Powered Features (Coming Soon)
 
@@ -104,7 +150,8 @@ VCEcom is built as a **headless commerce platform** with SaaS evolution in mind,
 
 - Node.js >= 18
 - PostgreSQL database
-- Redis (for caching)
+- Redis (for caching and job queues)
+- FX Provider API Key (optional, for multi-currency support)
 
 ### Installation
 
@@ -120,9 +167,37 @@ pnpm install
 cp .env.example .env
 # Edit .env with your configuration
 
+# Run database migrations
+cd packages/db
+pnpm db:migrate:run
+
+# Seed default data (including currencies)
+pnpm db:seed
+
 # Start development servers
+cd ../..
 pnpm dev
 ```
+
+### Multi-Currency Configuration
+
+To enable multi-currency support, configure your FX provider:
+
+```bash
+# Set FX provider (exchange-rate-api, fixer-io, or currencylayer)
+FX_PROVIDER=exchange-rate-api
+
+# Set your FX provider API key
+FX_PROVIDER_API_KEY=your_api_key_here
+
+# Optional: Configure cache TTL (default: 3600 seconds)
+FX_CACHE_TTL=3600
+```
+
+**Supported FX Providers:**
+- **ExchangeRate-API**: Free tier available at https://www.exchangerate-api.com/
+- **Fixer.io**: https://fixer.io/
+- **CurrencyLayer**: https://currencylayer.com/
 
 ### Docker Setup
 
@@ -197,6 +272,22 @@ const cart = await calculateCart({
 // Returns: subtotal, CGST, SGST, IGST, total
 ```
 
+### Webhooks Integration
+```typescript
+// Configure webhook endpoint
+POST /admin/webhooks
+{
+  "name": "Order Notifications",
+  "url": "https://your-app.com/webhooks/orders",
+  "events": ["order.created", "order.shipped", "order.delivered"],
+  "secret": "your-webhook-secret"
+}
+
+// Verify webhook signature
+const signature = headers['x-webhook-signature'];
+const isValid = verifyWebhookSignature(payload, signature, secret);
+```
+
 ## 📊 What's Included
 
 ### Backend API
@@ -209,6 +300,33 @@ const cart = await calculateCart({
 - ✅ GST calculation
 - ✅ Discount system
 - ✅ Search and filtering
+- ✅ Advanced search infrastructure (Meilisearch, Elasticsearch, OpenSearch)
+- ✅ Search indexer for products, collections, and variants
+- ✅ Incremental indexing with real-time updates
+- ✅ Background reindex workers
+- ✅ Search relevance tuning (field weights, boost factors, synonyms, stop words)
+- ✅ Search performance metrics and monitoring
+- ✅ Webhooks system (outgoing + incoming)
+- ✅ Job queue infrastructure (BullMQ)
+- ✅ Scheduled jobs and cron tasks
+- ✅ Dead-letter queue handling
+- ✅ Retry with exponential backoff
+- ✅ Advanced media pipeline with multi-size generation
+- ✅ WebP/AVIF format support with automatic fallback
+- ✅ CDN-optimized caching headers
+- ✅ Cache busting with content hashing
+- ✅ Signed URLs for secure media access
+- ✅ Multi-bucket storage architecture
+- ✅ Multi-currency system with FX rate management
+- ✅ Currency conversion and caching
+- ✅ Currency-specific price list overrides
+- ✅ Customer wallet system (store credits)
+- ✅ Loyalty points system with earning/redemption rules
+- ✅ Wallet transaction ledger
+- ✅ Admin wallet management interface
+- ✅ Loyalty rules configuration
+- ✅ Automatic points earning on order completion
+- ✅ Wallet refunds option
 
 ### Admin Dashboard
 - ✅ Product management UI
@@ -216,6 +334,18 @@ const cart = await calculateCart({
 - ✅ Customer management
 - ✅ Dashboard analytics
 - ✅ Settings and configuration
+- ✅ Webhook management interface
+- ✅ Job queue monitoring and management
+- ✅ Queue statistics and metrics
+- ✅ Dead-letter queue management
+- ✅ Search index management and monitoring
+- ✅ Search reindex operations
+- ✅ Search relevance configuration
+- ✅ Currency management interface
+- ✅ FX rate configuration and monitoring
+- ✅ Wallet management interface
+- ✅ Loyalty rules management
+- ✅ Customer wallet details and transaction history
 
 ### Developer Tools
 - ✅ TypeScript types
@@ -229,6 +359,7 @@ const cart = await calculateCart({
 - 🔄 Agency dashboard
 - 🔄 White-label options
 - 🔄 Template library
+- 🔄 Storefront currency selector UI
 
 ## 🛣️ Roadmap
 

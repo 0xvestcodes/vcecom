@@ -20,8 +20,13 @@ import { RedisStoreService } from "../redis-store.service";
 /**
  * Maximum number of active reservations allowed per device fingerprint
  * Prevents abuse by limiting how many carts a single device can have
+ * Set to 0 or negative to disable the limit (unlimited reservations)
+ * Can be overridden via MAX_RESERVATIONS_PER_FINGERPRINT environment variable
  */
-const MAX_RESERVATIONS_PER_FINGERPRINT = 3;
+const MAX_RESERVATIONS_PER_FINGERPRINT = process.env
+  .MAX_RESERVATIONS_PER_FINGERPRINT
+  ? parseInt(process.env.MAX_RESERVATIONS_PER_FINGERPRINT, 10)
+  : 3;
 
 @Injectable()
 export class FingerprintStore implements OnModuleInit {
@@ -138,6 +143,19 @@ export class FingerprintStore implements OnModuleInit {
     fingerprint: string,
     limit: number = MAX_RESERVATIONS_PER_FINGERPRINT,
   ): Promise<void> {
+    // If limit is 0 or negative, disable reservation limit (unlimited)
+    if (limit <= 0) {
+      this.logger.debug(
+        createLogContext(this.contextService, "enforceReservationLimit", {
+          fingerprint,
+          limit,
+          disabled: true,
+        }),
+        "Reservation limit disabled (unlimited reservations)",
+      );
+      return;
+    }
+
     // Get all cart IDs tracked for this fingerprint
     const trackedCartIds = await this.getActiveCartIds(fingerprint);
 

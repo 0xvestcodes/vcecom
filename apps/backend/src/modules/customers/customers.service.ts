@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { customers, eq, users } from "@vcecom/db";
+import { customers, eq, stores, users } from "@vcecom/db";
 import * as bcrypt from "bcrypt";
 import { PinoLogger } from "nestjs-pino";
 import {
@@ -16,10 +16,12 @@ import {
 } from "../../common/config/jwt-secret.validation";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
+import { StoreContextService } from "../../common/store-context/store-context.service";
 import { Trace } from "../../common/tracing/trace.decorator";
 import { formatGstin, validateGstin } from "../../common/utils/gstin.utils";
 import type { Database } from "../../modules/database/db";
 import { DB_TOKEN } from "../database/database.module";
+import { CustomerEventsService } from "../events/customer-events.service";
 import { ChangePasswordDto } from "./dto/change-password.dto";
 import { RegisterCustomerDto } from "./dto/register-customer.dto";
 import { UpdateProfileDto } from "./dto/update-profile.dto";
@@ -30,7 +32,9 @@ export class CustomersService {
     private jwtService: JwtService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    private readonly storeContextService: StoreContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+    private readonly customerEventsService?: CustomerEventsService,
   ) {}
 
   /**
@@ -175,10 +179,12 @@ export class CustomersService {
     // Create customer profile
     let newCustomer: typeof customers.$inferSelect | undefined;
     try {
+      const storeId = await this.getDefaultStoreId();
       const customerResult = await this.db
         .insert(customers)
         .values({
           userId: newUser.id,
+          storeId,
           email: registerDto.email,
           phone: registerDto.phone,
           name: registerDto.name,
@@ -246,11 +252,56 @@ export class CustomersService {
       expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
     });
 
+    // Emit customer created event
+    if (this.customerEventsService) {
+      const storeId = await this.getDefaultStoreId();
+      await this.customerEventsService.emitCustomerCreated({
+        customerId: newCustomer.id,
+        storeId,
+        email: newCustomer.email,
+        firstName: newCustomer.name?.split(" ")[0] || undefined,
+        lastName: newCustomer.name?.split(" ").slice(1).join(" ") || undefined,
+        timestamp: new Date(),
+      });
+    }
+
     return {
       access_token: accessToken,
       refresh_token: refreshToken,
       customer: newCustomer,
     };
+  }
+
+  /**
+   * Get default store ID helper
+   */
+  private async getDefaultStoreId(): Promise<string> {
+    // Try to get from store context first
+    const contextStoreId = this.storeContextService.getStoreId();
+    if (contextStoreId) {
+      return contextStoreId;
+    }
+
+    // Fallback to default store
+    const [defaultStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .where(eq(stores.isDefault, true))
+      .limit(1);
+
+    if (defaultStore) {
+      return defaultStore.id;
+    }
+
+    const [firstStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .limit(1);
+    if (firstStore) {
+      return firstStore.id;
+    }
+
+    throw new Error("No store found");
   }
 
   /**
@@ -421,6 +472,25 @@ export class CustomersService {
 
     if (!updated) {
       throw new NotFoundException("Customer profile not found");
+    }
+
+    // Emit customer updated event
+    if (this.customerEventsService) {
+      const storeId = await this.getDefaultStoreId();
+      const changes: Record<string, unknown> = {};
+      if (updateDto.name !== undefined) changes.name = updateDto.name;
+      if (updateDto.phone !== undefined) changes.phone = updateDto.phone;
+      if (updateDto.gstin !== undefined) changes.gstin = updateDto.gstin;
+
+      await this.customerEventsService.emitCustomerUpdated({
+        customerId: updated.id,
+        storeId,
+        email: updated.email,
+        firstName: updated.name?.split(" ")[0] || undefined,
+        lastName: updated.name?.split(" ").slice(1).join(" ") || undefined,
+        changes: Object.keys(changes).length > 0 ? changes : undefined,
+        timestamp: new Date(),
+      });
     }
 
     return updated;
@@ -661,10 +731,12 @@ export class CustomersService {
     // Create customer profile
     let newCustomer: typeof customers.$inferSelect | undefined;
     try {
+      const storeId = await this.getDefaultStoreId();
       const customerResult = await this.db
         .insert(customers)
         .values({
           userId: newUser.id,
+          storeId,
           email,
           phone: customerPhone,
           name,
@@ -673,6 +745,20 @@ export class CustomersService {
         })
         .returning();
       newCustomer = customerResult[0];
+
+      // Emit customer created event for guest customers too
+      if (this.customerEventsService && newCustomer) {
+        const storeId = await this.getDefaultStoreId();
+        await this.customerEventsService.emitCustomerCreated({
+          customerId: newCustomer.id,
+          storeId,
+          email: newCustomer.email,
+          firstName: newCustomer.name?.split(" ")[0] || undefined,
+          lastName:
+            newCustomer.name?.split(" ").slice(1).join(" ") || undefined,
+          timestamp: new Date(),
+        });
+      }
     } catch (error) {
       this.logger.error(
         createErrorContext(

@@ -73,6 +73,26 @@ services:
       - vcecom-network
     # Don't expose ports in production - only accessible via Docker network
 
+  # Meilisearch Search Engine
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    container_name: vcecom-meilisearch
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY:-}
+      MEILI_ENV: ${NODE_ENV:-production}
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7700/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - vcecom-network
+    # Don't expose ports in production - only accessible via Docker network
+
   # MinIO Object Storage
   minio:
     image: minio/minio:latest
@@ -119,6 +139,10 @@ services:
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-maindb}}
       # Redis Configuration
       REDIS_URL: ${REDIS_URL:-redis://:${REDIS_PASSWORD}@redis:6379}
+      # Search Configuration
+      SEARCH_PROVIDER: ${SEARCH_PROVIDER:-meilisearch}
+      MEILISEARCH_HOST: ${MEILISEARCH_HOST:-http://meilisearch:7700}
+      MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY:-}
       # Server Configuration
       PORT: ${PORT:-3001}
       NODE_ENV: ${NODE_ENV:-production}
@@ -155,6 +179,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      meilisearch:
         condition: service_healthy
       minio:
         condition: service_healthy
@@ -204,6 +230,8 @@ volumes:
   postgres_data:
     driver: local
   redis_data:
+    driver: local
+  meilisearch_data:
     driver: local
   minio_data:
     driver: local

@@ -13,6 +13,7 @@ import {
 import { categories } from "./categories";
 import { collections } from "./collections";
 import { products } from "./products";
+import { stores } from "./stores";
 import { tags } from "./tags";
 
 /**
@@ -75,6 +76,9 @@ export const discounts = pgTable(
   "discounts",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    storeId: uuid("store_id").references(() => stores.id, {
+      onDelete: "cascade",
+    }),
     code: text("code").notNull().unique(),
     name: text("name").notNull(),
     description: text("description"),
@@ -123,6 +127,7 @@ export const discounts = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
+    storeIdIdx: index("discounts_store_id_idx").on(table.storeId),
     codeIdx: index("discounts_code_idx").on(table.code),
     typeIdx: index("discounts_type_idx").on(table.type),
     applicationTypeIdx: index("discounts_application_type_idx").on(
@@ -136,6 +141,10 @@ export const discounts = pgTable(
       table.minOrderAmount,
     ),
     minQuantityIdx: index("discounts_min_quantity_idx").on(table.minQuantity),
+    storeIdCodeIdx: index("discounts_store_id_code_idx").on(
+      table.storeId,
+      table.code,
+    ),
   }),
 );
 
@@ -441,7 +450,11 @@ export const discountUsages = pgTable(
 /**
  * Relations
  */
-export const discountsRelations = relations(discounts, ({ many }) => ({
+export const discountsRelations = relations(discounts, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [discounts.storeId],
+    references: [stores.id],
+  }),
   products: many(discountProducts),
   categories: many(discountCategories),
   collections: many(discountCollections),

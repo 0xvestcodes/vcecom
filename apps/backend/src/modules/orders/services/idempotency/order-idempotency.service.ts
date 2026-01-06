@@ -86,9 +86,16 @@ export class OrderIdempotencyService {
       );
 
     return {
-      ...order,
+      id: order.id,
+      customerId: order.customerId,
+      orderNumber: order.orderNumber,
+      status: order.status,
+      subtotal: order.subtotal,
+      gstAmount: order.gstAmount,
       gstBreakdown,
-      items: orderItemsList,
+      shippingCost: order.shippingCost,
+      paymentFee: order.paymentFee ?? undefined,
+      paymentMethod: order.paymentMethod ?? null,
       paymentFeeBreakdown:
         (order.paymentFeeBreakdown as {
           method: string;
@@ -99,6 +106,17 @@ export class OrderIdempotencyService {
           mixMin?: number;
           mixCap?: number;
         } | null) || null,
+      total: order.total,
+      razorpayOrderId: order.razorpayOrderId ?? null,
+      shippingProvider: order.shippingProvider ?? null,
+      shippingAddressId: order.shippingAddressId,
+      billingAddressId: order.billingAddressId,
+      items: orderItemsList,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+      archived: order.archived ?? false,
+      archivedAt: order.archivedAt ?? null,
+      archivedBy: order.archivedBy ?? null,
       discountCode: order.discountCode ?? undefined,
       discountAmount: order.discountAmount ?? undefined,
     };

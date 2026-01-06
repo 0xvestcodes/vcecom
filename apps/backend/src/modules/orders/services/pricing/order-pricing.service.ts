@@ -76,11 +76,13 @@ export class OrderPricingService {
         isActive: list.isActive,
         startDate: list.startDate || undefined,
         endDate: list.endDate || undefined,
+        currency: list.currency || undefined,
         items: list.items.map((item) => ({
           id: item.id,
           productVariantId: item.productVariantId || undefined,
           productId: item.productId || undefined,
           categoryId: item.categoryId || undefined,
+          currency: item.currency || undefined,
           overrideType: item.overrideType as "FIXED" | "PERCENTAGE",
           overrideValue: item.overrideValue,
         })),

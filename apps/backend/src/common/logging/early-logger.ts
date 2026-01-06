@@ -1,6 +1,6 @@
 import { trace } from "@opentelemetry/api";
 import pino from "pino";
-import { BUILD_INFO } from "../../build-info.js";
+import { BUILD_INFO } from "../../build-info";
 
 /**
  * Extract trace and span IDs from OpenTelemetry context

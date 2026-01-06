@@ -51,9 +51,16 @@ export class OrderSnapshotValidationService {
 
     try {
       this.pricingSnapshotValidator.validate(pricingSnapshot);
+      // Safely access totalEffectivePrice with fallback to baseSubtotal
+      const effectiveSubtotal =
+        pricingSnapshot?.totalEffectivePrice !== undefined &&
+        !Number.isNaN(pricingSnapshot.totalEffectivePrice) &&
+        pricingSnapshot.totalEffectivePrice >= 0
+          ? pricingSnapshot.totalEffectivePrice
+          : baseSubtotal;
       return {
         isValid: true,
-        effectiveSubtotal: pricingSnapshot.totalEffectivePrice,
+        effectiveSubtotal,
       };
     } catch (error) {
       this.logger.error(

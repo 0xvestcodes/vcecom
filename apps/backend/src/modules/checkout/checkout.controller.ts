@@ -16,6 +16,7 @@ import {
   ApiTags,
 } from "@nestjs/swagger";
 import { customers, eq } from "@vcecom/db";
+import { PinoLogger } from "nestjs-pino";
 import { PAISE_PER_RUPEE } from "../../common/constants/currency.constants";
 import { Public } from "../../common/decorators/public.decorator";
 import { RateLimit } from "../../common/decorators/rate-limit.decorator";
@@ -36,6 +37,9 @@ import {
   PaymentChargeService,
 } from "../payments/services/payment-charge.service";
 import { CheckoutStore } from "../redis-store/stores/checkout-store";
+import { StoresService } from "../stores/stores.service";
+import { LoyaltyService } from "../wallet/services/loyalty.service";
+import { WalletService } from "../wallet/services/wallet.service";
 import { CheckoutService } from "./checkout.service";
 import {
   CheckoutAddressDto,
@@ -61,7 +65,11 @@ export class CheckoutController {
     private readonly paymentChargeService: PaymentChargeService,
     private readonly checkoutStore: CheckoutStore,
     private readonly checkoutService: CheckoutService,
+    private readonly storesService: StoresService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+    private readonly logger: PinoLogger,
+    private readonly walletService?: WalletService,
+    private readonly loyaltyService?: LoyaltyService,
   ) {}
 
   @Post("start")
@@ -321,23 +329,41 @@ export class CheckoutController {
     const userId = req.user?.userId || null;
     const sessionId = extractSessionId(req);
 
-    // Get cart
-    const cart = await this.cartsService.getCart(userId, sessionId);
-    if (!cart || !cart.items || cart.items.length === 0) {
-      // Return empty methods list instead of throwing error
+    this.logger.info(
+      {
+        userId: userId || null,
+        hasSessionId: !!sessionId,
+        checkoutSessionId,
+      },
+      "getPaymentMethods called",
+    );
+
+    // If neither userId nor sessionId is provided, return empty methods list
+    if (!userId && !sessionId) {
+      this.logger.info("No userId or sessionId, returning empty methods");
       return { methods: [] };
     }
 
+    // Get cart
+    const cart = await this.cartsService.getCart(userId, sessionId);
+
     // Calculate cart total in paise (convert from INR)
-    const cartTotalInPaise = Math.round(cart.total * PAISE_PER_RUPEE);
+    // Use 0 if cart is empty or doesn't exist
+    const cartTotalInPaise = cart?.total
+      ? Math.round(cart.total * PAISE_PER_RUPEE)
+      : 0;
 
     // Convert cart items to format expected by payment charge service
-    const cartItems = cart.items.map((item) => ({
-      productVariantId: item.variantId, // Use variantId from enriched item
-      quantity: item.quantity,
-      price: item.pricing.unitPrice, // Use unitPrice from pricing breakdown
-      metadata: (item as { metadata?: unknown }).metadata,
-    }));
+    // Use empty array if cart is empty or doesn't exist
+    const cartItems =
+      cart?.items && cart.items.length > 0
+        ? cart.items.map((item) => ({
+            productVariantId: item.variantId, // Use variantId from enriched item
+            quantity: item.quantity,
+            price: item.pricing.unitPrice, // Use unitPrice from pricing breakdown
+            metadata: (item as { metadata?: unknown }).metadata,
+          }))
+        : [];
 
     // Build COD eligibility context
     const context: CodEligibilityContext = {};
@@ -395,11 +421,36 @@ export class CheckoutController {
     }
 
     // Get available payment methods with fees and restrictions
+    this.logger.info(
+      {
+        cartTotalInPaise,
+        cartItemsCount: cartItems.length,
+        hasContext: !!context,
+      },
+      "Calling paymentChargeService.getAvailableMethods",
+    );
+
+    // Get currency from cart or store default
+    const cartCurrency = cart.currency || "INR";
+    const store = await this.storesService.getStore();
+    const currency = cartCurrency || store.currency || "INR";
+
     const methods = await this.paymentChargeService.getAvailableMethods(
       cartTotalInPaise,
-      "INR", // TODO: Get currency from cart/store config
+      currency,
       cartItems,
       context,
+    );
+
+    this.logger.info(
+      {
+        methodsReturned: methods.length,
+        methods: methods.map((m) => ({
+          method: m.method,
+          available: m.available,
+        })),
+      },
+      "Returning payment methods from controller",
     );
 
     return { methods };
@@ -463,11 +514,16 @@ export class CheckoutController {
     // Calculate cart total in paise
     const cartTotalInPaise = Math.round(cart.total * PAISE_PER_RUPEE);
 
+    // Get currency from cart or store default
+    const cartCurrency = cart.currency || "INR";
+    const store = await this.storesService.getStore();
+    const currency = cartCurrency || store.currency || "INR";
+
     // Calculate fee for selected method
     const { fee, breakdown } = await this.paymentChargeService.calculateFee(
       dto.paymentMethod,
       cartTotalInPaise,
-      "INR", // TODO: Get currency from cart/store config
+      currency,
     );
 
     // If checkout session exists, update it with payment method and fee
@@ -570,5 +626,45 @@ export class CheckoutController {
     const userId = req.user?.userId || null;
     const sessionId = extractSessionId(req);
     return this.checkoutService.confirmCheckout(userId, sessionId, dto);
+  }
+
+  @Get("wallet-balance")
+  @RateLimit(RATE_LIMIT_PRESETS.READ)
+  @ApiOperation({
+    summary: "Get wallet balance for checkout",
+    description:
+      "Get current wallet balance and loyalty points for authenticated customer",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Wallet balance retrieved successfully",
+  })
+  async getWalletBalance(
+    @Request() req: Request & {
+      user?: { userId: string; email: string; role: string };
+    },
+  ) {
+    if (!req.user?.userId || !this.walletService) {
+      return { walletBalance: 0, loyaltyPoints: 0 };
+    }
+
+    // Get customer ID from user ID
+    const [customer] = await this.db
+      .select()
+      .from(customers)
+      .where(eq(customers.userId, req.user.userId))
+      .limit(1);
+
+    if (!customer) {
+      return { walletBalance: 0, loyaltyPoints: 0 };
+    }
+
+    const balance = await this.walletService.getBalance(customer.id);
+    const points = await this.loyaltyService?.getPointsBalance(customer.id);
+
+    return {
+      walletBalance: balance.walletBalance,
+      loyaltyPoints: points?.points || 0,
+    };
   }
 }

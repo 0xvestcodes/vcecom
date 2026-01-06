@@ -10,6 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { categories } from "./categories";
+import { stores } from "./stores";
 
 export const productStatusEnum = pgEnum("product_status", [
   "draft",
@@ -26,6 +27,9 @@ export const products = pgTable(
   "products",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    storeId: uuid("store_id").references(() => stores.id, {
+      onDelete: "cascade",
+    }),
     title: text("title").notNull(),
     description: text("description"),
     price: real("price").notNull(),
@@ -51,14 +55,23 @@ export const products = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
+    storeIdIdx: index("products_store_id_idx").on(table.storeId),
     categoryIdIdx: index("products_category_id_idx").on(table.categoryId),
     statusIdx: index("products_status_idx").on(table.status),
     hsnCodeIdx: index("products_hsn_code_idx").on(table.hsnCode),
     slugIdx: index("products_slug_idx").on(table.slug),
+    storeIdSlugIdx: index("products_store_id_slug_idx").on(
+      table.storeId,
+      table.slug,
+    ),
   }),
 );
 
 export const productsRelations = relations(products, ({ one }) => ({
+  store: one(stores, {
+    fields: [products.storeId],
+    references: [stores.id],
+  }),
   category: one(categories, {
     fields: [products.categoryId],
     references: [categories.id],

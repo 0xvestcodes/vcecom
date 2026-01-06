@@ -89,7 +89,11 @@ export function BlockSettingsPanel({
       <ScrollArea className="flex-1">
         <div className="p-4">
           {FormComponent ? (
-            <FormComponent form={form as any} onSubmit={handleSubmit} />
+            <FormComponent
+              // @ts-expect-error
+              form={form}
+              onSubmit={handleSubmit}
+            />
           ) : (
             <div className="text-sm text-muted-foreground">
               Form for "{selectedBlock.type}" block is not yet implemented.

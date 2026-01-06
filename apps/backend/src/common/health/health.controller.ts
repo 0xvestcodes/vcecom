@@ -49,6 +49,16 @@ interface HealthCheckResult {
       provider?: string;
       bucket?: string;
     };
+    endpoints?: {
+      status: "ok" | "error" | "degraded";
+      checks?: Array<{
+        url: string;
+        status: "ok" | "error";
+        statusCode?: number;
+        responseTime?: number;
+        error?: string;
+      }>;
+    };
   };
 }
 
@@ -64,11 +74,133 @@ export class HealthController {
     @Inject(DB_TOKEN) private readonly db: Database,
   ) {}
 
+  /**
+   * Check health endpoints by querying configured base URLs
+   */
+  private async checkHealthEndpoints(): Promise<{
+    status: "ok" | "error" | "degraded";
+    checks: Array<{
+      url: string;
+      status: "ok" | "error";
+      statusCode?: number;
+      responseTime?: number;
+      error?: string;
+    }>;
+  }> {
+    const baseUrls = process.env.HEALTH_CHECK_BASE_URLS;
+    const endpoint = process.env.HEALTH_CHECK_ENDPOINT || "/_health";
+    const timeout = parseInt(process.env.HEALTH_CHECK_TIMEOUT_MS || "5000", 10);
+
+    // If no base URLs configured, skip endpoint checks
+    if (!baseUrls || baseUrls.trim() === "") {
+      return {
+        status: "ok",
+        checks: [],
+      };
+    }
+
+    const urls = baseUrls
+      .split(",")
+      .map((url) => url.trim())
+      .filter((url) => url.length > 0);
+
+    if (urls.length === 0) {
+      return {
+        status: "ok",
+        checks: [],
+      };
+    }
+
+    const checks = await Promise.all(
+      urls.map(async (baseUrl) => {
+        const url = `${baseUrl.replace(/\/$/, "")}${endpoint}`;
+        const startTime = Date.now();
+
+        try {
+          // Create abort controller for timeout
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+          try {
+            const response = await fetch(url, {
+              method: "GET",
+              headers: {
+                "User-Agent": "VCEcom-HealthCheck/1.0",
+              },
+              signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+            const responseTime = Date.now() - startTime;
+
+            // Consider 2xx and 3xx as healthy
+            const isHealthy = response.status >= 200 && response.status < 400;
+
+            return {
+              url,
+              status: isHealthy ? ("ok" as const) : ("error" as const),
+              statusCode: response.status,
+              responseTime,
+            };
+          } catch (fetchError) {
+            clearTimeout(timeoutId);
+            const responseTime = Date.now() - startTime;
+
+            if (
+              fetchError instanceof Error &&
+              fetchError.name === "AbortError"
+            ) {
+              return {
+                url,
+                status: "error" as const,
+                responseTime,
+                error: `Request timed out after ${timeout}ms`,
+              };
+            }
+
+            return {
+              url,
+              status: "error" as const,
+              responseTime,
+              error:
+                fetchError instanceof Error
+                  ? fetchError.message
+                  : String(fetchError),
+            };
+          }
+        } catch (error) {
+          const responseTime = Date.now() - startTime;
+          return {
+            url,
+            status: "error" as const,
+            responseTime,
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      }),
+    );
+
+    // Determine overall status
+    const allOk = checks.every((check) => check.status === "ok");
+    const anyError = checks.some((check) => check.status === "error");
+
+    const status: "ok" | "error" | "degraded" = allOk
+      ? "ok"
+      : anyError
+        ? "error"
+        : "degraded";
+
+    return {
+      status,
+      checks,
+    };
+  }
+
   @Get()
   @ApiOperation({
     summary: "Comprehensive health check",
     description:
-      "Returns health status for all critical services: database, Redis, and storage",
+      "Returns health status for all critical services: database, Redis, storage, and configured health endpoints",
   })
   @ApiResponse({
     status: 200,
@@ -81,6 +213,9 @@ export class HealthController {
       redis: { status: "error" },
       storage: { status: "error" },
     };
+
+    // Check health endpoints (runs in parallel with other checks)
+    const endpointCheckPromise = this.checkHealthEndpoints();
 
     // Check database
     try {
@@ -182,15 +317,34 @@ export class HealthController {
       };
     }
 
+    // Check health endpoints
+    try {
+      const endpointCheck = await endpointCheckPromise;
+      if (endpointCheck.checks.length > 0) {
+        services.endpoints = {
+          status: endpointCheck.status,
+          checks: endpointCheck.checks,
+        };
+      }
+    } catch (_error) {
+      // Silently fail endpoint checks if they error
+      services.endpoints = {
+        status: "error",
+        checks: [],
+      };
+    }
+
     // Determine overall status
     const allOk =
       services.database.status === "ok" &&
       services.redis.status === "ok" &&
-      services.storage.status === "ok";
+      services.storage.status === "ok" &&
+      (!services.endpoints || services.endpoints.status === "ok");
     const anyError =
       services.database.status === "error" ||
       services.redis.status === "error" ||
-      services.storage.status === "error";
+      services.storage.status === "error" ||
+      (services.endpoints && services.endpoints.status === "error");
 
     const overallStatus: "ok" | "degraded" | "error" = allOk
       ? "ok"

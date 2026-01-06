@@ -376,4 +376,34 @@ export class CartsController {
 
     return { success: true };
   }
+
+  @Put()
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @RateLimit(RATE_LIMIT_PRESETS.CART_UPDATES)
+  @ApiOperation({
+    summary: "Update cart currency",
+    description: "Update the currency for the cart and recalculate totals",
+  })
+  @ApiHeader({
+    name: "X-Session-Id",
+    description: "Session ID for guest carts (optional if authenticated)",
+    required: false,
+  })
+  @ApiOkResponse({
+    description: "Cart currency updated successfully",
+    type: CartResponseDto,
+  })
+  @ApiBadRequestResponse({
+    description: "Invalid currency code",
+    type: BadRequestErrorDto,
+  })
+  async updateCurrency(
+    @Request() req,
+    @Body() body: { currency: string },
+  ): Promise<CartResponseDto> {
+    const userId = req.user?.id || null;
+    const sessionId = extractSessionId(req);
+    return this.cartsService.updateCurrency(userId, sessionId, body.currency);
+  }
 }

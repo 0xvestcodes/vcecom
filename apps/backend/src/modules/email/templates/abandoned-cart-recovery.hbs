@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complete Your Purchase</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .cart-items {
+      margin: 20px 0;
+    }
+    .cart-item {
+      display: flex;
+      margin-bottom: 15px;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-radius: 5px;
+    }
+    .item-image {
+      width: 80px;
+      height: 80px;
+      object-fit: cover;
+      margin-right: 15px;
+      border-radius: 5px;
+    }
+    .item-details {
+      flex: 1;
+    }
+    .item-name {
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+    .item-quantity {
+      color: #666;
+      font-size: 14px;
+    }
+    .item-price {
+      font-weight: bold;
+      color: #2c3e50;
+    }
+    .cart-total {
+      text-align: right;
+      font-size: 24px;
+      font-weight: bold;
+      margin: 20px 0;
+      color: #2c3e50;
+    }
+    .discount-code {
+      background-color: #e8f5e9;
+      padding: 15px;
+      border-radius: 5px;
+      text-align: center;
+      margin: 20px 0;
+    }
+    .discount-code strong {
+      font-size: 18px;
+      color: #2e7d32;
+    }
+    .cta-button {
+      display: block;
+      text-align: center;
+      background-color: #2c3e50;
+      color: white;
+      padding: 15px 30px;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: bold;
+      margin: 30px 0;
+    }
+    .footer {
+      margin-top: 30px;
+      padding-top: 20px;
+      border-top: 1px solid #ddd;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Complete Your Purchase</h1>
+    <p>Hi {{customerName}}, you left items in your cart!</p>
+  </div>
+
+  <div class="cart-items">
+    <h2>Your Cart Items</h2>
+    {{#each cartItems}}
+    <div class="cart-item">
+      {{#if thumbnail}}
+      <img src="{{thumbnail}}" alt="{{name}}" class="item-image">
+      {{/if}}
+      <div class="item-details">
+        <div class="item-name">{{name}}</div>
+        <div class="item-quantity">Quantity: {{quantity}}</div>
+        <div class="item-price">₹{{price}}</div>
+      </div>
+    </div>
+    {{/each}}
+  </div>
+
+  <div class="cart-total">
+    Total: ₹{{cartTotal}}
+  </div>
+
+  {{#if discountCode}}
+  <div class="discount-code">
+    <p>Use this code to save:</p>
+    <strong>{{discountCode}}</strong>
+  </div>
+  {{/if}}
+
+  <a href="{{cartLink}}" class="cta-button">Complete Your Purchase</a>
+
+  <div class="footer">
+    <p>This email was sent because you added items to your cart but didn't complete your purchase.</p>
+    <p>If you have any questions, please contact our support team.</p>
+  </div>
+</body>
+</html>

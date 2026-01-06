@@ -35,13 +35,38 @@ export class OrderPricingSnapshotService {
     productGstRate: number;
     pricingSnapshot?: PricingSnapshotDto;
   }> {
+    // Validate input
+    if (!cartItemsWithVariants || !Array.isArray(cartItemsWithVariants)) {
+      return [];
+    }
+
     return cartItemsWithVariants.map((item) => {
-      let itemPrice = item.price;
+      // Validate item structure
+      if (!item || typeof item !== "object") {
+        throw new Error(`Invalid cart item: ${JSON.stringify(item)}`);
+      }
+
+      // Ensure required fields exist with defaults
+      const productVariantId = item.productVariantId || "";
+      const quantity =
+        typeof item.quantity === "number" && item.quantity > 0
+          ? item.quantity
+          : 1;
+      const price =
+        typeof item.price === "number" && item.price >= 0 ? item.price : 0;
+      const productGstRate =
+        typeof item.productGstRate === "number" && item.productGstRate >= 0
+          ? item.productGstRate
+          : 0;
+      let itemPrice = price;
       let pricingSnapshotDto: PricingSnapshotDto | undefined;
 
-      if (pricingSnapshot) {
+      if (
+        pricingSnapshot?.variantPrices &&
+        Array.isArray(pricingSnapshot.variantPrices)
+      ) {
         const variantPrice = pricingSnapshot.variantPrices.find(
-          (vp) => vp.variantId === item.productVariantId,
+          (vp) => vp.variantId === productVariantId,
         );
         if (variantPrice) {
           itemPrice = variantPrice.effectivePrice;
@@ -73,10 +98,10 @@ export class OrderPricingSnapshotService {
       }
 
       return {
-        productVariantId: item.productVariantId,
-        quantity: item.quantity,
+        productVariantId,
+        quantity,
         price: itemPrice,
-        productGstRate: item.productGstRate,
+        productGstRate,
         pricingSnapshot: pricingSnapshotDto,
       };
     });

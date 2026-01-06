@@ -1,9 +1,11 @@
 import {
   BadRequestException,
+  forwardRef,
   Inject,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   and,
@@ -20,18 +22,21 @@ import {
   productTags,
   productVariants,
   sql,
+  stores,
   tags,
 } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { PaginatedResponseDto } from "../../common/dto/pagination.dto";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
+import { StoreContextService } from "../../common/store-context/store-context.service";
 import {
   generatePaginationMetadata,
   normalizePaginationParams,
 } from "../../common/utils/pagination.utils";
 import { DB_TOKEN } from "../../modules/database/database.module";
 import type { Database } from "../../modules/database/db";
+import { CollectionsIndexingService } from "../search/indexing/collections-indexing.service";
 import { AddProductsDto } from "./dto/add-products.dto";
 import { CollectionResponseDto } from "./dto/collection-response.dto";
 import {
@@ -52,8 +57,44 @@ export class CollectionsService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    private readonly storeContextService: StoreContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+    @Optional()
+    @Inject(forwardRef(() => CollectionsIndexingService))
+    private readonly collectionsIndexingService?: CollectionsIndexingService,
   ) {}
+
+  /**
+   * Get default store ID helper
+   */
+  private async getDefaultStoreId(): Promise<string> {
+    // Try to get from store context first
+    const contextStoreId = this.storeContextService.getStoreId();
+    if (contextStoreId) {
+      return contextStoreId;
+    }
+
+    // Fallback to default store
+    const [defaultStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .where(eq(stores.isDefault, true))
+      .limit(1);
+
+    if (defaultStore) {
+      return defaultStore.id;
+    }
+
+    const [firstStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .limit(1);
+    if (firstStore) {
+      return firstStore.id;
+    }
+
+    throw new Error("No store found");
+  }
   /**
    * Generate a slug from a name
    */
@@ -149,10 +190,12 @@ export class CollectionsService {
         }
       | undefined;
     try {
+      const storeId = await this.getDefaultStoreId();
       const collectionResult = await this.db
         .insert(collections)
         .values({
           name: createCollectionDto.name,
+          storeId,
           slug,
           description: createCollectionDto.description || null,
           imageUrl: createCollectionDto.imageUrl || null,
@@ -193,6 +236,23 @@ export class CollectionsService {
     }
 
     // Slug registration removed - no longer using CMS route registry
+
+    // Index collection for search
+    if (this.collectionsIndexingService) {
+      this.collectionsIndexingService
+        .indexCollection(newCollection.id)
+        .catch((error) => {
+          this.logger.warn(
+            createErrorContext(
+              this.contextService,
+              "CollectionsService.create.indexCollection",
+              error,
+              { collectionId: newCollection.id },
+            ),
+            "Failed to index collection (non-blocking)",
+          );
+        });
+    }
 
     return {
       ...newCollection,
@@ -519,6 +579,21 @@ export class CollectionsService {
 
     // Delete collection (cascade will remove product associations)
     await this.db.delete(collections).where(eq(collections.id, id));
+
+    // Delete from search index
+    if (this.collectionsIndexingService) {
+      this.collectionsIndexingService.deleteCollection(id).catch((error) => {
+        this.logger.warn(
+          createErrorContext(
+            this.contextService,
+            "CollectionsService.remove.deleteCollection",
+            error,
+            { collectionId: id },
+          ),
+          "Failed to delete collection from index (non-blocking)",
+        );
+      });
+    }
   }
 
   /**

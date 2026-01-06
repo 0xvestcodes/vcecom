@@ -1,14 +1,16 @@
 "use client";
 
+import { AlertCircle } from "lucide-react";
 import React from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -63,24 +65,36 @@ export class ErrorBoundary extends React.Component<
       }
 
       return (
-        <div className="flex min-h-screen items-center justify-center p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
-              <CardTitle>Something went wrong</CardTitle>
-              <CardDescription>
+        <Dialog open={true} onOpenChange={() => {}}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                <DialogTitle>Something went wrong</DialogTitle>
+              </div>
+              <DialogDescription>
                 An unexpected error occurred. Please try again or contact
                 support if the problem persists.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {this.state.error && (
-                <div className="rounded-md bg-muted p-3">
-                  <p className="text-sm font-mono text-muted-foreground">
-                    {this.state.error.message || "Unknown error"}
-                  </p>
-                </div>
-              )}
-              <div className="flex gap-2">
+              </DialogDescription>
+            </DialogHeader>
+
+            {this.state.error && (
+              <div className="rounded-md bg-muted p-3">
+                <p className="text-sm font-mono text-muted-foreground">
+                  {this.state.error.message || "Unknown error"}
+                </p>
+              </div>
+            )}
+
+            <div className="py-2">
+              <p className="text-sm text-muted-foreground">
+                The team at Vestcodes has been informed and is working to
+                resolve this issue.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button onClick={this.resetError} variant="default">
                   Try Again
                 </Button>
@@ -93,9 +107,9 @@ export class ErrorBoundary extends React.Component<
                   Go Home
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       );
     }
 

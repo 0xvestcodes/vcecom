@@ -8,6 +8,8 @@ import {
 } from "../../common/logging/logging.helper";
 import type { Database } from "../../modules/database/db";
 import { DB_TOKEN } from "../database/database.module";
+import { RiskScoringService } from "./services/risk-scoring.service";
+import { SecurityAlertsService } from "./services/security-alerts.service";
 
 export interface LogActivityParams {
   adminId: string;
@@ -28,6 +30,8 @@ export class AdminActivityService {
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+    private readonly riskScoringService: RiskScoringService,
+    private readonly securityAlertsService: SecurityAlertsService,
   ) {}
 
   /**
@@ -79,6 +83,45 @@ export class AdminActivityService {
         }),
         `Admin activity: ${action}`,
       );
+
+      // Calculate risk score and create alerts if needed
+      try {
+        const riskScore = await this.riskScoringService.calculateRiskScore({
+          action,
+          entityType: entityId ? this.extractEntityType(action) : undefined,
+          entityId,
+          adminId,
+          ipAddress,
+          userAgent,
+          metadata,
+          timestamp: new Date(),
+        });
+
+        // Create security alert if risk score exceeds thresholds
+        if (riskScore.severity !== "LOW") {
+          await this.securityAlertsService.createAlertIfNeeded({
+            adminId,
+            action,
+            entityType: entityId ? this.extractEntityType(action) : undefined,
+            entityId,
+            riskScore,
+            ipAddress,
+            userAgent,
+            metadata,
+          });
+        }
+      } catch (riskError) {
+        // Don't throw - risk scoring failure shouldn't break activity logging
+        this.logger.warn(
+          createErrorContext(
+            this.contextService,
+            "logActivity.riskScoring",
+            riskError,
+            { adminId, action },
+          ),
+          "Failed to calculate risk score for activity",
+        );
+      }
     } catch (error) {
       // Log error but don't throw - activity logging should not break the main flow
       this.logger.error(
@@ -89,6 +132,18 @@ export class AdminActivityService {
         "Failed to log admin activity",
       );
     }
+  }
+
+  /**
+   * Extract entity type from action string
+   */
+  private extractEntityType(action: string): string {
+    // Actions are typically in format "entity.action" or "module.entity.action"
+    const parts = action.split(".");
+    if (parts.length >= 2) {
+      return parts[parts.length - 2]; // Second to last part is usually entity type
+    }
+    return "unknown";
   }
 
   /**

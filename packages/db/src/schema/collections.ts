@@ -10,6 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { productCollections } from "./product-collections";
+import { stores } from "./stores";
 
 export const collectionTypeEnum = pgEnum("collection_type", [
   "manual",
@@ -25,6 +26,9 @@ export const collections = pgTable(
   "collections",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    storeId: uuid("store_id").references(() => stores.id, {
+      onDelete: "cascade",
+    }),
     name: text("name").notNull(),
     slug: text("slug").notNull().unique(),
     description: text("description"),
@@ -44,13 +48,22 @@ export const collections = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
+    storeIdIdx: index("collections_store_id_idx").on(table.storeId),
     slugIdx: index("collections_slug_idx").on(table.slug),
     typeIdx: index("collections_type_idx").on(table.type),
     positionIdx: index("collections_position_idx").on(table.position),
+    storeIdSlugIdx: index("collections_store_id_slug_idx").on(
+      table.storeId,
+      table.slug,
+    ),
   }),
 );
 
-export const collectionsRelations = relations(collections, ({ many }) => ({
+export const collectionsRelations = relations(collections, ({ one, many }) => ({
+  store: one(stores, {
+    fields: [collections.storeId],
+    references: [stores.id],
+  }),
   products: many(productCollections),
 }));
 

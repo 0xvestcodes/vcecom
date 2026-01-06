@@ -49,17 +49,33 @@ function isSaleActive(
  * 2. Product-level override
  * 3. Category-level override (lowest priority)
  *
+ * Currency filtering:
+ * - Price list currency: null = applies to all currencies, specific code = only that currency
+ * - Item currency: null = applies to all currencies for that price list, specific code = only that currency
+ * - Variant currency: Used to match against price list/item currency filters
+ *
  * Multiple price lists can apply, but only the most specific override from
  * the highest priority price list is used.
  */
 function resolvePriceListOverrides(
   variant: VariantPricingInput,
   priceLists: PriceList[],
+  targetCurrency?: string,
 ): PriceListOverride[] {
   const overrides: PriceListOverride[] = [];
+  const variantCurrency = variant.currency || targetCurrency;
 
   for (const priceList of priceLists) {
+    // Filter price list by currency (null = applies to all currencies)
+    if (priceList.currency && priceList.currency !== variantCurrency) {
+      continue;
+    }
+
     for (const item of priceList.items) {
+      // Filter item by currency (null = applies to all currencies for this price list)
+      if (item.currency && item.currency !== variantCurrency) {
+        continue;
+      }
       // Variant-specific override takes precedence (most specific match)
       if (item.productVariantId === variant.variantId) {
         overrides.push({
@@ -169,7 +185,7 @@ export function runPricingEngine(
 ): PricingEngineResult {
   // Filter out invalid variants (missing required fields)
   const validVariants = validatePricingInput(input);
-  const { priceLists, now: currentDate } = input;
+  const { priceLists, now: currentDate, targetCurrency } = input;
 
   const variantPrices: VariantPricingResult[] = [];
   let totalBasePrice = 0;
@@ -180,7 +196,12 @@ export function runPricingEngine(
   for (const variant of validVariants) {
     // Resolve price list overrides (most specific match wins)
     // Overrides are sorted by specificity: variant > product > category
-    const overrides = resolvePriceListOverrides(variant, priceLists);
+    // Currency filtering is applied within resolvePriceListOverrides
+    const overrides = resolvePriceListOverrides(
+      variant,
+      priceLists,
+      targetCurrency,
+    );
     const bestOverride = overrides.length > 0 ? overrides[0] : null;
 
     // Calculate price after applying price list override
@@ -197,12 +218,81 @@ export function runPricingEngine(
     // Check if sale is active (within start/end date range)
     // Sale price takes precedence over price list overrides when active
     const saleActive = isSaleActive(variant, currentDate);
-    const effectivePrice = calculateEffectivePrice(
+    let priceAfterSale = calculateEffectivePrice(
       variant.basePrice,
       priceAfterOverride,
       variant.salePrice,
       saleActive,
     );
+
+    // Apply region pricing rules (after sale price but can override)
+    // Region pricing rules are applied after price lists and sale prices
+    if (input.regionPricingRules && input.regionPricingRules.length > 0) {
+      const applicableRegionRules = input.regionPricingRules.filter((rule) => {
+        // Check if rule applies to this variant
+        if (
+          rule.productVariantId &&
+          rule.productVariantId !== variant.variantId
+        ) {
+          return false;
+        }
+        if (rule.productId && rule.productId !== variant.productId) {
+          return false;
+        }
+        if (rule.categoryId && rule.categoryId !== variant.categoryId) {
+          return false;
+        }
+        // If no specific variant/product/category, rule applies to all
+        return true;
+      });
+
+      if (applicableRegionRules.length > 0) {
+        // Sort by priority (highest first), then by specificity
+        applicableRegionRules.sort((a, b) => {
+          if (b.priority !== a.priority) {
+            return b.priority - a.priority;
+          }
+          // Specificity: variant > product > category
+          const aSpec = a.productVariantId
+            ? 3
+            : a.productId
+              ? 2
+              : a.categoryId
+                ? 1
+                : 0;
+          const bSpec = b.productVariantId
+            ? 3
+            : b.productId
+              ? 2
+              : b.categoryId
+                ? 1
+                : 0;
+          return bSpec - aSpec;
+        });
+
+        const bestRule = applicableRegionRules[0];
+        if (bestRule.type === "OVERRIDE") {
+          // Override: set price to overrideValue
+          priceAfterSale = roundToTwoDecimals(
+            Math.max(0, bestRule.overrideValue),
+          );
+        } else if (bestRule.type === "MARKUP") {
+          // Markup: apply percentage or fixed adjustment
+          if (bestRule.overrideType === "PERCENTAGE") {
+            priceAfterSale = roundToTwoDecimals(
+              Math.max(0, priceAfterSale * (1 + bestRule.overrideValue / 100)),
+            );
+          } else {
+            // FIXED markup
+            priceAfterSale = roundToTwoDecimals(
+              Math.max(0, priceAfterSale + bestRule.overrideValue),
+            );
+          }
+        }
+      }
+    }
+
+    const effectivePrice = priceAfterSale;
 
     // Build result with all pricing information for transparency
     variantPrices.push({

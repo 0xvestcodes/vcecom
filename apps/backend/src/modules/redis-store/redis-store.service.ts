@@ -82,9 +82,10 @@ export class RedisStoreService implements OnModuleInit, OnModuleDestroy {
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
       lazyConnect: true, // Use lazy connect to avoid blocking startup
-      connectTimeout: 5000, // 5 second connection timeout
-      commandTimeout: 5000, // 5 second command timeout
+      connectTimeout: 10000, // 10 second connection timeout (increased from 5s)
+      commandTimeout: 30000, // 30 second command timeout (increased from 5s for long-running operations)
       enableOfflineQueue: true, // Queue commands when offline - they'll execute when Redis connects
+      keepAlive: 30000, // Send keepalive packets every 30 seconds to maintain connection
     };
 
     // Create client synchronously - this doesn't block

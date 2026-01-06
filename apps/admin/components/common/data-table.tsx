@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-export interface Column<T = any> {
+export interface Column<T = unknown> {
   id: string;
   header: string | ReactNode;
   accessorKey?: string | keyof T;
@@ -39,7 +39,7 @@ export interface RowAction<T> {
   roles?: string[];
 }
 
-interface DataTableProps<T = any> {
+interface DataTableProps<T = unknown> {
   columns: Column<T>[];
   data: T[];
   rowActions?: RowAction<T>[];
@@ -80,7 +80,7 @@ interface DataTableProps<T = any> {
  * />
  * ```
  */
-export function DataTable<T = any>({
+export function DataTable<T = unknown>({
   columns,
   data,
   rowActions = [],
@@ -88,7 +88,17 @@ export function DataTable<T = any>({
   selectable = false,
   selectedRows = [],
   onSelectionChange,
-  getRowId = (row: T) => ((row as any).id as string) || String(row),
+  getRowId = (row: T) => {
+    if (
+      row &&
+      typeof row === "object" &&
+      "id" in row &&
+      typeof row.id === "string"
+    ) {
+      return row.id;
+    }
+    return String(row);
+  },
   emptyMessage = "No items found",
   isLoading = false,
 }: DataTableProps<T>) {
@@ -245,7 +255,15 @@ export function DataTable<T = any>({
                     {column.cell
                       ? column.cell(row)
                       : column.accessorKey
-                        ? String((row as any)[column.accessorKey] ?? "")
+                        ? String(
+                            (row &&
+                            typeof row === "object" &&
+                            column.accessorKey in row
+                              ? (row as Record<string, unknown>)[
+                                  column.accessorKey as string
+                                ]
+                              : null) ?? "",
+                          )
                         : null}
                   </TableCell>
                 ))}

@@ -6,6 +6,8 @@ import { PricingSnapshot } from "../../pricing/engine/pricing-engine.types";
  * Contains order creation data that needs to be preserved until payment confirmation
  */
 export interface CheckoutMetadata {
+  email?: string;
+  phone?: string;
   /**
    * Customer ID who initiated the checkout (required)
    * Used for both authenticated and guest customers

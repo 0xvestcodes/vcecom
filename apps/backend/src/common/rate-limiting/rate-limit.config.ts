@@ -146,6 +146,78 @@ export const RATE_LIMIT_PRESETS = {
   },
 
   /**
+   * Admin WRITE - alias for ADMIN_MUTATE
+   */
+  ADMIN_WRITE: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 1000, // 1k mutations per 5 minutes in production
+    window: 300, // 5 minutes
+    keyType: "userId" as RateLimitKeyType,
+  },
+
+  /**
+   * Admin POST - moderate limit for POST mutations
+   */
+  ADMIN_POST: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 1000, // 1k mutations per 5 minutes in production
+    window: 300, // 5 minutes
+    keyType: "userId" as RateLimitKeyType,
+  },
+
+  /**
+   * Admin PATCH - moderate limit for PATCH mutations
+   */
+  ADMIN_PATCH: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 1000, // 1k mutations per 5 minutes in production
+    window: 300, // 5 minutes
+    keyType: "userId" as RateLimitKeyType,
+  },
+
+  /**
+   * Admin DELETE - moderate limit for DELETE mutations
+   */
+  ADMIN_DELETE: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 1000, // 1k mutations per 5 minutes in production
+    window: 300, // 5 minutes
+    keyType: "userId" as RateLimitKeyType,
+  },
+
+  /**
+   * Generic read endpoint preset - for general GET operations
+   */
+  READ: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 10000, // 10k requests per 5 minutes in production
+    window: 300, // 5 minutes
+    keyType: "ip" as RateLimitKeyType,
+  },
+
+  /**
+   * Generic write endpoint preset - for general POST/PUT operations
+   */
+  WRITE: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 1000, // 1k mutations per 5 minutes in production
+    window: 300, // 5 minutes
+    keyType: "sessionId" as RateLimitKeyType,
+  },
+
+  /**
+   * Generic CREATE endpoint preset - for POST operations
+   */
+  CREATE: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 1000, // 1k creations per 5 minutes in production
+    window: 300, // 5 minutes
+    keyType: "sessionId" as RateLimitKeyType,
+  },
+
+  /**
+   * Generic GET endpoint preset - for GET operations
+   */
+  GET: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 10000, // 10k requests per 5 minutes in production
+    window: 300, // 5 minutes
+    keyType: "ip" as RateLimitKeyType,
+  },
+
+  /**
    * Generic store GET - catch-all fallback for public GET endpoints
    */
   GENERIC_STORE_GET: {
@@ -169,6 +241,15 @@ export const RATE_LIMIT_PRESETS = {
   WEBHOOK: {
     limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 100, // 100 requests per minute in production
     window: 60, // 1 minute
+    keyType: "ip" as RateLimitKeyType,
+  },
+
+  /**
+   * Public GET endpoints - generic public read operations
+   */
+  PUBLIC_GET: {
+    limit: isDevelopment ? Number.MAX_SAFE_INTEGER : 10000, // 10k requests per 5 minutes in production
+    window: 300, // 5 minutes
     keyType: "ip" as RateLimitKeyType,
   },
 } as const;

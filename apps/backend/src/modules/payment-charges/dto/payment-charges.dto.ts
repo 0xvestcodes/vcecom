@@ -147,6 +147,15 @@ export class CreatePaymentChargeDto {
   @IsBoolean()
   @IsOptional()
   active?: boolean;
+
+  @ApiProperty({
+    description: "Whether this payment method is disabled at store level",
+    example: false,
+    default: false,
+  })
+  @IsBoolean()
+  @IsOptional()
+  storeLevelDisabled?: boolean;
 }
 
 export class UpdatePaymentChargeDto {
@@ -251,6 +260,14 @@ export class UpdatePaymentChargeDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+  @ApiProperty({
+    description: "Whether this payment method is disabled at store level",
+    required: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  storeLevelDisabled?: boolean;
 }
 
 export class PreviewFeeDto {

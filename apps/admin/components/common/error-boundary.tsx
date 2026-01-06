@@ -1,15 +1,16 @@
 "use client";
 
-import { AlertTriangle } from "lucide-react";
+import { AlertCircle } from "lucide-react";
 import React from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -69,33 +70,42 @@ export class ErrorBoundary extends React.Component<
         return this.props.fallback;
       }
 
-      // Default fallback UI
+      // Default fallback UI with Dialog
       return (
-        <div className="flex items-center justify-center min-h-[400px] p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader>
+        <Dialog open={true} onOpenChange={() => {}}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
               <div className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-destructive" />
-                <CardTitle>Something went wrong</CardTitle>
+                <AlertCircle className="h-5 w-5 text-destructive" />
+                <DialogTitle>Something went wrong</DialogTitle>
               </div>
-              <CardDescription>
+              <DialogDescription>
                 An unexpected error occurred. Please try again.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {process.env.NODE_ENV === "development" && this.state.error && (
-                <div className="p-3 bg-muted rounded-md">
-                  <p className="text-sm font-mono text-destructive">
-                    {this.state.error.toString()}
-                  </p>
-                  {this.state.error.stack && (
-                    <pre className="text-xs mt-2 overflow-auto max-h-40">
-                      {this.state.error.stack}
-                    </pre>
-                  )}
-                </div>
-              )}
-              <div className="flex gap-2">
+              </DialogDescription>
+            </DialogHeader>
+
+            {process.env.NODE_ENV === "development" && this.state.error && (
+              <div className="rounded-md bg-muted p-3">
+                <p className="text-sm font-mono text-destructive">
+                  {this.state.error.toString()}
+                </p>
+                {this.state.error.stack && (
+                  <pre className="text-xs mt-2 overflow-auto max-h-40">
+                    {this.state.error.stack}
+                  </pre>
+                )}
+              </div>
+            )}
+
+            <div className="py-2">
+              <p className="text-sm text-muted-foreground">
+                The team at Vestcodes has been informed and is working to
+                resolve this issue.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <div className="flex gap-2 w-full sm:w-auto">
                 <Button onClick={this.handleReset} variant="default">
                   Try Again
                 </Button>
@@ -108,9 +118,9 @@ export class ErrorBoundary extends React.Component<
                   Go Home
                 </Button>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       );
     }
 

@@ -2,6 +2,7 @@ import { relations } from "drizzle-orm";
 import {
   index,
   integer,
+  pgEnum,
   pgTable,
   text,
   timestamp,
@@ -9,6 +10,16 @@ import {
 } from "drizzle-orm/pg-core";
 import { customers } from "./customers";
 import { priceLists } from "./price-lists";
+
+/**
+ * Tax display type enum
+ * INCLUSIVE: Tax included in displayed price (B2C)
+ * EXCLUSIVE: Tax shown separately (B2B)
+ */
+export const taxDisplayTypeEnum = pgEnum("tax_display_type", [
+  "INCLUSIVE",
+  "EXCLUSIVE",
+]);
 
 /**
  * Customer groups table
@@ -21,6 +32,9 @@ export const customerGroups = pgTable(
     name: text("name").notNull().unique(),
     description: text("description"),
     isActive: integer("is_active").notNull().default(1), // 1 = active, 0 = inactive
+    taxDisplayType: taxDisplayTypeEnum("tax_display_type")
+      .notNull()
+      .default("EXCLUSIVE"), // Tax display preference (INCLUSIVE for B2C, EXCLUSIVE for B2B)
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },

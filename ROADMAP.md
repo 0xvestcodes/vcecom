@@ -42,6 +42,17 @@ VCEcom is a production-ready, India-first ecommerce platform designed to evolve 
 - ✅ Product search and filtering
 - ✅ Advanced sorting and pagination
 - ✅ Image management and optimization
+- ✅ Advanced media pipeline with multi-size generation
+- ✅ WebP/AVIF format support with automatic fallback
+- ✅ CDN-optimized caching headers and cache busting
+- ✅ Signed URLs for secure media access
+- ✅ Multi-bucket storage architecture (product-media, uploads, internal)
+- ✅ Advanced search infrastructure (Meilisearch, Elasticsearch, OpenSearch)
+- ✅ Search indexer for products, collections, and variants
+- ✅ Incremental indexing with real-time updates
+- ✅ Background reindex workers
+- ✅ Search relevance tuning (field weights, boost factors, synonyms, stop words)
+- ✅ Search performance metrics and monitoring
 
 ### Shopping Experience
 - ✅ Shopping cart with real-time calculations
@@ -61,6 +72,29 @@ VCEcom is a production-ready, India-first ecommerce platform designed to evolve 
 - ✅ Cash on Delivery (COD)
 - ✅ Payment webhooks and verification
 - ✅ Secure payment processing
+- ✅ Customer wallet as payment option
+- ✅ Loyalty points redemption support
+- ✅ Customer wallet as payment method
+- ✅ Loyalty points redemption
+
+### Webhooks System
+- ✅ Outgoing webhooks for order, product, and customer events
+- ✅ Incoming webhooks for payment and shipping providers
+- ✅ Webhook retry mechanism with exponential backoff
+- ✅ HMAC-SHA256 webhook signing and validation
+- ✅ Webhook delivery logs and audit trail
+- ✅ Admin webhook management (create/edit/delete/enable/disable/test)
+- ✅ Webhook testing and debugging tools
+
+### Job Queue Infrastructure
+- ✅ BullMQ integration with Redis-backed queues
+- ✅ Scheduled jobs with cron-based scheduling
+- ✅ Dead-letter queue for failed jobs
+- ✅ Retry strategy with exponential backoff
+- ✅ Worker monitoring and admin panel integration
+- ✅ Queue management (pause/resume/retry/remove)
+- ✅ Job processors for pricing and discount warmup
+- ✅ Queue statistics and metrics dashboard
 
 ### Shipping & Fulfillment
 - ✅ Shiprocket integration
@@ -76,6 +110,14 @@ VCEcom is a production-ready, India-first ecommerce platform designed to evolve 
 - ✅ Tax invoice generation (PDF)
 - ✅ GSTIN validation
 - ✅ Complete GST breakdown in invoices
+- ✅ **Advanced Tax Engine** with:
+  - Tax rule overrides at multiple levels (Customer Group, Customer, Category, Product, Variant)
+  - Tax exemptions with certificate tracking
+  - B2B vs B2C pricing differentiation (configurable per customer group)
+  - HSN code management and validation (8-digit format)
+  - Dynamic GST rate resolution with priority-based rule matching
+  - Comprehensive tax audit logs for compliance
+  - Admin UI for managing tax rules, exemptions, and HSN codes
 
 ### Indian Market Features
 - ✅ PIN code validation and serviceability
@@ -84,12 +126,37 @@ VCEcom is a production-ready, India-first ecommerce platform designed to evolve 
 - ✅ Phone number validation (10-digit, +91)
 - ✅ Indian state list (28 states + 8 UTs)
 
+### Multi-Currency System
+- ✅ Currency management (CRUD operations)
+- ✅ FX rate service with multiple provider support (ExchangeRate-API, Fixer.io, CurrencyLayer)
+- ✅ Redis caching for exchange rates (1-hour TTL, configurable)
+- ✅ Currency conversion utilities and service
+- ✅ Currency-specific price list overrides
+- ✅ Cart and checkout currency selection
+- ✅ Order currency tracking
+- ✅ Payment method charges per currency
+- ✅ Admin currency management UI
+
 ### Discounts & Promotions
 - ✅ Discount code system
 - ✅ Percentage and fixed amount discounts
 - ✅ Cart-level discount application
 - ✅ Discount validation (expiry, usage limits)
 - ✅ Minimum order value support
+
+### Loyalty & Wallet System
+- ✅ Customer wallet balances (store credits)
+- ✅ Loyalty points system
+- ✅ Configurable earning rules (percentage, fixed, tiered)
+- ✅ Configurable redemption rules with limits
+- ✅ Complete transaction ledger with audit trail
+- ✅ Automatic points earning on order completion
+- ✅ Wallet refunds option (alternative to payment gateway refunds)
+- ✅ Admin wallet management interface
+- ✅ Loyalty rules configuration interface
+- ✅ Customer wallet details and transaction history
+- ✅ Wallet balance API endpoints
+- ✅ Points redemption API endpoints
 
 ### Admin Dashboard
 - ✅ Product management interface
@@ -98,6 +165,18 @@ VCEcom is a production-ready, India-first ecommerce platform designed to evolve 
 - ✅ Dashboard overview with key metrics
 - ✅ Order status updates
 - ✅ Basic analytics
+- ✅ Wallet management interface
+- ✅ Loyalty rules configuration
+- ✅ Customer wallet details and transaction history
+- ✅ Job queue monitoring and management
+- ✅ Queue statistics and metrics
+- ✅ Dead-letter queue management interface
+- ✅ Search index management and monitoring
+- ✅ Search reindex operations interface
+- ✅ Search relevance configuration interface
+- ✅ Currency management interface
+- ✅ FX rate configuration and monitoring
+- ✅ Tax management interface (tax rules, exemptions, HSN codes, audit logs)
 
 ---
 
@@ -225,9 +304,9 @@ VCEcom is a production-ready, India-first ecommerce platform designed to evolve 
 ### Customer Features
 **Focus:** Enhanced customer experience
 
+- ✅ Loyalty program (Wallet & Points system)
 - Wishlist functionality
 - Product reviews and ratings
-- Loyalty program
 - Referral system
 - Customer segmentation
 
@@ -256,13 +335,11 @@ VCEcom is a production-ready, India-first ecommerce platform designed to evolve 
 - Enhanced caching layer
 - API rate limiting and quotas
 - Comprehensive API documentation
-- Webhook system for integrations
 
 ### Plugin System
 **Focus:** Extensibility and integrations
 
 - Event-driven plugin architecture
-- Webhook system for external integrations
 - Third-party integration framework
 - Plugin registry and management
 - Custom integrations support
@@ -306,6 +383,28 @@ VCEcom is a production-ready, India-first ecommerce platform designed to evolve 
 - Discount code system
 - Advanced admin dashboard
 - Order lifecycle management
+- Webhooks system (outgoing + incoming)
+- Job queue infrastructure (BullMQ)
+- Scheduled jobs and cron tasks
+- Dead-letter queue handling
+- Worker monitoring and management
+- Advanced media pipeline with multi-size generation
+- WebP/AVIF format support
+- CDN optimization and cache busting
+- Multi-bucket storage architecture
+- Advanced search infrastructure (Meilisearch, Elasticsearch, OpenSearch)
+- Search indexer for products, collections, and variants
+- Incremental indexing with real-time updates
+- Background reindex workers
+- Search relevance tuning (field weights, boost factors, synonyms, stop words)
+- Search performance metrics and monitoring
+- Admin search management interface
+- Multi-currency system with FX rate management
+- Currency conversion and caching
+- Currency-specific price list overrides
+- Admin currency management interface
+- Advanced Tax Engine with rule overrides, exemptions, HSN management, and audit logs
+- Tax management admin UI
 
 ### Milestone 5: Production Hardening (In Progress)
 **Focus:** Enterprise readiness
@@ -316,6 +415,9 @@ VCEcom is a production-ready, India-first ecommerce platform designed to evolve 
 - Security hardening
 - Backup and recovery systems
 - Performance optimization
+- ✅ Job queue infrastructure for reliable background processing
+- ✅ Dead-letter queue for error handling
+- ✅ Worker monitoring and management
 
 ### Milestone 6: AI-Powered Features (Planned)
 **Focus:** AI ecommerce builder capabilities

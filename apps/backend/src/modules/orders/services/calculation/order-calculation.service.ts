@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { Inject, Injectable, Optional } from "@nestjs/common";
 import { eq, products, productVariants } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { PAISE_PER_RUPEE } from "../../../../common/constants/currency.constants";
@@ -10,6 +10,7 @@ import { DB_TOKEN } from "../../../database/database.module";
 import { DiscountSnapshot } from "../../../discounts/engine/discount-engine.types";
 import { PaymentChargeService } from "../../../payments/services/payment-charge.service";
 import { PricingSnapshot } from "../../../pricing/engine/pricing-engine.types";
+import { TaxCalculationService } from "../../../tax/services/tax-calculation.service";
 
 /**
  * Service responsible for order calculations
@@ -22,10 +23,12 @@ export class OrderCalculationService {
     readonly _contextService: ContextService,
     @Inject(DB_TOKEN) private readonly db: Database,
     private readonly paymentChargeService: PaymentChargeService,
+    @Optional() private readonly taxCalculationService?: TaxCalculationService,
   ) {}
 
   /**
    * Calculate order totals from cart items
+   * Uses tax engine if customer context is provided, otherwise falls back to basic GST calculation
    */
   @Trace({ operation: "OrderCalculationService.calculateOrderTotals" })
   async calculateOrderTotals(
@@ -33,6 +36,7 @@ export class OrderCalculationService {
       price: number;
       quantity: number;
       productGstRate: number;
+      productVariantId?: string;
     }>,
     bundleItems: Array<{
       price: number;
@@ -41,6 +45,7 @@ export class OrderCalculationService {
     }>,
     sellerState: string,
     buyerState: string,
+    customerId?: string | null,
   ): Promise<{
     subtotal: number;
     totalCgst: number;
@@ -48,6 +53,90 @@ export class OrderCalculationService {
     totalIgst: number;
     totalGstAmount: number;
   }> {
+    // Use tax engine if available and customer context is provided
+    if (
+      this.taxCalculationService &&
+      customerId !== undefined &&
+      variantItems.length > 0 &&
+      variantItems[0].productVariantId
+    ) {
+      try {
+        const taxResult = await this.taxCalculationService.calculateOrderTax({
+          items: variantItems
+            .filter((item) => item.productVariantId)
+            .map((item) => ({
+              variantId: item.productVariantId as string,
+              price: item.price,
+              quantity: item.quantity,
+              gstRate: item.productGstRate, // Fallback rate
+            })),
+          customerId,
+          sellerState,
+          buyerState,
+        });
+
+        // Calculate bundle items separately (using basic GST for now)
+        let bundleSubtotal = 0;
+        let bundleCgst = 0;
+        let bundleSgst = 0;
+        let bundleIgst = 0;
+
+        for (const bundleItem of bundleItems) {
+          const itemSubtotal = bundleItem.price * bundleItem.quantity;
+          bundleSubtotal += itemSubtotal;
+
+          const [firstVariant] = await this.db
+            .select({
+              productId: productVariants.productId,
+            })
+            .from(productVariants)
+            .where(eq(productVariants.id, bundleItem.productVariantId))
+            .limit(1);
+
+          if (firstVariant) {
+            const [product] = await this.db
+              .select({
+                gstRate: products.gstRate,
+              })
+              .from(products)
+              .where(eq(products.id, firstVariant.productId))
+              .limit(1);
+
+            if (product) {
+              const gstBreakdown = calculateGstBreakdown(
+                itemSubtotal,
+                product.gstRate,
+                sellerState,
+                buyerState,
+              );
+              bundleCgst += gstBreakdown.cgst;
+              bundleSgst += gstBreakdown.sgst;
+              bundleIgst += gstBreakdown.igst;
+            }
+          }
+        }
+
+        return {
+          subtotal: taxResult.totalBaseAmount + bundleSubtotal,
+          totalCgst: taxResult.taxBreakdown.cgst + bundleCgst,
+          totalSgst: taxResult.taxBreakdown.sgst + bundleSgst,
+          totalIgst: taxResult.taxBreakdown.igst + bundleIgst,
+          totalGstAmount:
+            taxResult.totalTaxAmount + bundleCgst + bundleSgst + bundleIgst,
+        };
+      } catch (error) {
+        // Fall back to basic calculation if tax engine fails
+        this._logger.warn(
+          {
+            error,
+            customerId,
+          },
+          "Tax engine failed, falling back to basic GST calculation",
+        );
+      }
+    }
+
+    // Fallback to basic GST calculation
     let subtotal = 0;
     let totalCgst = 0;
     let totalSgst = 0;

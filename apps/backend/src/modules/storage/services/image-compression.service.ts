@@ -103,6 +103,9 @@ export class ImageCompressionService {
         case "webp":
           pipeline = pipeline.webp({ quality: opts.quality });
           break;
+        case "avif":
+          pipeline = pipeline.avif({ quality: opts.quality });
+          break;
         case "jpeg":
           pipeline = pipeline.jpeg({
             quality: opts.quality,
@@ -140,6 +143,151 @@ export class ImageCompressionService {
   }
 
   /**
+   * Generate multiple formats from a single image
+   * @param buffer - Original image buffer
+   * @param formats - Array of formats to generate
+   * @param options - Compression options
+   * @returns Map of format -> buffer
+   */
+  async generateMultipleFormats(
+    buffer: Buffer,
+    formats: Array<"webp" | "avif" | "jpeg" | "png"> = ["webp", "avif"],
+    options: CompressionOptionsDto = {},
+  ): Promise<Map<string, Buffer>> {
+    const opts = { ...DEFAULT_COMPRESSION_OPTIONS, ...options };
+    const results = new Map<string, Buffer>();
+
+    try {
+      const image = sharp(buffer);
+      const metadata = await image.metadata();
+      const { width, height } = metadata;
+
+      if (!width || !height) {
+        this.logger.warn(
+          "Unable to determine image dimensions, using original buffer",
+        );
+        // Return original buffer for all formats if we can't process
+        for (const format of formats) {
+          results.set(format, buffer);
+        }
+        return results;
+      }
+
+      // Calculate new dimensions maintaining aspect ratio
+      let newWidth = width;
+      let newHeight = height;
+
+      if (width > opts.maxWidth || height > opts.maxHeight) {
+        const aspectRatio = width / height;
+        if (width > opts.maxWidth) {
+          newWidth = opts.maxWidth;
+          newHeight = Math.round(newWidth / aspectRatio);
+        }
+        if (newHeight > opts.maxHeight) {
+          newHeight = opts.maxHeight;
+          newWidth = Math.round(newHeight * aspectRatio);
+        }
+      }
+
+      // Generate all formats in parallel
+      const formatPromises = formats.map(async (format) => {
+        let pipeline = image.clone();
+
+        // Resize if needed
+        if (newWidth !== width || newHeight !== height) {
+          pipeline = pipeline.resize(newWidth, newHeight, {
+            fit: "inside",
+            withoutEnlargement: true,
+          });
+        }
+
+        // Apply format conversion
+        switch (format) {
+          case "webp":
+            pipeline = pipeline.webp({ quality: opts.quality });
+            break;
+          case "avif":
+            pipeline = pipeline.avif({ quality: opts.quality });
+            break;
+          case "jpeg":
+            pipeline = pipeline.jpeg({
+              quality: opts.quality,
+              progressive: true,
+            });
+            break;
+          case "png":
+            pipeline = pipeline.png({
+              quality: opts.quality,
+              compressionLevel: 9,
+            });
+            break;
+        }
+
+        const formattedBuffer = await pipeline.toBuffer();
+        return { format, buffer: formattedBuffer };
+      });
+
+      const formatResults = await Promise.all(formatPromises);
+      formatResults.forEach(({ format, buffer: formatBuffer }) => {
+        results.set(format, formatBuffer);
+      });
+
+      this.logger.debug(
+        `Generated ${formats.length} formats: ${formats.join(", ")}`,
+      );
+
+      return results;
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate multiple formats: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      // Return original buffer for all formats if generation fails
+      for (const format of formats) {
+        results.set(format, buffer);
+      }
+      return results;
+    }
+  }
+
+  /**
+   * Detect preferred format from Accept header
+   * @param acceptHeader - HTTP Accept header value
+   * @returns Preferred format or default
+   */
+  detectFormatFromAcceptHeader(
+    acceptHeader?: string,
+  ): "webp" | "avif" | "jpeg" | "png" {
+    if (!acceptHeader) {
+      return "webp";
+    }
+
+    const accept = acceptHeader.toLowerCase();
+
+    // Check for AVIF support first (most modern)
+    if (accept.includes("image/avif")) {
+      return "avif";
+    }
+
+    // Check for WebP support
+    if (accept.includes("image/webp")) {
+      return "webp";
+    }
+
+    // Check for PNG support
+    if (accept.includes("image/png")) {
+      return "png";
+    }
+
+    // Default to JPEG
+    if (accept.includes("image/jpeg") || accept.includes("image/jpg")) {
+      return "jpeg";
+    }
+
+    // Default fallback
+    return "webp";
+  }
+
+  /**
    * Get optimized MIME type for compressed image
    */
   getOptimizedMimeType(
@@ -148,6 +296,8 @@ export class ImageCompressionService {
     switch (format) {
       case "webp":
         return "image/webp";
+      case "avif":
+        return "image/avif";
       case "jpeg":
         return "image/jpeg";
       case "png":
@@ -164,6 +314,8 @@ export class ImageCompressionService {
     switch (format) {
       case "webp":
         return "webp";
+      case "avif":
+        return "avif";
       case "jpeg":
         return "jpg";
       case "png":

@@ -5,9 +5,7 @@ import {
 } from "@nestjs/common";
 import {
   and,
-  categories,
   customers,
-  desc,
   eq,
   gte,
   inArray,
@@ -29,6 +27,10 @@ import {
 } from "../../../common/logging/logging.helper";
 import { DB_TOKEN } from "../../../modules/database/database.module";
 import type { Database } from "../../../modules/database/db";
+import { CustomerSegmentationService } from "../../analytics/services/customer-segmentation.service";
+import { OrderAnalyticsService } from "../../analytics/services/order-analytics.service";
+import { ProductPerformanceService } from "../../analytics/services/product-performance.service";
+import { SalesAnalyticsService } from "../../analytics/services/sales-analytics.service";
 import { CustomerSupportDashboardResponseDto } from "../dto/dashboard-customer-support.dto";
 import { OperationsDashboardResponseDto } from "../dto/dashboard-operations.dto";
 import { OverviewDashboardResponseDto } from "../dto/dashboard-overview.dto";
@@ -41,6 +43,10 @@ export class DashboardService {
     readonly _logger: PinoLogger,
     private readonly contextService: ContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+    private readonly orderAnalytics: OrderAnalyticsService,
+    private readonly salesAnalytics: SalesAnalyticsService,
+    readonly _customerSegmentation: CustomerSegmentationService,
+    private readonly productPerformance: ProductPerformanceService,
   ) {}
 
   /**
@@ -1047,128 +1053,29 @@ export class DashboardService {
 
   /**
    * Get Product & Merchandising Dashboard data
+   * Uses analytics services for optimized queries
    */
   async getProductMerchandisingDashboard(): Promise<ProductMerchandisingDashboardResponseDto> {
-    // Best and worst selling products
-    const productSales = await this.db
-      .select({
-        productId: products.id,
-        productTitle: products.title,
-        revenue: sql<number>`SUM(${orderItems.price} * ${orderItems.quantity})`,
-        unitsSold: sql<number>`SUM(${orderItems.quantity})`,
-      })
-      .from(orderItems)
-      .innerJoin(
-        productVariants,
-        eq(orderItems.productVariantId, productVariants.id),
-      )
-      .innerJoin(products, eq(productVariants.productId, products.id))
-      .innerJoin(orders, eq(orderItems.orderId, orders.id))
-      .where(eq(orders.status, "delivered"))
-      .groupBy(products.id, products.title)
-      .orderBy(desc(sql`SUM(${orderItems.price} * ${orderItems.quantity})`));
+    const now = new Date();
+    const period = {
+      startDate: new Date(0), // All time
+      endDate: now,
+    };
 
-    const bestSellingProducts = productSales.slice(0, 10).map((ps) => {
-      const revenue = Number(ps.revenue);
-      const unitsSold = Number(ps.unitsSold);
-      const grossMargin = revenue * 0.3; // Assume 30% margin
-      return {
-        productId: ps.productId,
-        productTitle: ps.productTitle,
-        revenue,
-        unitsSold,
-        grossMargin,
-        grossMarginPercentage: revenue > 0 ? (grossMargin / revenue) * 100 : 0,
-      };
-    });
-
-    const worstSellingProducts = productSales
-      .slice(-10)
-      .reverse()
-      .map((ps) => {
-        const revenue = Number(ps.revenue);
-        const unitsSold = Number(ps.unitsSold);
-        const grossMargin = revenue * 0.3;
-        return {
-          productId: ps.productId,
-          productTitle: ps.productTitle,
-          revenue,
-          unitsSold,
-          grossMargin,
-          grossMarginPercentage:
-            revenue > 0 ? (grossMargin / revenue) * 100 : 0,
-        };
-      });
-
-    // Category performance
-    const categorySales = await this.db
-      .select({
-        categoryId: categories.id,
-        categoryName: categories.name,
-        revenue: sql<number>`SUM(${orderItems.price} * ${orderItems.quantity})`,
-        unitsSold: sql<number>`SUM(${orderItems.quantity})`,
-        productCount: sql<number>`COUNT(DISTINCT ${products.id})`,
-      })
-      .from(orderItems)
-      .innerJoin(
-        productVariants,
-        eq(orderItems.productVariantId, productVariants.id),
-      )
-      .innerJoin(products, eq(productVariants.productId, products.id))
-      .leftJoin(categories, eq(products.categoryId, categories.id))
-      .innerJoin(orders, eq(orderItems.orderId, orders.id))
-      .where(eq(orders.status, "delivered"))
-      .groupBy(categories.id, categories.name)
-      .orderBy(desc(sql`SUM(${orderItems.price} * ${orderItems.quantity})`));
-
-    const categoryPerformance = categorySales.map((cs) => ({
-      categoryId: cs.categoryId || "",
-      categoryName: cs.categoryName || "Uncategorized",
-      revenue: Number(cs.revenue),
-      unitsSold: Number(cs.unitsSold),
-      productCount: Number(cs.productCount),
-    }));
-
-    // Variant performance
-    const variantSales = await this.db
-      .select({
-        variantId: productVariants.id,
-        productId: products.id,
-        size: productVariants.size,
-        color: productVariants.color,
-        revenue: sql<number>`SUM(${orderItems.price} * ${orderItems.quantity})`,
-        unitsSold: sql<number>`SUM(${orderItems.quantity})`,
-      })
-      .from(orderItems)
-      .innerJoin(
-        productVariants,
-        eq(orderItems.productVariantId, productVariants.id),
-      )
-      .innerJoin(products, eq(productVariants.productId, products.id))
-      .innerJoin(orders, eq(orderItems.orderId, orders.id))
-      .where(eq(orders.status, "delivered"))
-      .groupBy(
-        productVariants.id,
-        products.id,
-        productVariants.size,
-        productVariants.color,
-      )
-      .orderBy(desc(sql`SUM(${orderItems.price} * ${orderItems.quantity})`))
-      .limit(20);
-
-    const topVariants = variantSales.map((vs) => {
-      const attributes: Record<string, string> = {};
-      if (vs.size) attributes.size = vs.size;
-      if (vs.color) attributes.color = vs.color;
-
-      return {
-        variantId: vs.variantId,
-        productId: vs.productId,
-        attributes,
-        unitsSold: Number(vs.unitsSold),
-        revenue: Number(vs.revenue),
-      };
-    });
+    // Use analytics services for optimized queries
+    const [
+      bestSellingProducts,
+      worstSellingProducts,
+      categoryPerformance,
+      topVariants,
+      inventoryTurnover,
+    ] = await Promise.all([
+      this.productPerformance.getTopSellingProducts(10, period),
+      this.productPerformance.getWorstSellingProducts(10, period),
+      this.productPerformance.getCategoryPerformance(period),
+      this.productPerformance.getVariantPerformance(period, 20),
+      this.productPerformance.getInventoryTurnover(period),
+    ]);
 
     // Price elasticity (simplified - would need discount data)
     const priceElasticity = bestSellingProducts.slice(0, 5).map((product) => ({
@@ -1179,39 +1086,8 @@ export class DashboardService {
       revenueImpact: product.revenue * 0.15,
     }));
 
-    // Inventory turnover
-    const inventoryData = await this.db
-      .select({
-        productId: products.id,
-        productTitle: products.title,
-        inventory: sql<number>`COALESCE(SUM(${productVariants.inventory}), 0)`,
-        unitsSold: sql<number>`COALESCE(SUM(CASE WHEN ${orders.status} = 'delivered' THEN ${orderItems.quantity} ELSE 0 END), 0)`,
-      })
-      .from(products)
-      .innerJoin(productVariants, eq(products.id, productVariants.productId))
-      .leftJoin(orderItems, eq(productVariants.id, orderItems.productVariantId))
-      .leftJoin(orders, eq(orderItems.orderId, orders.id))
-      .groupBy(products.id, products.title)
-      .limit(20);
-
-    const inventoryTurnover = inventoryData.map((id) => {
-      const currentInventory = Number(id.inventory);
-      const unitsSold = Number(id.unitsSold) || 1;
-      const turnoverRate = unitsSold / (currentInventory + unitsSold);
-      const daysToSell =
-        currentInventory > 0 ? (currentInventory / unitsSold) * 30 : 0;
-
-      return {
-        productId: id.productId,
-        productTitle: id.productTitle,
-        turnoverRate,
-        daysToSell,
-        currentInventory,
-      };
-    });
-
     // Conversion funnel (simplified - would need analytics)
-    const conversionFunnel = {
+    const _conversionFunnel = {
       views: 10000,
       addToCart: 500,
       purchases: 250,
@@ -1221,106 +1097,96 @@ export class DashboardService {
     };
 
     return {
-      bestSellingProducts,
-      worstSellingProducts,
-      categoryPerformance,
-      topVariants,
+      bestSellingProducts: bestSellingProducts.map((p) => ({
+        productId: p.productId,
+        productTitle: p.productTitle,
+        revenue: p.revenue,
+        unitsSold: p.unitsSold,
+        grossMargin: p.grossMargin,
+        grossMarginPercentage: p.grossMarginPercentage,
+      })),
+      worstSellingProducts: worstSellingProducts.map((p) => ({
+        productId: p.productId,
+        productTitle: p.productTitle,
+        revenue: p.revenue,
+        unitsSold: p.unitsSold,
+        grossMargin: p.grossMargin,
+        grossMarginPercentage: p.grossMarginPercentage,
+      })),
+      categoryPerformance: categoryPerformance.map((c) => ({
+        categoryId: c.categoryId,
+        categoryName: c.categoryName,
+        revenue: c.revenue,
+        unitsSold: c.unitsSold,
+        productCount: c.productCount,
+      })),
+      topVariants: topVariants.map((v) => ({
+        variantId: v.variantId,
+        productId: v.productId,
+        attributes: v.attributes,
+        unitsSold: v.unitsSold,
+        revenue: v.revenue,
+      })),
       priceElasticity,
-      inventoryTurnover,
-      conversionFunnel,
+      inventoryTurnover: inventoryTurnover.map((i) => ({
+        productId: i.productId,
+        productTitle: i.productTitle,
+        turnoverRate: i.turnoverRate,
+        daysToSell: i.daysToSell,
+        currentInventory: i.currentInventory,
+      })),
+      conversionFunnel: {
+        views: 10000,
+        addToCart: 500,
+        purchases: 250,
+        viewToCartRate: 5.0,
+        cartToPurchaseRate: 50.0,
+        overallConversionRate: 2.5,
+      },
     };
   }
 
   /**
    * Get Overview Dashboard data - aggregated key metrics
+   * Uses analytics services for optimized queries
    */
   async getOverviewDashboard(): Promise<OverviewDashboardResponseDto> {
     try {
-      // Fix date calculation - create new Date objects to avoid mutation
       const now = new Date();
-      const todayStart = new Date(now);
-      todayStart.setHours(0, 0, 0, 0);
-
-      const weekStart = new Date(now);
-      weekStart.setDate(weekStart.getDate() - 7);
-      weekStart.setHours(0, 0, 0, 0);
-
       const monthStart = new Date(now);
       monthStart.setDate(monthStart.getDate() - 30);
       monthStart.setHours(0, 0, 0, 0);
 
-      // Get all orders with error handling
-      let allOrders: Array<typeof orders.$inferSelect>;
-      try {
-        allOrders = await this.db.select().from(orders);
-      } catch (error) {
-        this._logger.error(
-          createErrorContext(
-            this.contextService,
-            "DashboardService.getOverviewDashboard.selectOrders",
-            error,
-            {},
-          ),
-          "Failed to fetch orders",
-        );
-        allOrders = [];
-      }
+      // Use analytics services for optimized queries
+      const [orderMetrics, revenueMetrics, statusBreakdown, refundMetrics] =
+        await Promise.all([
+          this.orderAnalytics.getOrderMetrics({
+            startDate: new Date(0), // All time
+            endDate: now,
+          }),
+          this.salesAnalytics.getRevenueMetrics({
+            startDate: monthStart,
+            endDate: now,
+          }),
+          this.orderAnalytics.getOrderStatusBreakdown(),
+          this.salesAnalytics.getRefundMetrics({
+            startDate: new Date(0),
+            endDate: now,
+          }),
+        ]);
 
-      const totalOrders = allOrders.length;
-      const totalRevenue = allOrders.reduce(
-        (sum, o) => sum + Number(o.total || 0),
-        0,
-      );
-      const averageOrderValue =
-        totalOrders > 0 ? totalRevenue / totalOrders : 0;
+      const totalOrders = orderMetrics.totalOrders;
+      const totalRevenue = orderMetrics.totalRevenue;
+      const averageOrderValue = orderMetrics.averageOrderValue;
+      const monthlyRevenue = revenueMetrics.totalRevenue;
+      const ordersToday = orderMetrics.ordersToday;
+      const ordersThisWeek = orderMetrics.ordersThisWeek;
+      const ordersThisMonth = orderMetrics.ordersThisMonth;
 
-      // Monthly revenue
-      const monthlyOrders = allOrders.filter(
-        (o) => new Date(o.createdAt) >= monthStart,
-      );
-      const monthlyRevenue = monthlyOrders.reduce(
-        (sum, o) => sum + Number(o.total || 0),
-        0,
-      );
-
-      // Orders by period
-      const ordersToday = allOrders.filter(
-        (o) => new Date(o.createdAt) >= todayStart,
-      ).length;
-      const ordersThisWeek = allOrders.filter(
-        (o) => new Date(o.createdAt) >= weekStart,
-      ).length;
-      const ordersThisMonth = monthlyOrders.length;
-
-      // Order status counts
-      let orderStatusCounts: Array<{
-        status: string;
-        count: number;
-      }>;
-      try {
-        orderStatusCounts = await this.db
-          .select({
-            status: orders.status,
-            count: sql<number>`count(*)`,
-          })
-          .from(orders)
-          .groupBy(orders.status);
-      } catch (error) {
-        this._logger.error(
-          createErrorContext(
-            this.contextService,
-            "DashboardService.getOverviewDashboard.orderStatusCounts",
-            error,
-            {},
-          ),
-          "Failed to fetch order status counts",
-        );
-        orderStatusCounts = [];
-      }
-
-      const statusMap = orderStatusCounts.reduce(
+      // Use status breakdown from analytics service
+      const statusMap = statusBreakdown.reduce(
         (acc, s) => {
-          acc[s.status] = Number(s.count || 0);
+          acc[s.status] = s.count;
           return acc;
         },
         {} as Record<string, number>,
@@ -1399,9 +1265,9 @@ export class DashboardService {
       ).size;
 
       // Refunds
-      let refundData: Array<{ count: number }>;
+      let _refundData: Array<{ count: number }>;
       try {
-        refundData = await this.db
+        _refundData = await this.db
           .select({ count: sql<number>`count(*)` })
           .from(refunds);
       } catch (error) {
@@ -1414,12 +1280,11 @@ export class DashboardService {
           ),
           "Failed to fetch refunds",
         );
-        refundData = [{ count: 0 }];
+        _refundData = [{ count: 0 }];
       }
 
-      const totalRefunds = Number(refundData[0]?.count || 0);
-      const refundRate =
-        totalOrders > 0 ? (totalRefunds / totalOrders) * 100 : 0;
+      const totalRefunds = refundMetrics.totalRefunds;
+      const refundRate = refundMetrics.refundRate;
 
       // Reviews
       let reviewData: Array<{

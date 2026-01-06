@@ -50,7 +50,9 @@ function isHeadersRecord(
  */
 export function extractSessionId(req: RequestLike): string | null {
   // Try cookie first (preferred for server actions)
-  const sessionIdFromCookie = req.cookies?.["session-id"];
+  // Check both "session-id" (hyphen) and "session_id" (underscore) for compatibility
+  const sessionIdFromCookie =
+    req.cookies?.["session-id"] || req.cookies?.session_id;
   if (sessionIdFromCookie) {
     return sessionIdFromCookie;
   }

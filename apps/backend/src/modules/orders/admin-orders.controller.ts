@@ -502,6 +502,7 @@ export class AdminOrdersController {
       orderId,
       createRefundDto.amount,
       createRefundDto.reason,
+      { refundToWallet: createRefundDto.refundToWallet },
     )) as unknown as RefundResponseDto;
   }
 

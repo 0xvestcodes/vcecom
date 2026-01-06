@@ -57,6 +57,7 @@ import {
   BundleCartItemMetadata,
   FlattenedBundleItemMetadata,
 } from "./dto/bundle-cart-item.dto";
+import { CartActivityService } from "./services/cart-activity.service";
 
 @Injectable()
 export class CartsService {
@@ -74,6 +75,7 @@ export class CartsService {
     private readonly staleMarkerStore: StaleMarkerStore,
     private readonly productEnrichmentService: ProductEnrichmentService,
     private readonly priceResolutionService: PriceResolutionService,
+    private readonly cartActivityService: CartActivityService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
@@ -119,6 +121,7 @@ export class CartsService {
             .values({
               customerId,
               expiresAt,
+              currency: "INR", // Default currency, can be updated later
             })
             .returning();
           cart = cartResult[0];
@@ -170,6 +173,7 @@ export class CartsService {
             .values({
               sessionId,
               expiresAt,
+              currency: "INR", // Default currency, can be updated later
             })
             .returning();
           cart = cartResult[0];
@@ -1925,6 +1929,20 @@ export class CartsService {
     // Recalculate totals
     await this.recalculateCartTotals(cart.id, customerId);
 
+    // Track activity
+    await this.cartActivityService.trackActivity({
+      cartId: cart.id,
+      customerId,
+      sessionId,
+      activityType: "quantity_updated",
+      metadata: {
+        itemId,
+        productVariantId: item.productVariantId,
+        oldQuantity: item.quantity,
+        newQuantity: updateDto.quantity,
+      },
+    });
+
     const cartResponse = await this.getCart(userId, sessionId);
 
     // Return cart with warning metadata if applicable
@@ -2044,6 +2062,18 @@ export class CartsService {
 
     // Recalculate totals
     await this.recalculateCartTotals(cart.id, customerId);
+
+    // Track activity
+    await this.cartActivityService.trackActivity({
+      cartId: cart.id,
+      customerId,
+      sessionId,
+      activityType: "item_removed",
+      metadata: {
+        itemId,
+        productVariantId: item.productVariantId,
+      },
+    });
 
     return this.getCart(userId, sessionId);
   }
@@ -2460,6 +2490,17 @@ export class CartsService {
     // Recalculate totals with discount
     await this.recalculateCartTotals(cart.id, customerId);
 
+    // Track activity
+    await this.cartActivityService.trackActivity({
+      cartId: cart.id,
+      customerId,
+      sessionId,
+      activityType: "discount_applied",
+      metadata: {
+        discountCode,
+      },
+    });
+
     return this.getCart(userId, sessionId);
   }
 
@@ -2481,6 +2522,45 @@ export class CartsService {
       .where(eq(carts.id, cart.id));
 
     // Recalculate totals without discount
+    await this.recalculateCartTotals(cart.id, customerId);
+
+    // Track activity
+    await this.cartActivityService.trackActivity({
+      cartId: cart.id,
+      customerId,
+      sessionId,
+      activityType: "discount_removed",
+      metadata: {},
+    });
+
+    return this.getCart(userId, sessionId);
+  }
+
+  /**
+   * Update cart currency
+   */
+  async updateCurrency(
+    userId: string | null,
+    sessionId: string | null,
+    currency: string,
+  ) {
+    let customerId: string | null = null;
+    if (userId) {
+      customerId = await this.getCustomerId(userId);
+    }
+
+    const cart = await this.getOrCreateCart(customerId, sessionId);
+
+    // Update cart currency
+    await this.db
+      .update(carts)
+      .set({
+        currency,
+        updatedAt: new Date(),
+      })
+      .where(eq(carts.id, cart.id));
+
+    // Recalculate totals with new currency
     await this.recalculateCartTotals(cart.id, customerId);
 
     return this.getCart(userId, sessionId);

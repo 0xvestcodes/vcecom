@@ -1,9 +1,11 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
+import { EventsModule } from "../events/events.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { PricingModule } from "../pricing/pricing.module";
 import { RedisStoreModule } from "../redis-store/redis-store.module";
 import { ReviewsModule } from "../reviews/reviews.module";
+import { SearchModule } from "../search/search.module";
 import { StorageModule } from "../storage/storage.module";
 import { AdminProductsController } from "./admin-products.controller";
 import { MediaHealthController } from "./controllers/media-health.controller";
@@ -26,7 +28,9 @@ import { VariantsService } from "./variants.service";
     RedisStoreModule,
     NotificationsModule,
     PricingModule,
+    EventsModule,
     forwardRef(() => ReviewsModule),
+    forwardRef(() => SearchModule),
   ],
   controllers: [
     ProductsController,

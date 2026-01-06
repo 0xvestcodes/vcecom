@@ -24,6 +24,7 @@ export interface PaymentMethodChargeConfig {
   codDisallowDigital: boolean;
   codDisallowPreorder: boolean;
   active: boolean;
+  storeLevelDisabled: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +43,7 @@ export interface CreatePaymentChargeInput {
   codDisallowDigital?: boolean;
   codDisallowPreorder?: boolean;
   active?: boolean;
+  storeLevelDisabled?: boolean;
 }
 
 export interface UpdatePaymentChargeInput {
@@ -57,6 +59,7 @@ export interface UpdatePaymentChargeInput {
   codDisallowDigital?: boolean;
   codDisallowPreorder?: boolean;
   active?: boolean;
+  storeLevelDisabled?: boolean;
 }
 
 export interface PaymentFeePreview {

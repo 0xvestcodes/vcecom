@@ -13,10 +13,12 @@ import {
 } from "drizzle-orm/pg-core";
 import { addresses } from "./addresses";
 import { customers } from "./customers";
+import { fraudRiskScores } from "./fraud-risk-scores";
 import { orderItems } from "./order-items";
 import { orderNotes } from "./order-notes";
 import { payments } from "./payments";
 import { refunds } from "./refunds";
+import { returnRequests } from "./return-requests";
 import { shipments } from "./shipments";
 
 export const orderStatusEnum = pgEnum("order_status", [
@@ -62,6 +64,11 @@ export const orders = pgTable(
      * Stores the currency in which the payment fee was calculated
      */
     paymentFeeCurrency: text("payment_fee_currency").notNull().default("INR"),
+    /**
+     * Order currency (immutable after order creation)
+     * Stores the currency in which the order was placed
+     */
+    currency: text("currency").notNull().default("INR"),
     total: real("total").notNull().default(0),
     razorpayOrderId: text("razorpay_order_id").unique(),
     cashfreeOrderId: text("cashfree_order_id").unique(),
@@ -88,6 +95,10 @@ export const orders = pgTable(
     archived: boolean("archived").notNull().default(false),
     archivedAt: timestamp("archived_at"),
     archivedBy: uuid("archived_by").references(() => customers.id),
+    fraudRiskScoreId: uuid("fraud_risk_score_id").references(
+      () => fraudRiskScores.id,
+      { onDelete: "set null" },
+    ),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
@@ -112,6 +123,9 @@ export const orders = pgTable(
       table.paymentMethod,
     ),
     archivedIdx: index("orders_archived_idx").on(table.archived),
+    fraudRiskScoreIdIdx: index("orders_fraud_risk_score_id_idx").on(
+      table.fraudRiskScoreId,
+    ),
   }),
 );
 
@@ -135,6 +149,11 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   shipments: many(shipments),
   notes: many(orderNotes),
   refunds: many(refunds),
+  returnRequests: many(returnRequests),
+  fraudRiskScore: one(fraudRiskScores, {
+    fields: [orders.fraudRiskScoreId],
+    references: [fraudRiskScores.id],
+  }),
 }));
 
 export type Order = typeof orders.$inferSelect;

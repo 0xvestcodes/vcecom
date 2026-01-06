@@ -1,5 +1,7 @@
 import { Global, Module } from "@nestjs/common";
 import { AppConfigService } from "./app.config.service";
+import { EnvOverrideService } from "./env-override.service";
+import { SandboxConfigService } from "./sandbox.config";
 
 /**
  * Global configuration module
@@ -8,7 +10,7 @@ import { AppConfigService } from "./app.config.service";
  */
 @Global()
 @Module({
-  providers: [AppConfigService],
-  exports: [AppConfigService],
+  providers: [AppConfigService, SandboxConfigService, EnvOverrideService],
+  exports: [AppConfigService, SandboxConfigService, EnvOverrideService],
 })
 export class ConfigModule {}

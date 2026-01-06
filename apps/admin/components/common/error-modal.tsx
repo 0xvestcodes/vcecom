@@ -100,6 +100,13 @@ export function ErrorModal({
           </div>
         )}
 
+        <div className="py-2">
+          <p className="text-sm text-muted-foreground">
+            The team at Vestcodes has been informed and is working to resolve
+            this issue.
+          </p>
+        </div>
+
         <DialogFooter>
           <div className="flex gap-2 w-full sm:w-auto">
             {onRetry && (

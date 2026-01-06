@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
+import { Logo } from "@/components/common/logo";
 import {
   Popover,
   PopoverContent,
@@ -261,11 +262,19 @@ export function Sidebar({ className }: SidebarProps) {
         <div className="flex h-full flex-col">
           {/* Header */}
           <div className="flex h-16 items-center justify-between border-b border-border/50 px-4">
-            {!isCollapsed && (
-              <Link href="/" className="text-sm font-semibold tracking-tight">
-                VCEcom Admin
-              </Link>
-            )}
+            <Link
+              href="/"
+              className={cn(
+                "flex items-center",
+                isCollapsed && "justify-center w-full",
+              )}
+            >
+              {isCollapsed ? (
+                <Logo width={32} height={32} showText={false} />
+              ) : (
+                <Logo width={120} height={28} />
+              )}
+            </Link>
             <button
               type="button"
               onClick={() => setIsMobileOpen(false)}

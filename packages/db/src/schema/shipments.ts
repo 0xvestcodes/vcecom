@@ -8,6 +8,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { orders } from "./orders";
+import { stores } from "./stores";
 
 export const shipmentStatusEnum = pgEnum("shipment_status", [
   "pending",
@@ -25,6 +26,9 @@ export const shipments = pgTable(
   "shipments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    storeId: uuid("store_id").references(() => stores.id, {
+      onDelete: "cascade",
+    }),
     orderId: uuid("order_id")
       .notNull()
       .references(() => orders.id, { onDelete: "restrict" }),
@@ -37,6 +41,7 @@ export const shipments = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
+    storeIdIdx: index("shipments_store_id_idx").on(table.storeId),
     orderIdIdx: index("shipments_order_id_idx").on(table.orderId),
     trackingNumberIdx: index("shipments_tracking_number_idx").on(
       table.trackingNumber,
@@ -48,6 +53,10 @@ export const shipments = pgTable(
 );
 
 export const shipmentsRelations = relations(shipments, ({ one }) => ({
+  store: one(stores, {
+    fields: [shipments.storeId],
+    references: [stores.id],
+  }),
   order: one(orders, {
     fields: [shipments.orderId],
     references: [orders.id],

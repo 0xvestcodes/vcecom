@@ -155,6 +155,16 @@ export class PaymentChargeService {
         ),
       );
 
+    this.logger.info(
+      {
+        currency,
+        cartTotal,
+        configsFound: chargeConfigs.length,
+        configMethods: chargeConfigs.map((c) => c.method),
+      },
+      "Fetched payment method charge configs",
+    );
+
     // If no configs for currency, fallback to INR
     if (chargeConfigs.length === 0 && currency !== "INR") {
       return this.getAvailableMethods(cartTotal, "INR", cartItems, context);
@@ -165,9 +175,25 @@ export class PaymentChargeService {
     for (const config of chargeConfigs) {
       // Check order value restrictions (min/max)
       if (config.minOrderValue !== null && cartTotal < config.minOrderValue) {
+        this.logger.info(
+          {
+            method: config.method,
+            cartTotal,
+            minOrderValue: config.minOrderValue,
+          },
+          "Skipping payment method due to min order value restriction",
+        );
         continue; // Skip method if below minimum
       }
       if (config.maxOrderValue !== null && cartTotal > config.maxOrderValue) {
+        this.logger.info(
+          {
+            method: config.method,
+            cartTotal,
+            maxOrderValue: config.maxOrderValue,
+          },
+          "Skipping payment method due to max order value restriction",
+        );
         continue; // Skip method if above maximum
       }
 
@@ -240,6 +266,20 @@ export class PaymentChargeService {
         unavailableReason,
       });
     }
+
+    this.logger.info(
+      {
+        currency,
+        cartTotal,
+        methodsReturned: methods.length,
+        methods: methods.map((m) => ({
+          method: m.method,
+          available: m.available,
+          unavailableReason: m.unavailableReason,
+        })),
+      },
+      "Returning payment methods",
+    );
 
     return methods;
   }

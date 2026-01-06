@@ -30,8 +30,8 @@ build
 *~
 .DS_Store
 
-# Git
-.git
+# Git (keeping .git for build-info generation, but excluding other git files)
+# .git - NOT excluded, needed for build-info generation
 .gitignore
 .gitattributes
 

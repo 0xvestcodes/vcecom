@@ -9,6 +9,7 @@ export const adminSessions = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     refreshTokenHash: text("refresh_token_hash").notNull().unique(),
+    signature: text("signature"), // HMAC signature for tamper detection
     deviceId: text("device_id").notNull(),
     userAgent: text("user_agent"),
     ipAddress: text("ip_address"),

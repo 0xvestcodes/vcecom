@@ -18,13 +18,16 @@ import {
 import { Trace } from "../../../../common/tracing/trace.decorator";
 import type { Database } from "../../../../modules/database/db";
 import { CartsService } from "../../../carts/carts.service";
+import { AbandonedCartRecoveryService } from "../../../carts/services/abandoned-cart-recovery.service";
 import { DB_TOKEN } from "../../../database/database.module";
 import {
   OrderCreatedEventPayload,
   OrderPaymentCompletedEventPayload,
 } from "../../../events/order-events.types";
+import { FraudDetectionService } from "../../../fraud-detection/fraud-detection.service";
 import { PaymentFeeBreakdownDto } from "../../../payments/dto/payment-charge.dto";
 import { CheckoutState } from "../../../redis-store/constants/checkout-states";
+import { LoyaltyService } from "../../../wallet/services/loyalty.service";
 import { OrderResponseDto } from "../../dto/order-response.dto";
 import { OrderCalculationService } from "../calculation/order-calculation.service";
 import { OrderTotalsCalculationService } from "../calculation/order-totals-calculation.service";
@@ -58,6 +61,7 @@ export class OrderPaymentFinalizationService {
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
     private readonly cartsService: CartsService,
+    private readonly abandonedCartRecoveryService: AbandonedCartRecoveryService,
     private readonly inventoryService: OrderInventoryService,
     private readonly checkoutSessionService: OrderCheckoutSessionService,
     private readonly validationService: OrderValidationService,
@@ -79,7 +83,9 @@ export class OrderPaymentFinalizationService {
     private readonly eventOrchestrationService: OrderEventOrchestrationService,
     private readonly responseBuilderService: OrderResponseBuilderService,
     private readonly idempotencyService: OrderIdempotencyService,
+    private readonly fraudDetectionService: FraudDetectionService,
     @Inject(DB_TOKEN) private readonly db: Database,
+    private readonly loyaltyService?: LoyaltyService,
   ) {}
 
   /**
@@ -281,6 +287,35 @@ export class OrderPaymentFinalizationService {
       orderId = persistedOrder.id;
       orderNumber = persistedOrder.orderNumber;
 
+      // Perform fraud detection check
+      const fraudResult = await this.fraudDetectionService.performFraudCheck(
+        orderId,
+        customerId,
+        metadata.email || "",
+        metadata.phone || "",
+        metadata.shippingAddressId,
+        metadata.billingAddressId,
+        total,
+        paymentMethod || "razorpay",
+      );
+
+      // Log fraud check result
+      if (fraudResult.flagged) {
+        this.logger.warn(
+          createLogContext(
+            this.contextService,
+            "finalizeOrderFromPayment.fraudCheck",
+            {
+              orderId,
+              orderNumber,
+              riskScore: fraudResult.riskScore.score,
+              riskLevel: fraudResult.riskScore.riskLevel,
+            },
+          ),
+          fraudResult.message,
+        );
+      }
+
       // Fetch order items for response
       const _insertedOrderItems = await this.db
         .select()
@@ -377,6 +412,23 @@ export class OrderPaymentFinalizationService {
       discountAmount,
       metadata.userId,
     );
+
+    // Earn loyalty points for completed order
+    if (this.loyaltyService) {
+      try {
+        await this.loyaltyService.earnPoints(customerId, total, orderId);
+      } catch (error) {
+        // Log error but don't fail order creation
+        this.logger.error(
+          createErrorContext(this.contextService, "earnPoints", error, {
+            orderId,
+            customerId,
+            total,
+          }),
+          "Failed to earn loyalty points for order",
+        );
+      }
+    }
 
     // Prepare variant items with pricing snapshots
     const variantItemsWithPricing =
@@ -492,6 +544,12 @@ export class OrderPaymentFinalizationService {
         provider,
       },
     } as OrderPaymentCompletedEventPayload);
+
+    // Mark abandoned cart as recovered if applicable
+    await this.abandonedCartRecoveryService.markAsRecovered(
+      session.cartId,
+      orderId,
+    );
 
     return orderResponse;
   }

@@ -6,11 +6,14 @@ import { CartsModule } from "../carts/carts.module";
 import { CustomersModule } from "../customers/customers.module";
 import { DiscountsModule } from "../discounts/discounts.module";
 import { EventsModule } from "../events/events.module";
+import { FraudDetectionModule } from "../fraud-detection/fraud-detection.module";
 import { NotificationsModule } from "../notifications/notifications.module";
 import { PaymentsModule } from "../payments/payments.module";
 import { PricingModule } from "../pricing/pricing.module";
 import { ProductsModule } from "../products/products.module";
 import { RedisStoreModule } from "../redis-store/redis-store.module";
+import { TaxModule } from "../tax/tax.module";
+import { WalletModule } from "../wallet/wallet.module";
 import { InventoryReconciliationJob } from "./jobs/inventory-reconciliation.job";
 import { OrdersController } from "./orders.controller";
 import { OrdersService } from "./orders.service";
@@ -67,16 +70,19 @@ import { OrderValidationService } from "./services/validation/order-validation.s
   imports: [
     MetricsModule.forRoot(),
     AuditLogModule,
-    CartsModule,
+    forwardRef(() => CartsModule),
     BundlesModule,
     DiscountsModule,
     PricingModule,
+    TaxModule,
     ProductsModule,
     RedisStoreModule,
-    CustomersModule,
+    forwardRef(() => CustomersModule),
     NotificationsModule,
     EventsModule,
+    FraudDetectionModule,
     forwardRef(() => PaymentsModule),
+    WalletModule,
   ],
   controllers: [OrdersController],
   providers: [

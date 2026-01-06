@@ -10,11 +10,15 @@ import {
 } from "drizzle-orm/pg-core";
 import { orders } from "./orders";
 import { productVariants } from "./product-variants";
+import { stores } from "./stores";
 
 export const orderItems = pgTable(
   "order_items",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    storeId: uuid("store_id").references(() => stores.id, {
+      onDelete: "cascade",
+    }),
     orderId: uuid("order_id")
       .notNull()
       .references(() => orders.id, { onDelete: "cascade" }),
@@ -30,6 +34,7 @@ export const orderItems = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
+    storeIdIdx: index("order_items_store_id_idx").on(table.storeId),
     orderIdIdx: index("order_items_order_id_idx").on(table.orderId),
     productVariantIdIdx: index("order_items_product_variant_id_idx").on(
       table.productVariantId,
@@ -38,6 +43,10 @@ export const orderItems = pgTable(
 );
 
 export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+  store: one(stores, {
+    fields: [orderItems.storeId],
+    references: [stores.id],
+  }),
   order: one(orders, {
     fields: [orderItems.orderId],
     references: [orders.id],

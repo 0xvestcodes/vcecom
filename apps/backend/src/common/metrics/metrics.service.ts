@@ -22,6 +22,17 @@ export class MetricsService implements OnModuleInit {
   public readonly codOrderRatio: Gauge<string>;
   public readonly paymentGatewayOrderRatio: Gauge<string>;
 
+  // Search metrics
+  public readonly searchQueryDuration: Histogram<string>;
+  public readonly searchQueryTotal: Counter<string>;
+  public readonly searchQueryFailedTotal: Counter<string>;
+  public readonly indexingDuration: Histogram<string>;
+  public readonly indexingSuccessTotal: Counter<string>;
+  public readonly indexingFailedTotal: Counter<string>;
+  public readonly reindexDuration: Histogram<string>;
+  public readonly searchIndexSize: Gauge<string>;
+  public readonly searchIndexFreshness: Gauge<string>;
+
   constructor() {
     this.register = new Registry();
     collectDefaultMetrics({ register: this.register });
@@ -95,6 +106,76 @@ export class MetricsService implements OnModuleInit {
       registers: [this.register],
     });
 
+    // Search query metrics
+    this.searchQueryDuration = new Histogram({
+      name: "search_query_duration_seconds",
+      help: "Duration of search queries in seconds",
+      labelNames: ["index", "provider"],
+      buckets: [0.01, 0.05, 0.1, 0.5, 1, 2, 5],
+      registers: [this.register],
+    });
+
+    this.searchQueryTotal = new Counter({
+      name: "search_queries_total",
+      help: "Total number of search queries",
+      labelNames: ["index", "provider"],
+      registers: [this.register],
+    });
+
+    this.searchQueryFailedTotal = new Counter({
+      name: "search_queries_failed_total",
+      help: "Total number of failed search queries",
+      labelNames: ["index", "provider", "error_type"],
+      registers: [this.register],
+    });
+
+    // Indexing metrics
+    this.indexingDuration = new Histogram({
+      name: "search_indexing_duration_seconds",
+      help: "Duration of indexing operations in seconds",
+      labelNames: ["index", "operation"],
+      buckets: [0.1, 0.5, 1, 2, 5, 10, 30, 60],
+      registers: [this.register],
+    });
+
+    this.indexingSuccessTotal = new Counter({
+      name: "search_indexing_success_total",
+      help: "Total number of successful indexing operations",
+      labelNames: ["index", "operation"],
+      registers: [this.register],
+    });
+
+    this.indexingFailedTotal = new Counter({
+      name: "search_indexing_failed_total",
+      help: "Total number of failed indexing operations",
+      labelNames: ["index", "operation", "error_type"],
+      registers: [this.register],
+    });
+
+    // Reindex metrics
+    this.reindexDuration = new Histogram({
+      name: "search_reindex_duration_seconds",
+      help: "Duration of reindex operations in seconds",
+      labelNames: ["entity_type"],
+      buckets: [10, 30, 60, 300, 600, 1800, 3600],
+      registers: [this.register],
+    });
+
+    // Index size and freshness
+    this.searchIndexSize = new Gauge({
+      name: "search_index_size_bytes",
+      help: "Size of search indexes in bytes",
+      labelNames: ["index"],
+      registers: [this.register],
+    });
+
+    this.searchIndexFreshness = new Gauge({
+      name: "search_index_freshness_seconds",
+      help: "Time since last index update in seconds",
+      labelNames: ["index"],
+      registers: [this.register],
+    });
+
     this.register.registerMetric(this.orderCreatedTotal);
     this.register.registerMetric(this.orderCreatedFailedTotal);
     this.register.registerMetric(this.paymentIntentCreatedTotal);
@@ -104,6 +185,15 @@ export class MetricsService implements OnModuleInit {
     this.register.registerMetric(this.orderFinalizationDuration);
     this.register.registerMetric(this.codOrderRatio);
     this.register.registerMetric(this.paymentGatewayOrderRatio);
+    this.register.registerMetric(this.searchQueryDuration);
+    this.register.registerMetric(this.searchQueryTotal);
+    this.register.registerMetric(this.searchQueryFailedTotal);
+    this.register.registerMetric(this.indexingDuration);
+    this.register.registerMetric(this.indexingSuccessTotal);
+    this.register.registerMetric(this.indexingFailedTotal);
+    this.register.registerMetric(this.reindexDuration);
+    this.register.registerMetric(this.searchIndexSize);
+    this.register.registerMetric(this.searchIndexFreshness);
   }
 
   onModuleInit() {

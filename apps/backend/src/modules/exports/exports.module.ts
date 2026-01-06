@@ -11,5 +11,6 @@ import { ZipGenerator } from "./generators/zip.generator";
   imports: [StorageModule, RedisStoreModule],
   controllers: [ExportsController],
   providers: [ExportsService, CsvGenerator, PdfGenerator, ZipGenerator],
+  exports: [ExportsService, CsvGenerator, PdfGenerator, ZipGenerator],
 })
 export class ExportsModule {}

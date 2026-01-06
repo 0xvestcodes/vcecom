@@ -5,6 +5,8 @@ import { OrdersModule } from "../orders/orders.module";
 import { PaymentsModule } from "../payments/payments.module";
 import { RedisStoreModule } from "../redis-store/redis-store.module";
 import { ShippingModule } from "../shipping/shipping.module";
+import { StoresModule } from "../stores/stores.module";
+import { WalletModule } from "../wallet/wallet.module";
 import { CheckoutController } from "./checkout.controller";
 import { CheckoutService } from "./checkout.service";
 
@@ -15,6 +17,8 @@ import { CheckoutService } from "./checkout.service";
     RedisStoreModule,
     ShippingModule,
     CustomersModule,
+    StoresModule,
+    WalletModule,
     forwardRef(() => OrdersModule),
   ],
   controllers: [CheckoutController],

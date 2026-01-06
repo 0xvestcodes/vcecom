@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from "@nestjs/common";
 import { cartItems, eq, inArray, products, productVariants } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../../../common/logging/context.service";
+import { createLogContext } from "../../../../common/logging/logging.helper";
 import { Trace } from "../../../../common/tracing/trace.decorator";
 import type { Database } from "../../../../modules/database/db";
 import { CartsService } from "../../../carts/carts.service";
@@ -30,8 +31,21 @@ export class OrderCartDataService {
     discountCode?: string | null;
   }> {
     const cart = await this.cartsService.getCartById(cartId);
-    if (!cart || !cart.items || cart.items.length === 0) {
-      throw new BadRequestException("Cart is empty or not found");
+    if (!cart) {
+      throw new BadRequestException("Cart not found");
+    }
+    // Defensive check: ensure items array exists and is not empty
+    if (!cart.items || !Array.isArray(cart.items) || cart.items.length === 0) {
+      this._logger.error(
+        createLogContext(this._contextService, "getCartForOrder", {
+          cartId,
+          hasItems: !!cart.items,
+          itemsType: typeof cart.items,
+          itemsLength: cart.items?.length,
+        }),
+        "Cart items are missing or empty",
+      );
+      throw new BadRequestException("Cart is empty or items are missing");
     }
     return cart;
   }

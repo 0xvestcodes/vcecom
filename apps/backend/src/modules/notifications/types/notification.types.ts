@@ -5,6 +5,8 @@ export enum NotificationType {
   SHIPPING = "SHIPPING",
   PAYMENT = "PAYMENT",
   SYSTEM = "SYSTEM",
+  FRAUD = "FRAUD",
+  SECURITY = "SECURITY",
 }
 
 export interface NotificationEventPayload {

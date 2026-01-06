@@ -9,7 +9,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-export const entityTypeEnum = pgEnum("entity_type", [
+export const routeRegistryEntityTypeEnum = pgEnum("entity_type", [
   "product",
   "collection",
   "cms_page",
@@ -20,7 +20,7 @@ export const routeRegistry = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     slug: text("slug").notNull(), // Actual slug value, e.g., "my-product-slug"
-    entityType: entityTypeEnum("entity_type").notNull(),
+    entityType: routeRegistryEntityTypeEnum("entity_type").notNull(),
     entityId: uuid("entity_id").notNull(), // UUID reference to product/collection/entry
     pattern: text("pattern").notNull(), // e.g., "/products/[slug]"
     redirectTo: text("redirect_to"), // New slug if this is a fallback redirect

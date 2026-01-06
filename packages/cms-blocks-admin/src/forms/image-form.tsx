@@ -244,7 +244,8 @@ export function ImageForm({
  */
 export function createImageForm(defaultValues?: ImageFormData) {
   return useForm<ImageFormData>({
-    resolver: zodResolver(imageBlock.propsSchema as any) as any,
+    // biome-ignore lint/suspicious/noExplicitAny: zodResolver type compatibility
+    resolver: zodResolver(imageBlock.propsSchema as any),
     defaultValues: defaultValues || imageBlock.defaultProps,
   });
 }

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { forwardRef, Inject, Injectable } from "@nestjs/common";
 import { customers, eq, products, productVariants } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import {
@@ -12,10 +12,12 @@ import {
 } from "../../../common/logging/logging.helper";
 import { DB_TOKEN } from "../../../modules/database/database.module";
 import type { Database } from "../../../modules/database/db";
+import { RegionPricingService } from "../../geolocation/region-pricing.service";
 import { ResolvedPriceDto } from "../dto/resolved-price.dto";
 import { runPricingEngine } from "../engine/pricing-engine";
 import type {
   PriceList,
+  RegionPricingRule,
   VariantPricingInput,
 } from "../engine/pricing-engine.types";
 import { CustomerGroupService } from "./customer-group.service";
@@ -45,6 +47,8 @@ export class PriceResolutionService {
     private readonly customerGroupService: CustomerGroupService,
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    @Inject(forwardRef(() => RegionPricingService))
+    private readonly regionPricingService?: RegionPricingService,
   ) {
     // Clean up expired cache entries every minute
     setInterval(() => this.cleanupCache(), 60 * 1000);
@@ -136,6 +140,26 @@ export class PriceResolutionService {
         saleEndDate: variantData.saleEndDate || undefined,
       };
 
+      // Get region pricing rules if location is available
+      let regionPricingRules: RegionPricingRule[] = [];
+      const location = this.contextService.getValue("location");
+      if (location && this.regionPricingService) {
+        try {
+          const rules = await this.regionPricingService.getApplicableRules(
+            location,
+            variantData.variantId,
+            variantData.productId,
+            variantData.categoryId,
+          );
+          regionPricingRules = rules;
+        } catch (error) {
+          // Log but don't fail - region pricing is optional
+          this.logger.debug(
+            `Failed to fetch region pricing rules: ${error instanceof Error ? error.message : "Unknown error"}`,
+          );
+        }
+      }
+
       const engineInput = {
         variants: [variantInput],
         customer: customerId
@@ -145,6 +169,8 @@ export class PriceResolutionService {
             }
           : null,
         priceLists: this.convertPriceListsForEngine(priceLists),
+        regionPricingRules:
+          regionPricingRules.length > 0 ? regionPricingRules : undefined,
         now: date,
       };
 

@@ -36,13 +36,21 @@ RUN turbo prune --scope=@vestcodes/vcecom-backend --docker
 FROM base AS installer
 WORKDIR /usr/src/app
 
-# Set Node.js memory limits to prevent OOM on resource-constrained systems
-# 2048MB should work on 2GB+ instances, increase if you have more RAM
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+# Install Git for build-info generation
+RUN apk add --no-cache git
+
+# Configure Node.js memory limits via build argument
+# Default: 2048MB (works on 2GB+ instances, increase if you have more RAM)
+# Override with: docker build --build-arg NODE_MEMORY_LIMIT=4096
+ARG NODE_MEMORY_LIMIT=2048
+ENV NODE_OPTIONS="--max-old-space-size=${NODE_MEMORY_LIMIT}"
 # Don't set NODE_ENV=production here - we need devDependencies for building
 
 # Copy workspace configuration files
 COPY .gitignore .gitignore
+# Copy .git directory for build-info generation
+# Note: .git must be included in build context (removed from .dockerignore)
+COPY --from=builder /usr/src/app/.git ./.git
 COPY --from=builder /usr/src/app/out/json/ .
 COPY --from=builder /usr/src/app/out/pnpm-lock.yaml ./pnpm-lock.yaml
 COPY --from=builder /usr/src/app/out/pnpm-workspace.yaml ./pnpm-workspace.yaml
@@ -51,9 +59,10 @@ COPY --from=builder /usr/src/app/out/full/ .
 # Remove prepare script before installing to avoid husky dependency issue
 RUN node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json')); delete pkg.scripts.prepare; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
 
-# Install dependencies with frozen lockfile for reproducible builds
-# Install all dependencies (including devDependencies) needed for building
-RUN pnpm install --frozen-lockfile
+# Install dependencies - use --no-frozen-lockfile to fix pruned lockfile issues
+# turbo prune may create incomplete lockfiles missing some transitive dependencies
+# This ensures all required dependencies are installed correctly
+RUN pnpm install --no-frozen-lockfile
 
 # Copy turbo.json for build orchestration
 COPY turbo.json turbo.json
@@ -64,9 +73,9 @@ RUN echo "Building database package..." && \
     echo "Database package built successfully"
 
 # Build the backend application
-# Use explicit memory limits and add progress output to debug hanging
+# Use configured memory limits and add progress output to debug hanging
 RUN echo "Starting backend build..." && \
-    NODE_OPTIONS="--max-old-space-size=2048" turbo run build --filter=@vestcodes/vcecom-backend... && \
+    turbo run build --filter=@vestcodes/vcecom-backend... && \
     echo "Backend build completed successfully"
 
 # ============================================================================
@@ -102,9 +111,11 @@ COPY --from=installer --chown=nodejs:nodejs /usr/src/app/apps/backend/package.js
 RUN node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json')); delete pkg.scripts.prepare; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
 
 # Install only production dependencies
+# Use --no-frozen-lockfile to fix pruned lockfile issues (same as installer stage)
+# turbo prune may create incomplete lockfiles missing some transitive dependencies
 # This will create symlinks in node_modules/@vcecom/db pointing to packages/db
 # The db package dist is already copied above, so the symlink will work correctly
-RUN pnpm install --frozen-lockfile --prod && \
+RUN pnpm install --no-frozen-lockfile --prod && \
     chown -R nodejs:nodejs /usr/src/app
 
 # Copy backend built application (after dependencies are installed)

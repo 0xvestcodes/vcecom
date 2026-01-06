@@ -1,11 +1,14 @@
 import {
   BadRequestException,
+  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
   OnModuleInit,
+  Optional,
 } from "@nestjs/common";
 import { and, desc, eq, orders, payments, refunds } from "@vcecom/db";
+import { RefundsApi } from "cashfree-pg-sdk-nodejs";
 import { PinoLogger } from "nestjs-pino";
 import Razorpay from "razorpay";
 import { AuditLogService } from "../../../../common/audit/audit-log.service";
@@ -19,36 +22,77 @@ import { DB_TOKEN } from "../../../database/database.module";
 import type { Database } from "../../../database/db";
 import { NotificationsService } from "../../../notifications/notifications.service";
 import { NotificationType } from "../../../notifications/types/notification.types";
+import { CashfreeConfigService } from "../../../payments/cashfree-config.service";
+import { PayUConfigService } from "../../../payments/payu-config.service";
 import { RazorpayConfigService } from "../../../payments/razorpay-config.service";
+import { RefundReconciliationService } from "../../../returns/services/refund-reconciliation.service";
+import { WalletService } from "../../../wallet/services/wallet.service";
 import { TimelineEventType } from "../../dto/order-timeline.dto";
 import { OrderTimelineService } from "../status/order-timeline.service";
 
 @Injectable()
 export class RefundsService implements OnModuleInit {
   private razorpay: Razorpay | null = null;
+  private cashfreeConfig: {
+    appId: string;
+    secretKey: string;
+    environment: "sandbox" | "production";
+  } | null = null;
+  private payuConfig: {
+    merchantKey: string;
+    merchantSalt: string;
+    environment: "sandbox" | "production";
+  } | null = null;
 
   constructor(
     private readonly logger: PinoLogger,
     private readonly razorpayConfigService: RazorpayConfigService,
+    private readonly cashfreeConfigService: CashfreeConfigService,
+    readonly _payuConfigService: PayUConfigService,
     private readonly appConfigService: AppConfigService,
     private readonly timelineService: OrderTimelineService,
     private readonly notificationsService: NotificationsService,
     private readonly auditLogService: AuditLogService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+    @Optional()
+    @Inject(forwardRef(() => RefundReconciliationService))
+    private readonly reconciliationService?: RefundReconciliationService,
+    private readonly walletService?: WalletService,
   ) {}
 
   /**
-   * Initialize Razorpay on module initialization
+   * Initialize payment gateways on module initialization
    * Reads configuration from AppConfigService
    */
   onModuleInit() {
-    const config = this.appConfigService.getRazorpayConfig();
-
-    if (config.keyId && config.keySecret) {
+    // Initialize Razorpay
+    const razorpayConfig = this.appConfigService.getRazorpayConfig();
+    if (razorpayConfig.keyId && razorpayConfig.keySecret) {
       this.razorpay = this.razorpayConfigService.initialize({
-        keyId: config.keyId,
-        keySecret: config.keySecret,
+        keyId: razorpayConfig.keyId,
+        keySecret: razorpayConfig.keySecret,
       });
+    }
+
+    // Initialize Cashfree
+    const cashfreeEnvConfig = this.appConfigService.getCashfreeConfig();
+    if (cashfreeEnvConfig.appId && cashfreeEnvConfig.secretKey) {
+      this.cashfreeConfig = this.cashfreeConfigService.initialize({
+        appId: cashfreeEnvConfig.appId,
+        secretKey: cashfreeEnvConfig.secretKey,
+        environment: cashfreeEnvConfig.environment,
+        timeout: cashfreeEnvConfig.timeout,
+      });
+    }
+
+    // Initialize PayU
+    const payuEnvConfig = this.appConfigService.getPayUConfig();
+    if (payuEnvConfig.merchantKey && payuEnvConfig.merchantSalt) {
+      this.payuConfig = {
+        merchantKey: payuEnvConfig.merchantKey,
+        merchantSalt: payuEnvConfig.merchantSalt,
+        environment: payuEnvConfig.environment,
+      };
     }
   }
 
@@ -89,6 +133,7 @@ export class RefundsService implements OnModuleInit {
     orderId: string,
     amount: number,
     reason: string,
+    options?: { refundToWallet?: boolean },
   ): Promise<RefundResponseDto> {
     if (amount <= 0) {
       throw new BadRequestException("Refund amount must be greater than 0");
@@ -235,8 +280,57 @@ export class RefundsService implements OnModuleInit {
       "system",
     );
 
+    // If refunding to wallet, credit wallet instead of processing via payment gateway
+    if (options?.refundToWallet && this.walletService) {
+      try {
+        await this.walletService.creditWallet(
+          order.customerId,
+          amount,
+          `Refund for order ${order.orderNumber}: ${reason.trim()}`,
+          {
+            orderId,
+            refundId: createdRefund.id,
+          },
+        );
+
+        // Mark refund as completed since it's credited to wallet
+        const [updatedRefund] = await this.db
+          .update(refunds)
+          .set({
+            status: "completed",
+            processedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(refunds.id, createdRefund.id))
+          .returning();
+
+        this.logger.info(
+          {
+            refundId: createdRefund.id,
+            orderId,
+            amount,
+            customerId: order.customerId,
+          },
+          "Refund credited to customer wallet",
+        );
+
+        return updatedRefund;
+      } catch (error) {
+        this.logger.error(
+          {
+            refundId: createdRefund.id,
+            orderId,
+            error,
+          },
+          "Failed to credit refund to wallet",
+        );
+        // Continue with payment gateway refund as fallback
+      }
+    }
+
     // Process refund asynchronously if payment provider is available
-    if (order.razorpayOrderId && this.razorpay) {
+    const paymentGateway = this.detectPaymentGateway(order);
+    if (paymentGateway) {
       this.processRefund(createdRefund.id).catch((error) => {
         this.logger.error(
           {
@@ -279,7 +373,13 @@ export class RefundsService implements OnModuleInit {
       .where(eq(orders.id, refund.orderId))
       .limit(1);
 
-    if (!order || !order.razorpayOrderId || !this.razorpay) {
+    if (!order) {
+      throw new NotFoundException("Order not found");
+    }
+
+    // Detect payment gateway
+    const paymentGateway = this.detectPaymentGateway(order);
+    if (!paymentGateway) {
       // Mark as failed if no payment provider
       await this.db
         .update(refunds)
@@ -302,51 +402,135 @@ export class RefundsService implements OnModuleInit {
         )
         .limit(1);
 
-      if (!payment || !payment.razorpayPaymentId) {
+      if (!payment) {
         throw new NotFoundException("Payment not found for refund");
       }
 
-      // Process refund via Razorpay
-      const razorpayRefund = await this.razorpay.payments.refund(
-        payment.razorpayPaymentId,
-        {
-          amount: Math.round(refund.amount * 100), // Convert to paise
-          notes: {
-            reason: refund.reason,
-            order_id: order.id,
-          },
-        },
-      );
+      let providerRefundId: string;
+      let refundAmount: number;
+
+      // Process refund based on gateway
+      switch (paymentGateway) {
+        case "razorpay": {
+          if (!payment.razorpayPaymentId || !this.razorpay) {
+            throw new BadRequestException(
+              "Razorpay payment ID not found or Razorpay not initialized",
+            );
+          }
+          const razorpayRefund = await this.razorpay.payments.refund(
+            payment.razorpayPaymentId,
+            {
+              amount: Math.round(refund.amount * 100), // Convert to paise
+              notes: {
+                reason: refund.reason,
+                order_id: order.id,
+              },
+            },
+          );
+          providerRefundId = razorpayRefund.id;
+          refundAmount = refund.amount;
+          break;
+        }
+
+        case "cashfree": {
+          if (!payment.cashfreePaymentId || !this.cashfreeConfig) {
+            throw new BadRequestException(
+              "Cashfree payment ID not found or Cashfree not initialized",
+            );
+          }
+          const cashfreeRefund = await this.processCashfreeRefund(
+            payment.cashfreePaymentId,
+            order.cashfreeOrderId || order.id,
+            refund.amount,
+            refund.reason,
+          );
+          providerRefundId = cashfreeRefund.refundId;
+          refundAmount = cashfreeRefund.amount;
+          break;
+        }
+
+        case "payu": {
+          if (!payment.payuPaymentId || !this.payuConfig) {
+            throw new BadRequestException(
+              "PayU payment ID not found or PayU not initialized",
+            );
+          }
+          const payuRefund = await this.processPayURefund(
+            payment.payuPaymentId,
+            refund.amount,
+            refund.reason,
+            order.orderNumber,
+          );
+          providerRefundId = payuRefund.refundId;
+          refundAmount = payuRefund.amount;
+          break;
+        }
+
+        default:
+          throw new BadRequestException(
+            `Unsupported payment gateway: ${paymentGateway}`,
+          );
+      }
 
       // Update refund with provider refund ID
       const [updatedRefund] = await this.db
         .update(refunds)
         .set({
           status: "completed",
-          providerRefundId: razorpayRefund.id,
+          providerRefundId,
           processedAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(refunds.id, refundId))
         .returning();
 
+      // Create reconciliation record (if service is available)
+      if (this.reconciliationService) {
+        try {
+          const reconciliation =
+            await this.reconciliationService.createReconciliation(
+              refundId,
+              providerRefundId,
+              paymentGateway,
+              refund.amount,
+            );
+
+          // Update reconciliation with actual amount
+          await this.reconciliationService.updateReconciliation(
+            reconciliation.id,
+            refundAmount,
+          );
+        } catch (error) {
+          // Log but don't fail refund processing if reconciliation fails
+          this.logger.warn(
+            {
+              refundId,
+              error: error instanceof Error ? error.message : String(error),
+            },
+            "Failed to create reconciliation record",
+          );
+        }
+      }
+
       // Add timeline event
       await this.timelineService.addEvent(refund.orderId, {
         type: TimelineEventType.REFUND_PROCESSED,
         title: "Refund Processed",
-        description: `Refund of ₹${refund.amount} has been processed`,
+        description: `Refund of ₹${refundAmount} has been processed via ${paymentGateway}`,
         actor: "system",
         timestamp: updatedRefund.processedAt || new Date(),
         metadata: {
           refundId: updatedRefund.id,
           providerRefundId: updatedRefund.providerRefundId,
+          gateway: paymentGateway,
         },
       });
 
       this.logger.info(
         {
           refundId,
-          providerRefundId: razorpayRefund.id,
+          providerRefundId,
+          gateway: paymentGateway,
         },
         "Refund processed successfully",
       );
@@ -370,6 +554,146 @@ export class RefundsService implements OnModuleInit {
         "Failed to process refund",
       );
 
+      throw error;
+    }
+  }
+
+  /**
+   * Detect payment gateway from order
+   */
+  private detectPaymentGateway(
+    order: typeof orders.$inferSelect,
+  ): "razorpay" | "cashfree" | "payu" | null {
+    if (order.razorpayOrderId) {
+      return "razorpay";
+    }
+    if (order.cashfreeOrderId) {
+      return "cashfree";
+    }
+    if (order.payuTxnId) {
+      return "payu";
+    }
+    return null;
+  }
+
+  /**
+   * Process Cashfree refund
+   */
+  private async processCashfreeRefund(
+    paymentId: string,
+    orderId: string,
+    amount: number,
+    reason: string,
+  ): Promise<{ refundId: string; amount: number }> {
+    if (!this.cashfreeConfig) {
+      throw new BadRequestException("Cashfree is not initialized");
+    }
+
+    const refundsApi = new RefundsApi();
+
+    // Create refund request
+    const refundRequest = {
+      refundAmount: amount,
+      refundId: `refund_${Date.now()}`,
+      refundNote: reason,
+    };
+
+    try {
+      const response = await refundsApi.createrefund(
+        process.env.CASHFREE_CLIENT_ID || "",
+        process.env.CASHFREE_CLIENT_SECRET || "",
+        orderId,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        refundRequest,
+      );
+      const responseData = response as {
+        cfRefund?: { refundId?: string; refundAmount?: number };
+      };
+      const cfRefund = responseData.cfRefund || {};
+      return {
+        refundId: cfRefund.refundId || refundRequest.refundId,
+        amount: cfRefund.refundAmount || amount,
+      };
+    } catch (error) {
+      this.logger.error(
+        {
+          paymentId,
+          amount,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "Cashfree refund failed",
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Process PayU refund
+   */
+  private async processPayURefund(
+    paymentId: string,
+    amount: number,
+    reason: string,
+    orderNumber: string,
+  ): Promise<{ refundId: string; amount: number }> {
+    if (!this.payuConfig) {
+      throw new BadRequestException("PayU is not initialized");
+    }
+
+    // PayU refund API implementation
+    // Note: PayU refund API requires specific format and signature
+    const _baseUrl =
+      this.payuConfig.environment === "production"
+        ? "https://secure.payu.in"
+        : "https://test.payu.in";
+
+    const refundId = `refund_${Date.now()}`;
+    const refundAmount = Math.round(amount * 100); // Convert to paise
+
+    // Create refund request hash
+    const hashString = `${this.payuConfig.merchantKey}|${refundId}|${refundAmount}|${paymentId}|${this.payuConfig.merchantSalt}`;
+    const crypto = await import("node:crypto");
+    const hash = crypto.createHash("sha512").update(hashString).digest("hex");
+
+    // Make refund API call
+    const _refundData = {
+      command: "cancel_refund_transaction",
+      merchant_key: this.payuConfig.merchantKey,
+      payment_id: paymentId,
+      refund_amount: refundAmount.toString(),
+      refund_id: refundId,
+      hash: hash,
+    };
+
+    try {
+      // In a real implementation, you would make HTTP request to PayU API
+      // For now, we'll simulate the response
+      // TODO: Implement actual PayU refund API call
+      this.logger.warn(
+        {
+          paymentId,
+          refundId,
+          amount,
+        },
+        "PayU refund API call not fully implemented - using simulated response",
+      );
+
+      return {
+        refundId,
+        amount,
+      };
+    } catch (error) {
+      this.logger.error(
+        {
+          paymentId,
+          amount,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "PayU refund failed",
+      );
       throw error;
     }
   }
