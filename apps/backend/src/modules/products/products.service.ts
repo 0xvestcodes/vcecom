@@ -786,7 +786,12 @@ export class ProductsService {
 
     // Emit product updated event
     if (this.productEventsService) {
-      const storeId = this.storeContextService.getStoreId() || existing.storeId;
+      const contextStoreId = this.storeContextService.getStoreId();
+      const fallbackStoreId = existing.storeId;
+      if (!contextStoreId && !fallbackStoreId) {
+        throw new Error("Store ID is required for product events");
+      }
+      const storeId: string = (contextStoreId ?? fallbackStoreId) as string;
       const changes: Record<string, unknown> = {};
       if (updateProductDto.title !== undefined)
         changes.title = updateProductDto.title;
@@ -878,7 +883,12 @@ export class ProductsService {
 
     // Emit product deleted event before deletion
     if (this.productEventsService) {
-      const storeId = this.storeContextService.getStoreId() || existing.storeId;
+      const contextStoreId = this.storeContextService.getStoreId();
+      const fallbackStoreId = existing.storeId;
+      if (!contextStoreId && !fallbackStoreId) {
+        throw new Error("Store ID is required for product events");
+      }
+      const storeId: string = (contextStoreId ?? fallbackStoreId) as string;
       await this.productEventsService.emitProductDeleted({
         productId: existing.id,
         storeId,
