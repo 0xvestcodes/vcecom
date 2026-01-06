@@ -314,6 +314,117 @@ export function SupportPageClient() {
             </CardContent>
           </Card>
 
+          {/* ISO 9001:2015 Certification */}
+          <Card className="rounded-xl border-border/50 bg-card/50">
+            <CardHeader className="p-4">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm">ISO 9001:2015 Certified</CardTitle>
+              </div>
+              <CardDescription className="text-xs">
+                Quality management system certification
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                We are ISO 9001:2015 Certified. To request certificates, please
+                contact us at{" "}
+                <a
+                  href="mailto:compliance@vestcodes.co"
+                  className="font-medium text-foreground hover:underline"
+                >
+                  compliance@vestcodes.co
+                </a>
+                .
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="w-full justify-start text-xs"
+              >
+                <a href="mailto:compliance@vestcodes.co">
+                  <Mail className="mr-2 h-3.5 w-3.5" />
+                  Request Certificates
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* ISO 22301:2019 Certification */}
+          <Card className="rounded-xl border-border/50 bg-card/50">
+            <CardHeader className="p-4">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm">ISO 22301:2019 Certified</CardTitle>
+              </div>
+              <CardDescription className="text-xs">
+                Business continuity management certification
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                We are ISO 22301:2019 Certified. To request certificates, please
+                contact us at{" "}
+                <a
+                  href="mailto:compliance@vestcodes.co"
+                  className="font-medium text-foreground hover:underline"
+                >
+                  compliance@vestcodes.co
+                </a>
+                .
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="w-full justify-start text-xs"
+              >
+                <a href="mailto:compliance@vestcodes.co">
+                  <Mail className="mr-2 h-3.5 w-3.5" />
+                  Request Certificates
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+
+          {/* SOC 2 Type 1 Certification */}
+          <Card className="rounded-xl border-border/50 bg-card/50">
+            <CardHeader className="p-4">
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm">SOC 2 Type 1 Certified</CardTitle>
+              </div>
+              <CardDescription className="text-xs">
+                Security and compliance certification
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="p-4 pt-0 space-y-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                We are SOC 2 Type 1 Certified. To request certificates, please
+                contact us at{" "}
+                <a
+                  href="mailto:compliance@vestcodes.co"
+                  className="font-medium text-foreground hover:underline"
+                >
+                  compliance@vestcodes.co
+                </a>
+                .
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="w-full justify-start text-xs"
+              >
+                <a href="mailto:compliance@vestcodes.co">
+                  <Mail className="mr-2 h-3.5 w-3.5" />
+                  Request Certificates
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
+
           {/* License */}
           <Card className="rounded-xl border-border/50 bg-card/50">
             <CardContent className="p-4">
