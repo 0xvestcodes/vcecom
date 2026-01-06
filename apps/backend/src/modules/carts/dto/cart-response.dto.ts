@@ -151,6 +151,24 @@ export class CartDiscountDto {
 }
 
 /**
+ * Cart warning information
+ */
+export class CartWarningDto {
+  @ApiProperty({
+    description: "Warning type",
+    example: "STALE_ITEMS",
+  })
+  type: string;
+
+  @ApiProperty({
+    description: "Warning message",
+    example:
+      "2 item(s) reservation expired. Availability will be revalidated at checkout.",
+  })
+  message: string;
+}
+
+/**
  * Price summary with all calculations
  */
 export class PriceSummaryDto {
@@ -238,6 +256,12 @@ export class CartResponseDto {
   sessionId: string | null;
 
   @ApiProperty({
+    description: "Cart currency code",
+    example: "INR",
+  })
+  currency: string;
+
+  @ApiProperty({
     description: "Cart subtotal (before GST)",
     example: 1999.98,
   })
@@ -319,6 +343,12 @@ export class CartResponseDto {
     type: PriceSummaryDto,
   })
   priceSummary: PriceSummaryDto;
+
+  @ApiPropertyOptional({
+    description: "Cart warnings (e.g., stale items)",
+    type: [CartWarningDto],
+  })
+  warnings?: CartWarningDto[];
 
   @ApiProperty({
     description: "Cart expiration timestamp",
