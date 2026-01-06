@@ -46,7 +46,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 function LoginForm() {
-  const _router = useRouter();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [errorDialogOpen, setErrorDialogOpen] = useState(false);
@@ -99,7 +99,7 @@ function LoginForm() {
         requires2fa: boolean;
       }>(endpoints.auth.login, data);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.requires2fa) {
         // Handle 2FA flow (to be implemented)
         setError(
@@ -108,19 +108,27 @@ function LoginForm() {
         return;
       }
 
-      // Store tokens (cookies are set by backend)
+      // Store tokens (cookies are set by backend via API route)
       if (data.accessToken) {
         setAuthToken(data.accessToken);
       }
 
-      // Redirect to dashboard or original destination
-      // Use window.location.href instead of router.push to ensure cookies are set
-      // This ensures a full page navigation which properly handles cookie setting
+      // Get redirect destination
       const redirectTo = searchParams.get("redirect") || "/";
-      // Small delay to ensure cookies are set before redirect
+      
+      // Ensure we're redirecting to a relative path (security)
+      const redirectPath = redirectTo.startsWith("/") 
+        ? redirectTo 
+        : `/${redirectTo}`;
+
+      // Use window.location.replace for a full page reload to ensure cookies are sent
+      // Replace instead of href to avoid adding to browser history
+      // The cookies are set by the API route response with httpOnly flag,
+      // so they'll be automatically included in the next request
+      // A delay ensures the browser has processed the Set-Cookie headers from the API response
       setTimeout(() => {
-        window.location.href = redirectTo;
-      }, 100);
+        window.location.replace(redirectPath);
+      }, 500);
     },
     onError: (error: Error & { status?: number }) => {
       if (error.status === 401) {

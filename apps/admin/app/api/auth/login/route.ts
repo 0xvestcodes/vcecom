@@ -74,12 +74,20 @@ export async function POST(request: NextRequest) {
         // For same-origin, we can use lax and httpOnly
         // In production, cookies must be secure (HTTPS required)
         const isProduction = process.env.NODE_ENV === "production";
+        
+        // Ensure secure flag is set correctly for production
+        // If backend sets secure=true, respect it; otherwise set based on environment
+        const shouldBeSecure = cookieOptions.secure !== undefined 
+          ? cookieOptions.secure 
+          : isProduction;
+        
         nextResponse.cookies.set(name, value, {
           httpOnly: cookieOptions.httpOnly ?? true,
-          secure: cookieOptions.secure ?? isProduction, // true in prod, false in dev
+          secure: shouldBeSecure,
           sameSite: cookieOptions.sameSite || "lax",
           path: cookieOptions.path || "/",
           maxAge: cookieOptions.maxAge,
+          // Don't set domain - let Next.js handle it automatically for the current domain
         });
       });
     }
