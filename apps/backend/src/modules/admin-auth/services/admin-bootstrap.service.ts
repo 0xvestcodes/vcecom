@@ -6,8 +6,8 @@ import {
   createErrorContext,
   createLogContext,
 } from "../../../common/logging/logging.helper";
-import type { Database } from "../../../modules/database/db";
 import { DB_TOKEN } from "../../../modules/database/database.module";
+import type { Database } from "../../../modules/database/db";
 import { hashPassword, verifyPassword } from "../utils/password.utils";
 
 /**
@@ -25,10 +25,8 @@ export class AdminBootstrapService implements OnModuleInit {
     private readonly contextService: ContextService,
   ) {
     // Get admin credentials from environment variables
-    this.adminEmail =
-      process.env.ADMIN_EMAIL || "admin@vcecom.local";
-    this.adminPassword =
-      process.env.ADMIN_PASSWORD || "Admin@123";
+    this.adminEmail = process.env.ADMIN_EMAIL || "admin@vcecom.local";
+    this.adminPassword = process.env.ADMIN_PASSWORD || "Admin@123";
   }
 
   /**
@@ -50,11 +48,7 @@ export class AdminBootstrapService implements OnModuleInit {
     } catch (error) {
       // Log error but don't fail startup - admin can be created manually
       this.logger.error(
-        createErrorContext(
-          this.contextService,
-          "adminBootstrapError",
-          error,
-        ),
+        createErrorContext(this.contextService, "adminBootstrapError", error),
         "Failed to ensure admin user on startup - application will continue",
       );
       // Don't throw - allow app to start even if admin creation fails

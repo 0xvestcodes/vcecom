@@ -350,9 +350,6 @@ importers:
       '@vcecom/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@vcecom/themes':
-        specifier: workspace:*
-        version: link:../../packages/themes
       bcrypt:
         specifier: ^5.1.1
         version: 5.1.1
