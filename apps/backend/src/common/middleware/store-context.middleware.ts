@@ -24,11 +24,11 @@ export class StoreContextMiddleware implements NestMiddleware {
       // If no store ID provided, automatically use default store
       // This ensures all requests are scoped to a store (single-store setup)
       if (!storeId) {
-        try {
-          storeId = await this.storeContextService.getDefaultStoreId();
-        } catch (_error) {
+        storeId = await this.storeContextService.getDefaultStoreId();
+        if (!storeId) {
           // If no store exists, continue without store context
           // This allows the system to work even if no stores are set up yet
+          // (e.g., during initial setup or health checks)
           next();
           return;
         }

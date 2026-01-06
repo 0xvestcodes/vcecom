@@ -108,8 +108,9 @@ export class StoreContextService {
   /**
    * Get default store ID
    * Used as fallback when store ID is not provided
+   * Returns null if no store exists (allows system to work during initial setup)
    */
-  async getDefaultStoreId(): Promise<string> {
+  async getDefaultStoreId(): Promise<string | null> {
     try {
       const [defaultStore] = await this.db
         .select({ id: stores.id })
@@ -131,8 +132,11 @@ export class StoreContextService {
         return firstStore.id;
       }
 
-      throw new NotFoundException("No store found");
+      // No store found - return null instead of throwing
+      // This allows the middleware to handle it gracefully
+      return null;
     } catch (error) {
+      // Only log actual errors (database errors, etc.), not "no store found"
       this.logger.error(
         createErrorContext(this.contextService, "getDefaultStoreId", error),
         "Failed to get default store ID",
