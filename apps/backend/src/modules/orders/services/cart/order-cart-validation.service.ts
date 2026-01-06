@@ -145,7 +145,9 @@ export class OrderCartValidationService {
   > {
     // Get cart and validate it's not empty
     const cart = await this.cartsService.getCartById(cartId);
-    this.validateCartNotEmpty(cart as { id: string; items?: Array<{ id: string }> | null } | null);
+    this.validateCartNotEmpty(
+      cart as { id: string; items?: Array<{ id: string }> | null } | null,
+    );
 
     // Get cart items with metadata
     const cartItemIds = cart.items?.map((item) => item.id);
