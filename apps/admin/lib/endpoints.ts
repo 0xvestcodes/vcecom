@@ -47,8 +47,14 @@ export const endpoints = {
     uploadBatch: "/admin/storage/upload/batch",
     uploadEnhanced: "/admin/storage/upload/enhanced",
     list: "/admin/storage/list",
-    get: (key: string) => `/admin/storage/${key}`,
-    delete: (key: string) => `/admin/storage/${key}`,
+    get: (key: string) => {
+      const normalizedKey = key.trim().replace(/^\/+/, "");
+      return `/admin/storage/${normalizedKey}`;
+    },
+    delete: (key: string) => {
+      const normalizedKey = key.trim().replace(/^\/+/, "");
+      return `/admin/storage/${normalizedKey}`;
+    },
     batchDelete: "/admin/storage/batch",
     presignedUrl: "/admin/storage/presigned-url",
     signedDownloadUrl: "/admin/storage/signed-download-url",
