@@ -3,15 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Transpile workspace packages
   transpilePackages: ["@vcecom/cms-blocks"],
-  // Enable rewrites to proxy API requests and avoid CORS issues
-  async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/:path*`,
-      },
-    ];
-  },
+  // Note: Rewrites removed - all API requests now go through Next.js API routes
+  // /api/proxy/* -> handled by Next.js API route at app/api/proxy/[...path]/route.ts
+  // /api/auth/* -> handled by Next.js API routes at app/api/auth/*/route.ts
+  // This ensures proper cookie handling and centralized auth refresh
   images: {
     remotePatterns: [
       // MinIO (local development) - explicit port 9000
