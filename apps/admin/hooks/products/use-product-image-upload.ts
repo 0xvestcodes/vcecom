@@ -21,20 +21,37 @@ export function useProductImageUpload() {
       setIsUploading(true);
       setUploadProgress(0);
 
-      try {
-        const totalImages = images.length;
-        for (let i = 0; i < images.length; i++) {
+      const totalImages = images.length;
+      let successCount = 0;
+      let failedCount = 0;
+
+      for (let i = 0; i < images.length; i++) {
+        try {
           await uploadSingleImage(productId, images[i]);
-          setUploadProgress(((i + 1) / totalImages) * 100);
+          successCount++;
+        } catch (error) {
+          failedCount++;
+          // Log individual failures but continue with other images
+          console.error(`Failed to upload image ${i + 1}:`, error);
         }
-        toast.success(WIZARD_MESSAGES.IMAGE_UPLOAD_SUCCESS);
-      } catch (_error) {
-        toast.error(WIZARD_MESSAGES.IMAGE_UPLOAD_ERROR);
-        throw _error; // Re-throw to allow caller to handle
-      } finally {
-        setIsUploading(false);
-        setUploadProgress(0);
+        setUploadProgress(((i + 1) / totalImages) * 100);
       }
+
+      // Show appropriate message based on results
+      if (failedCount === 0) {
+        toast.success(WIZARD_MESSAGES.IMAGE_UPLOAD_SUCCESS);
+      } else if (successCount > 0) {
+        // Some succeeded, some failed
+        toast.warning(
+          `${successCount} image(s) uploaded successfully. ${failedCount} image(s) failed to upload. You can add them later.`,
+        );
+      } else {
+        // All failed
+        toast.error(WIZARD_MESSAGES.IMAGE_UPLOAD_ERROR);
+      }
+
+      setIsUploading(false);
+      setUploadProgress(0);
     },
     [],
   );

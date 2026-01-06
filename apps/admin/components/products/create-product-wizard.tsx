@@ -63,7 +63,11 @@ interface CreateProductWizardProps {
  * ```
  */
 export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
-  const createProductMutation = useAdminCreateProduct();
+  // Skip hook's toast and navigation - wizard handles these
+  const createProductMutation = useAdminCreateProduct({
+    skipSuccessToast: true,
+    skipNavigation: true,
+  });
   const { uploadImages, isUploading: isUploadingImages } =
     useProductImageUpload();
   const { createDefaultVariant, createVariants } = useProductVariantCreation();
@@ -167,31 +171,59 @@ export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
           return;
         }
 
+        // Upload images (non-blocking - errors are handled internally)
         if (pendingImages.length > 0) {
-          await uploadImages(product.id, pendingImages);
+          try {
+            await uploadImages(product.id, pendingImages);
+          } catch (error) {
+            // Image upload errors are already handled in uploadImages
+            // Don't block product creation if images fail
+            console.error("Image upload error:", error);
+          }
         }
 
-        if (variantMode === "none") {
-          await createDefaultVariant(product.id, data.price || 0);
-          toast.success(WIZARD_MESSAGES.PRODUCT_CREATE_SUCCESS);
-          onComplete(product.id);
-        } else if (variantMode === "hasVariants") {
-          setTempProductId(product.id);
-
-          if (pendingVariants.length > 0) {
-            await createVariants(product.id, pendingVariants);
+        // Create variant(s) if needed
+        try {
+          if (variantMode === "none") {
+            await createDefaultVariant(product.id, data.price || 0);
             toast.success(WIZARD_MESSAGES.PRODUCT_CREATE_SUCCESS);
             onComplete(product.id);
+          } else if (variantMode === "hasVariants") {
+            setTempProductId(product.id);
+
+            if (pendingVariants.length > 0) {
+              await createVariants(product.id, pendingVariants);
+              toast.success(WIZARD_MESSAGES.PRODUCT_CREATE_SUCCESS);
+              onComplete(product.id);
+            } else {
+              toast.success(WIZARD_MESSAGES.PRODUCT_CREATE_VARIANTS_PENDING);
+              setCurrentStep(4);
+            }
           } else {
-            toast.success(WIZARD_MESSAGES.PRODUCT_CREATE_VARIANTS_PENDING);
-            setCurrentStep(4);
+            toast.success(WIZARD_MESSAGES.PRODUCT_CREATE_SUCCESS);
+            onComplete(product.id);
           }
-        } else {
-          toast.success(WIZARD_MESSAGES.PRODUCT_CREATE_SUCCESS);
+        } catch (variantError) {
+          // Variant creation failed, but product was created
+          toast.error(
+            "Product created successfully, but failed to create variant. You can add it manually.",
+          );
           onComplete(product.id);
         }
-      } catch (_error) {
-        toast.error(WIZARD_MESSAGES.PRODUCT_CREATE_ERROR);
+      } catch (error) {
+        // Only show error if product creation actually failed
+        // Check if error is from product creation vs other operations
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+        if (
+          errorMessage.includes("product") ||
+          errorMessage.includes("create") ||
+          !errorMessage.includes("variant") &&
+            !errorMessage.includes("image") &&
+            !errorMessage.includes("upload")
+        ) {
+          toast.error(WIZARD_MESSAGES.PRODUCT_CREATE_ERROR);
+        }
       } finally {
         setIsSubmitting(false);
       }

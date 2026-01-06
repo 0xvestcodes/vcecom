@@ -27,9 +27,17 @@ import { useApiMutation } from "../use-api-mutation";
  * });
  * ```
  */
-export function useAdminCreateProduct() {
+interface UseAdminCreateProductOptions {
+  skipSuccessToast?: boolean;
+  skipNavigation?: boolean;
+}
+
+export function useAdminCreateProduct(
+  options?: UseAdminCreateProductOptions,
+) {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { skipSuccessToast = false, skipNavigation = false } = options || {};
 
   return useApiMutation<Product, CreateProductInput>({
     mutationFn: async (data) => {
@@ -37,8 +45,12 @@ export function useAdminCreateProduct() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [endpoints.products.list] });
-      toast.success("Product created successfully");
-      router.push(`/products/${data.id}`);
+      if (!skipSuccessToast) {
+        toast.success("Product created successfully");
+      }
+      if (!skipNavigation) {
+        router.push(`/products/${data.id}`);
+      }
     },
     onError: (error) => {
       toast.error(error.message || "Failed to create product");
