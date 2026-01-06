@@ -25,6 +25,7 @@ import { CheckoutState } from "../../../redis-store/constants/checkout-states";
 import { LoyaltyService } from "../../../wallet/services/loyalty.service";
 import { CreateOrderDto } from "../../dto/create-order.dto";
 import type { PricingSnapshotDto } from "../../dto/enriched-order-item.dto";
+import { OrderItemResponseDto } from "../../dto/order-item-response.dto";
 import { OrderResponseDto } from "../../dto/order-response.dto";
 import { OrderCalculationService } from "../calculation/order-calculation.service";
 import { OrderCartCleanupService } from "../cart/order-cart-cleanup.service";
@@ -818,7 +819,7 @@ export class OrderCodFlowService {
       shippingProvider: order.shippingProvider ?? null,
       shippingAddressId: order.shippingAddressId,
       billingAddressId: order.billingAddressId,
-      items: orderItemsList,
+      items: orderItemsList as OrderItemResponseDto[],
       createdAt: order.createdAt,
       updatedAt: order.updatedAt,
       archived: order.archived ?? false,

@@ -57,6 +57,7 @@ import {
   BundleCartItemMetadata,
   FlattenedBundleItemMetadata,
 } from "./dto/bundle-cart-item.dto";
+import { CartResponseDto } from "./dto/cart-response.dto";
 import { CartActivityService } from "./services/cart-activity.service";
 
 @Injectable()
@@ -832,7 +833,7 @@ export class CartsService {
     userId: string | null,
     sessionId: string | null,
     checkoutSessionId?: string | null,
-  ) {
+  ): Promise<CartResponseDto> {
     let customerId: string | null = null;
     if (userId) {
       customerId = await this.getCustomerId(userId);
@@ -851,7 +852,7 @@ export class CartsService {
     cartId: string,
     customerId?: string | null,
     checkoutSessionId?: string | null,
-  ) {
+  ): Promise<CartResponseDto> {
     // Get cart from database
     let cart: typeof carts.$inferSelect | undefined;
     try {
