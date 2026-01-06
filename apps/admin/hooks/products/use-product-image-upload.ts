@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/api";
 import { WIZARD_MESSAGES } from "@/lib/constants/wizard.constants";
@@ -11,23 +11,35 @@ import { endpoints } from "@/lib/endpoints";
  * Manages image upload to storage and association with product
  */
 export function useProductImageUpload() {
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const uploadImages = useCallback(
     async (productId: string, images: File[]) => {
       if (images.length === 0) return;
 
+      setIsUploading(true);
+      setUploadProgress(0);
+
       try {
-        for (const file of images) {
-          await uploadSingleImage(productId, file);
+        const totalImages = images.length;
+        for (let i = 0; i < images.length; i++) {
+          await uploadSingleImage(productId, images[i]);
+          setUploadProgress(((i + 1) / totalImages) * 100);
         }
         toast.success(WIZARD_MESSAGES.IMAGE_UPLOAD_SUCCESS);
       } catch (_error) {
         toast.error(WIZARD_MESSAGES.IMAGE_UPLOAD_ERROR);
+        throw _error; // Re-throw to allow caller to handle
+      } finally {
+        setIsUploading(false);
+        setUploadProgress(0);
       }
     },
     [],
   );
 
-  return { uploadImages };
+  return { uploadImages, isUploading, uploadProgress };
 }
 
 /**

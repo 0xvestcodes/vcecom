@@ -9,6 +9,7 @@ interface WizardNavigationProps {
   totalSteps: number;
   isSubmitting: boolean;
   isCreatingProduct: boolean;
+  isUploadingImages?: boolean;
   tempProductId: string | null;
   variantMode: "none" | "hasVariants";
   pendingVariantsCount: number;
@@ -27,6 +28,7 @@ export function WizardNavigation({
   totalSteps,
   isSubmitting,
   isCreatingProduct,
+  isUploadingImages = false,
   tempProductId,
   variantMode,
   pendingVariantsCount,
@@ -62,12 +64,17 @@ export function WizardNavigation({
           needsVariantCreation={needsVariantCreation}
           canCompleteVariants={canCompleteVariants}
           isSubmitting={isSubmitting}
+          isUploadingImages={isUploadingImages}
           onCompleteVariants={onCompleteVariants}
           onGoBackToVariants={onGoBackToVariants}
           isCreatingProduct={isCreatingProduct}
         />
       ) : (
-        <Button type="button" onClick={onNext}>
+        <Button
+          type="button"
+          onClick={onNext}
+          disabled={isSubmitting || isUploadingImages}
+        >
           {WIZARD_BUTTON_LABELS.NEXT}
           <ChevronRight className="ml-2 h-4 w-4" />
         </Button>
@@ -80,6 +87,7 @@ interface LastStepActionsProps {
   needsVariantCreation: boolean;
   canCompleteVariants: boolean;
   isSubmitting: boolean;
+  isUploadingImages: boolean;
   isCreatingProduct: boolean;
   onCompleteVariants: () => void;
   onGoBackToVariants: () => void;
@@ -92,6 +100,7 @@ function LastStepActions({
   needsVariantCreation,
   canCompleteVariants,
   isSubmitting,
+  isUploadingImages,
   isCreatingProduct,
   onCompleteVariants,
   onGoBackToVariants,
@@ -110,9 +119,9 @@ function LastStepActions({
       <Button
         type="button"
         onClick={onCompleteVariants}
-        disabled={isSubmitting}
+        disabled={isSubmitting || isUploadingImages}
       >
-        {isSubmitting
+        {isSubmitting || isUploadingImages
           ? WIZARD_BUTTON_LABELS.CREATING_VARIANTS
           : WIZARD_BUTTON_LABELS.COMPLETE_VARIANTS}
       </Button>
@@ -120,9 +129,14 @@ function LastStepActions({
   }
 
   return (
-    <Button type="submit" disabled={isSubmitting || isCreatingProduct}>
-      {isSubmitting || isCreatingProduct
-        ? WIZARD_BUTTON_LABELS.CREATING
+    <Button
+      type="submit"
+      disabled={isSubmitting || isCreatingProduct || isUploadingImages}
+    >
+      {isSubmitting || isCreatingProduct || isUploadingImages
+        ? isUploadingImages
+          ? "Uploading images..."
+          : WIZARD_BUTTON_LABELS.CREATING
         : WIZARD_BUTTON_LABELS.CREATE_PRODUCT}
     </Button>
   );
