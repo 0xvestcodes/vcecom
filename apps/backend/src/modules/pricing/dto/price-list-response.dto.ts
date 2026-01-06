@@ -36,6 +36,15 @@ export class PriceListItemResponseDto {
   categoryId: string | null;
 
   @ApiProperty({
+    description:
+      "Currency code (null = applies to all currencies for this price list)",
+    example: "USD",
+    nullable: true,
+    required: false,
+  })
+  currency?: string | null;
+
+  @ApiProperty({
     description: "Override type",
     example: PriceListOverrideType.PERCENTAGE,
     enum: PriceListOverrideType,
@@ -99,6 +108,14 @@ export class PriceListResponseDto {
     example: true,
   })
   isActive: boolean;
+
+  @ApiProperty({
+    description: "Currency code (null = applies to all currencies)",
+    example: "USD",
+    nullable: true,
+    required: false,
+  })
+  currency?: string | null;
 
   @ApiProperty({
     description: "Start date",

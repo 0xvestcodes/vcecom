@@ -1,10 +1,11 @@
-import { Module } from "@nestjs/common";
+import { forwardRef, Module } from "@nestjs/common";
 import { JwtModule } from "@nestjs/jwt";
 import { PassportModule } from "@nestjs/passport";
 import { getValidatedJwtSecret } from "../../common/config/jwt-secret.validation";
 import { AdminAuthModule } from "../admin-auth/admin-auth.module";
 import { AuthController } from "./auth.controller";
 import { AuthService } from "./auth.service";
+import { JwtRotationService } from "./services/jwt-rotation.service";
 import { JwtStrategy } from "./strategies/jwt.strategy";
 
 @Module({
@@ -16,10 +17,10 @@ import { JwtStrategy } from "./strategies/jwt.strategy";
         expiresIn: process.env.JWT_EXPIRES_IN || "1d",
       },
     }),
-    AdminAuthModule, // Import AdminAuthModule to make AdminSessionsService available to JwtStrategy
+    forwardRef(() => AdminAuthModule), // Import AdminAuthModule to make AdminSessionsService and SecretRotationService available
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [AuthService, JwtStrategy, JwtRotationService],
+  exports: [AuthService, JwtRotationService],
 })
 export class AuthModule {}

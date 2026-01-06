@@ -263,6 +263,117 @@ export const KEY_PATTERNS = {
    */
   STALE_ITEM: (cartId: string, variantId: string) =>
     `stale:item:${cartId}:${variantId}`,
+
+  /**
+   * FX exchange rate keys
+   * Format: fx:rate:{fromCurrency}:{toCurrency}
+   * TTL: 1 hour (configurable via FX_CACHE_TTL)
+   */
+  FX_RATE: (fromCurrency: string, toCurrency: string) =>
+    `fx:rate:${fromCurrency}:${toCurrency}`,
+
+  /**
+   * Analytics order metrics keys
+   * Format: analytics:orders:metrics:{periodHash}
+   * TTL: Variable based on period (5 min for today, 15 min for week, 1 hour for month+)
+   */
+  ANALYTICS_ORDER_METRICS: (periodHash: string) =>
+    `analytics:orders:metrics:${periodHash}`,
+
+  /**
+   * Analytics order status breakdown keys
+   * Format: analytics:orders:status:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_ORDER_STATUS: (periodHash: string) =>
+    `analytics:orders:status:${periodHash}`,
+
+  /**
+   * Analytics order trends keys
+   * Format: analytics:orders:trends:{granularity}:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_ORDER_TRENDS: (granularity: string, periodHash: string) =>
+    `analytics:orders:trends:${granularity}:${periodHash}`,
+
+  /**
+   * Analytics sales revenue keys
+   * Format: analytics:sales:revenue:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_SALES_REVENUE: (periodHash: string) =>
+    `analytics:sales:revenue:${periodHash}`,
+
+  /**
+   * Analytics sales by category keys
+   * Format: analytics:sales:category:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_SALES_CATEGORY: (periodHash: string) =>
+    `analytics:sales:category:${periodHash}`,
+
+  /**
+   * Analytics sales by payment method keys
+   * Format: analytics:sales:payment:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_SALES_PAYMENT: (periodHash: string) =>
+    `analytics:sales:payment:${periodHash}`,
+
+  /**
+   * Analytics customer segmentation keys
+   * Format: analytics:customers:segmentation:{date}
+   * TTL: 24 hours (pre-computed daily)
+   */
+  ANALYTICS_CUSTOMER_SEGMENTATION: (date: string) =>
+    `analytics:customers:segmentation:${date}`,
+
+  /**
+   * Analytics RFM analysis keys
+   * Format: analytics:customers:rfm:{date}
+   * TTL: 24 hours (pre-computed daily/weekly)
+   */
+  ANALYTICS_CUSTOMER_RFM: (date: string) => `analytics:customers:rfm:${date}`,
+
+  /**
+   * Analytics top customers keys
+   * Format: analytics:customers:top:{limit}:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_CUSTOMER_TOP: (limit: number, periodHash: string) =>
+    `analytics:customers:top:${limit}:${periodHash}`,
+
+  /**
+   * Analytics top products keys
+   * Format: analytics:products:top:{limit}:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_PRODUCT_TOP: (limit: number, periodHash: string) =>
+    `analytics:products:top:${limit}:${periodHash}`,
+
+  /**
+   * Analytics category performance keys
+   * Format: analytics:products:category:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_PRODUCT_CATEGORY: (periodHash: string) =>
+    `analytics:products:category:${periodHash}`,
+
+  /**
+   * Analytics variant performance keys
+   * Format: analytics:products:variants:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_PRODUCT_VARIANTS: (periodHash: string) =>
+    `analytics:products:variants:${periodHash}`,
+
+  /**
+   * Analytics inventory turnover keys
+   * Format: analytics:products:turnover:{periodHash}
+   * TTL: Variable based on period
+   */
+  ANALYTICS_PRODUCT_TURNOVER: (periodHash: string) =>
+    `analytics:products:turnover:${periodHash}`,
 } as const;
 
 /**
@@ -344,4 +455,10 @@ export const TTL = {
    * Longer than cart expiry (30 days) to allow recovery window
    */
   STALE_ITEM: 7 * 24 * 60 * 60, // 7 days in seconds
+
+  /**
+   * FX exchange rate TTL: 1 hour (default)
+   * Configurable via FX_CACHE_TTL environment variable
+   */
+  FX_RATE: parseInt(process.env.FX_CACHE_TTL || "3600", 10), // 1 hour in seconds
 } as const;

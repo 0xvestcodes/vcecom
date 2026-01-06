@@ -1,6 +1,7 @@
 import { forwardRef, Module } from "@nestjs/common";
 import { ScheduleModule } from "@nestjs/schedule";
 import { BundlesModule } from "../bundles/bundles.module";
+import { GeolocationModule } from "../geolocation/geolocation.module";
 import { RedisStoreModule } from "../redis-store/redis-store.module";
 import { CustomerGroupsController } from "./customer-groups.controller";
 import { PriceListsController } from "./price-lists.controller";
@@ -23,7 +24,12 @@ import { VariantPricingService } from "./services/variant-pricing.service";
 import { StorefrontPriceListsController } from "./storefront-price-lists.controller";
 
 @Module({
-  imports: [RedisStoreModule, ScheduleModule, forwardRef(() => BundlesModule)],
+  imports: [
+    RedisStoreModule,
+    ScheduleModule,
+    forwardRef(() => BundlesModule),
+    forwardRef(() => GeolocationModule),
+  ],
   controllers: [
     PriceListsController,
     CustomerGroupsController,

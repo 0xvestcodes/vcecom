@@ -41,6 +41,10 @@
               "sidebar": "docsSidebar"
             },
             {
+              "id": "architecture/multi-tenant-assessment",
+              "path": "/docs/architecture/multi-tenant-assessment"
+            },
+            {
               "id": "architecture/overview",
               "path": "/docs/architecture/overview",
               "sidebar": "docsSidebar"

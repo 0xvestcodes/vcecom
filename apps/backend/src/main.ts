@@ -54,7 +54,12 @@ if (otlpEndpoint) {
 
 import type { Server } from "node:http";
 // Now import everything else after .env is loaded
-import { ExecutionContext, INestApplication } from "@nestjs/common";
+import {
+  BadRequestException,
+  ExecutionContext,
+  INestApplication,
+  ValidationPipe,
+} from "@nestjs/common";
 import { NestFactory, Reflector } from "@nestjs/core";
 import {
   DocumentBuilder,
@@ -591,12 +596,25 @@ async function bootstrap() {
 
     // Enable validation globally
     app.useGlobalPipes(
-      new (await import("@nestjs/common")).ValidationPipe({
+      new ValidationPipe({
         whitelist: true,
         forbidNonWhitelisted: true,
         transform: true,
         transformOptions: {
           enableImplicitConversion: true,
+        },
+        exceptionFactory: (errors) => {
+          const messages = errors.map((error) => {
+            const constraints = error.constraints
+              ? Object.values(error.constraints).join(", ")
+              : `${error.property} has invalid value`;
+            return `${error.property}: ${constraints}`;
+          });
+          return new BadRequestException({
+            message: "Validation failed",
+            errors: messages,
+            details: errors,
+          });
         },
       }),
     );

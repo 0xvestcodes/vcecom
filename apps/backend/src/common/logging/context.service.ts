@@ -1,12 +1,28 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Injectable } from "@nestjs/common";
 
+export interface GeoLocation {
+  country?: string | null;
+  countryCode?: string | null;
+  region?: string | null;
+  regionCode?: string | null;
+  city?: string | null;
+  postalCode?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  timezone?: string | null;
+  isp?: string | null;
+  ipAddress: string;
+}
+
 export interface RequestContext {
   requestId: string;
   spanId?: string;
   traceId?: string;
   correlationId?: string;
   ip?: string;
+  userAgent?: string;
+  location?: GeoLocation;
   customerId?: string;
   cartId?: string;
   orderId?: string;

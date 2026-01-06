@@ -8,6 +8,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { customers } from "./customers";
+import { stores } from "./stores";
 
 export const addressTypeEnum = pgEnum("address_type", [
   "shipping",
@@ -19,6 +20,9 @@ export const addresses = pgTable(
   "addresses",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    storeId: uuid("store_id").references(() => stores.id, {
+      onDelete: "cascade",
+    }),
     customerId: uuid("customer_id")
       .notNull()
       .references(() => customers.id, { onDelete: "cascade" }),
@@ -34,6 +38,7 @@ export const addresses = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
+    storeIdIdx: index("addresses_store_id_idx").on(table.storeId),
     customerIdIdx: index("addresses_customer_id_idx").on(table.customerId),
     pincodeIdx: index("addresses_pincode_idx").on(table.pincode),
     defaultIdx: index("addresses_customer_default_idx").on(

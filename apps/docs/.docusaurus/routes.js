@@ -49,15 +49,15 @@ export default [
   },
   {
     path: '/docs',
-    component: ComponentCreator('/docs', '1a3'),
+    component: ComponentCreator('/docs', 'f39'),
     routes: [
       {
         path: '/docs',
-        component: ComponentCreator('/docs', '017'),
+        component: ComponentCreator('/docs', 'c5c'),
         routes: [
           {
             path: '/docs',
-            component: ComponentCreator('/docs', '4b4'),
+            component: ComponentCreator('/docs', '033'),
             routes: [
               {
                 path: '/docs/admin/pagination',
@@ -94,6 +94,11 @@ export default [
                 component: ComponentCreator('/docs/architecture/monorepo', 'cb1'),
                 exact: true,
                 sidebar: "docsSidebar"
+              },
+              {
+                path: '/docs/architecture/multi-tenant-assessment',
+                component: ComponentCreator('/docs/architecture/multi-tenant-assessment', '43d'),
+                exact: true
               },
               {
                 path: '/docs/architecture/overview',

@@ -26,7 +26,9 @@ import {
   lte,
   or,
   sql,
+  stores,
 } from "@vcecom/db";
+import { StoreContextService } from "../../common/store-context/store-context.service";
 import type { Database } from "../../modules/database/db";
 import { DB_TOKEN } from "../database/database.module";
 
@@ -68,8 +70,41 @@ export class DiscountsService {
     @Inject(forwardRef(() => RulesetRebuilder))
     private readonly rulesetRebuilder: RulesetRebuilder,
     private readonly profiler: DiscountProfiler,
+    private readonly storeContextService: StoreContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
+
+  /**
+   * Get default store ID helper
+   */
+  private async getDefaultStoreId(): Promise<string> {
+    // Try to get from store context first
+    const contextStoreId = this.storeContextService.getStoreId();
+    if (contextStoreId) {
+      return contextStoreId;
+    }
+
+    // Fallback to default store
+    const [defaultStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .where(eq(stores.isDefault, true))
+      .limit(1);
+
+    if (defaultStore) {
+      return defaultStore.id;
+    }
+
+    const [firstStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .limit(1);
+    if (firstStore) {
+      return firstStore.id;
+    }
+
+    throw new Error("No store found");
+  }
 
   // ============================================================================
   // Public API Methods - CRUD Operations
@@ -113,11 +148,13 @@ export class DiscountsService {
     }
 
     // Create discount
+    const storeId = await this.getDefaultStoreId();
     const [newDiscount] = await this.db
       .insert(discounts)
       .values({
         code: createDiscountDto.code,
         name: createDiscountDto.name,
+        storeId,
         description: createDiscountDto.description || null,
         type: createDiscountDto.type,
         applicationType: createDiscountDto.applicationType || "MANUAL",

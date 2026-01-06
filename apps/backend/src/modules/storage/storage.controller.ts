@@ -48,12 +48,15 @@ import {
   ListFilesResponseDto,
 } from "./dto/batch-operations.dto";
 import { FileMetadataDto, FileResponseDto } from "./dto/file-response.dto";
+import { MediaUploadResponseDto } from "./dto/media-upload-response.dto";
 import {
   GeneratePresignedUrlDto,
   PresignedUrlResponseDto,
 } from "./dto/presigned-url.dto";
 import { BatchUploadFileDto, UploadFileDto } from "./dto/upload-file.dto";
 import { ImageCompressionService } from "./services/image-compression.service";
+import { ImageResizePipelineService } from "./services/image-resize-pipeline.service";
+import { MediaUrlService } from "./services/media-url.service";
 import { StorageService } from "./storage.service";
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -74,6 +77,8 @@ export class StorageController {
   constructor(
     private readonly storageService: StorageService,
     private readonly imageCompressionService: ImageCompressionService,
+    private readonly imageResizePipelineService: ImageResizePipelineService,
+    private readonly mediaUrlService: MediaUrlService,
   ) {}
 
   /**
@@ -83,17 +88,19 @@ export class StorageController {
     prefix: string | undefined,
     originalName: string,
     format: string,
+    hash?: string,
   ): string {
     const timestamp = new Date().toISOString().split("T")[0].replace(/-/g, "");
     const uuid = randomUUID().split("-")[0];
     const extension = this.imageCompressionService.getFileExtension(
-      format as "webp" | "jpeg" | "png",
+      format as "webp" | "avif" | "jpeg" | "png",
     );
     const sanitizedName = originalName
       .replace(/[^a-zA-Z0-9.-]/g, "_")
       .toLowerCase();
     const namePart = sanitizedName.split(".")[0] || "file";
-    const fileName = `${namePart}-${uuid}.${extension}`;
+    const hashPart = hash ? `-${hash}` : `-${uuid}`;
+    const fileName = `${namePart}${hashPart}.${extension}`;
     return prefix
       ? `${prefix}/${timestamp}-${fileName}`
       : `${timestamp}-${fileName}`;
@@ -179,7 +186,7 @@ export class StorageController {
 
     let buffer = file.buffer;
     let contentType = file.mimetype;
-    let format: "webp" | "jpeg" | "png" = "webp";
+    let format: "webp" | "avif" | "jpeg" | "png" = "webp";
 
     // Compress image if it's an image
     if (this.imageCompressionService.isImage(buffer, file.mimetype)) {
@@ -281,7 +288,7 @@ export class StorageController {
 
       let buffer = file.buffer;
       let contentType = file.mimetype;
-      let format: "webp" | "jpeg" | "png" = "webp";
+      let format: "webp" | "avif" | "jpeg" | "png" = "webp";
 
       // Compress image if it's an image
       if (this.imageCompressionService.isImage(buffer, file.mimetype)) {
@@ -311,6 +318,221 @@ export class StorageController {
     }
 
     return results;
+  }
+
+  @Post("upload/enhanced")
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(
+    FileInterceptor("file", { limits: { fileSize: MAX_FILE_SIZE } }),
+  )
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_MUTATE)
+  @ApiConsumes("multipart/form-data")
+  @ApiOperation({
+    summary: "Upload file with enhanced pipeline",
+    description:
+      "Upload a file with automatic multi-size generation, WebP/AVIF format conversion, cache busting, and CDN optimization. Admin-only endpoint.",
+  })
+  @ApiBody({
+    schema: {
+      type: "object",
+      properties: {
+        file: {
+          type: "string",
+          format: "binary",
+          description: "File to upload",
+        },
+        prefix: {
+          type: "string",
+          description: "File prefix/path in storage",
+          example: "products",
+        },
+        bucketType: {
+          type: "string",
+          enum: ["product-media", "uploads", "internal"],
+          description: "Bucket type for storage segmentation",
+          example: "product-media",
+        },
+        quality: {
+          type: "number",
+          description: `Image quality (${MIN_IMAGE_QUALITY}-${MAX_IMAGE_QUALITY}), default: ${DEFAULT_IMAGE_QUALITY}`,
+          example: DEFAULT_IMAGE_QUALITY,
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 201,
+    description: "File uploaded successfully with all sizes and formats",
+    type: MediaUploadResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: "Unauthorized" })
+  @ApiForbiddenResponse({ description: "Forbidden - Admin role required" })
+  async uploadEnhanced(
+    @UploadedFile() file: Express.Multer.File,
+    @Body()
+    dto: UploadFileDto & {
+      bucketType?: "product-media" | "uploads" | "internal";
+    },
+  ): Promise<MediaUploadResponseDto> {
+    if (!file) {
+      throw new BadRequestException("No file provided");
+    }
+
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
+      throw new PayloadTooLargeException(
+        `File size exceeds maximum allowed size of ${MAX_FILE_SIZE / (1024 * 1024)}MB`,
+      );
+    }
+
+    // Validate file type
+    if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
+      throw new BadRequestException(
+        `File type ${file.mimetype} is not allowed. Allowed types: ${ALLOWED_MIME_TYPES.join(", ")}`,
+      );
+    }
+
+    // Check if it's an image
+    if (!this.imageCompressionService.isImage(file.buffer, file.mimetype)) {
+      throw new BadRequestException("File must be an image");
+    }
+
+    const bucketType = dto.bucketType || "product-media";
+    const quality = dto.compressionOptions?.quality || DEFAULT_IMAGE_QUALITY;
+
+    // Generate content hash for cache busting
+    const hash = this.mediaUrlService.generateHash(file.buffer);
+
+    // Generate all sizes (WebP format)
+    const resizeResult = await this.imageResizePipelineService.generateSizes(
+      file.buffer,
+      "webp",
+      quality,
+    );
+
+    // Generate multiple formats for each size
+    const formatPromises = [
+      { name: "thumbnail", buffer: resizeResult.thumbnail },
+      { name: "small", buffer: resizeResult.small },
+      { name: "medium", buffer: resizeResult.medium },
+      { name: "large", buffer: resizeResult.large },
+    ].map(async ({ name, buffer }) => {
+      const formats =
+        await this.imageCompressionService.generateMultipleFormats(
+          buffer,
+          ["webp", "avif"],
+          {
+            quality,
+            maxWidth: resizeResult.metadata.width,
+            maxHeight: resizeResult.metadata.height,
+          },
+        );
+      return { name, formats };
+    });
+
+    const sizeFormats = await Promise.all(formatPromises);
+
+    // Prepare upload tasks
+    const uploadTasks: Array<Promise<FileResponseDto>> = [];
+
+    // Upload original
+    const originalKey = this.generateFileKey(
+      dto.prefix,
+      file.originalname,
+      "webp",
+      hash,
+    );
+    uploadTasks.push(
+      this.storageService
+        .upload(
+          originalKey,
+          resizeResult.original,
+          this.imageCompressionService.getOptimizedMimeType("webp"),
+          bucketType,
+          {
+            CacheControl:
+              this.mediaUrlService.getCacheControlHeader(bucketType),
+            ETag: this.mediaUrlService.generateETag(resizeResult.original),
+          },
+        )
+        .then((url) => ({
+          key: originalKey,
+          url,
+          size: resizeResult.original.length,
+          contentType:
+            this.imageCompressionService.getOptimizedMimeType("webp"),
+          originalName: file.originalname,
+        })),
+    );
+
+    // Upload all sizes and formats
+    for (const { name, formats } of sizeFormats) {
+      for (const [format, buffer] of formats.entries()) {
+        const key = this.generateFileKey(
+          dto.prefix,
+          `${name}-${file.originalname}`,
+          format,
+          hash,
+        );
+        uploadTasks.push(
+          this.storageService
+            .upload(
+              key,
+              buffer,
+              this.imageCompressionService.getOptimizedMimeType(
+                format as "webp" | "avif",
+              ),
+              bucketType,
+              {
+                CacheControl:
+                  this.mediaUrlService.getCacheControlHeader(bucketType),
+                ETag: this.mediaUrlService.generateETag(buffer),
+              },
+            )
+            .then((url) => ({
+              key,
+              url: this.mediaUrlService.rewriteCdnUrl(url, { bucketType }),
+              size: buffer.length,
+              contentType: this.imageCompressionService.getOptimizedMimeType(
+                format as "webp" | "avif",
+              ),
+              originalName: `${name}-${file.originalname}`,
+            })),
+        );
+      }
+    }
+
+    // Upload all files in parallel
+    const uploadResults = await Promise.all(uploadTasks);
+
+    // Organize results
+    const original = uploadResults[0];
+    const thumbnail = uploadResults.find((r) => r.key.includes("thumbnail"));
+    const small = uploadResults.find((r) => r.key.includes("small"));
+    const medium = uploadResults.find((r) => r.key.includes("medium"));
+    const large = uploadResults.find((r) => r.key.includes("large"));
+
+    if (!thumbnail || !small || !medium || !large) {
+      throw new Error("Required image sizes not found in upload results");
+    }
+
+    const sizes = {
+      thumbnail,
+      small,
+      medium,
+      large,
+    };
+    const formats = {
+      webp: uploadResults.filter((r) => r.key.endsWith(".webp")),
+      avif: uploadResults.filter((r) => r.key.endsWith(".avif")),
+    };
+
+    return {
+      original,
+      sizes,
+      formats,
+      hash,
+    };
   }
 
   @Get("list")
@@ -487,6 +709,41 @@ export class StorageController {
   ): Promise<PresignedUrlResponseDto> {
     const expiresIn = dto.expiresIn || 3600;
     const url = await this.storageService.getPresignedUrl(dto.key, expiresIn);
+
+    return {
+      key: dto.key,
+      url,
+      expiresIn,
+    };
+  }
+
+  @Post("signed-download-url")
+  @HttpCode(HttpStatus.CREATED)
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_MUTATE)
+  @ApiOperation({
+    summary: "Generate signed download URL",
+    description:
+      "Generate a signed URL for secure file download. Admin-only endpoint.",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "Signed download URL generated",
+    type: PresignedUrlResponseDto,
+  })
+  @ApiUnauthorizedResponse({ description: "Unauthorized" })
+  @ApiForbiddenResponse({ description: "Forbidden - Admin role required" })
+  async generateSignedDownloadUrl(
+    @Body()
+    dto: GeneratePresignedUrlDto & {
+      bucketType?: "product-media" | "uploads" | "internal";
+    },
+  ): Promise<PresignedUrlResponseDto> {
+    const expiresIn = dto.expiresIn || 3600;
+    const url = await this.storageService.getSignedDownloadUrl(
+      dto.key,
+      expiresIn,
+      dto.bucketType,
+    );
 
     return {
       key: dto.key,

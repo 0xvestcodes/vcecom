@@ -1,7 +1,9 @@
 import { ApiProperty } from "@nestjs/swagger";
 import {
+  IsBoolean,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsPositive,
   IsString,
   MaxLength,
@@ -27,4 +29,14 @@ export class CreateRefundDto {
   @IsNotEmpty({ message: "Reason is required" })
   @MaxLength(500, { message: "Reason must not exceed 500 characters" })
   reason: string;
+
+  @ApiProperty({
+    description: "Refund to customer wallet instead of payment gateway",
+    example: false,
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean({ message: "refundToWallet must be a boolean" })
+  refundToWallet?: boolean;
 }

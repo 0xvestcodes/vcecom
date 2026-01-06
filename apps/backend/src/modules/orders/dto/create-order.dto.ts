@@ -18,7 +18,7 @@ export class CreateOrderDto {
     example: "123e4567-e89b-12d3-a456-426614174000",
     required: false,
   })
-  @ValidateIf((o) => !o.email)
+  @ValidateIf((o) => !o.email && !o.checkoutSessionId)
   @IsUUID("4", { message: "Shipping address ID must be a valid UUID" })
   @IsNotEmpty({
     message: "Shipping address ID is required for authenticated users",
@@ -30,7 +30,7 @@ export class CreateOrderDto {
     example: "123e4567-e89b-12d3-a456-426614174000",
     required: false,
   })
-  @ValidateIf((o) => !o.email)
+  @ValidateIf((o) => !o.email && !o.checkoutSessionId)
   @IsUUID("4", { message: "Billing address ID must be a valid UUID" })
   @IsNotEmpty({
     message: "Billing address ID is required for authenticated users",
@@ -43,7 +43,7 @@ export class CreateOrderDto {
     example: "customer@example.com",
     required: false,
   })
-  @ValidateIf((o) => !o.shippingAddressId)
+  @ValidateIf((o) => !o.shippingAddressId && !o.checkoutSessionId)
   @IsEmail({}, { message: "Email must be a valid email address" })
   @IsNotEmpty({ message: "Email is required for guest checkout" })
   email?: string;
@@ -53,7 +53,7 @@ export class CreateOrderDto {
     example: "John Doe",
     required: false,
   })
-  @ValidateIf((o) => !o.shippingAddressId)
+  @ValidateIf((o) => !o.shippingAddressId && !o.checkoutSessionId)
   @IsString({ message: "Name must be a string" })
   @IsNotEmpty({ message: "Name is required for guest checkout" })
   @MaxLength(255, { message: "Name must not exceed 255 characters" })
@@ -64,7 +64,7 @@ export class CreateOrderDto {
     example: "+919876543210",
     required: false,
   })
-  @ValidateIf((o) => !o.shippingAddressId)
+  @ValidateIf((o) => !o.shippingAddressId && !o.checkoutSessionId)
   @IsString({ message: "Phone must be a string" })
   @IsNotEmpty({ message: "Phone is required for guest checkout" })
   @MaxLength(20, { message: "Phone must not exceed 20 characters" })
@@ -75,7 +75,7 @@ export class CreateOrderDto {
     type: CreateAddressDto,
     required: false,
   })
-  @ValidateIf((o) => !o.shippingAddressId)
+  @ValidateIf((o) => !o.shippingAddressId && !o.checkoutSessionId)
   @IsNotEmpty({ message: "Shipping address is required for guest checkout" })
   address?: CreateAddressDto;
 
@@ -97,6 +97,7 @@ export class CreateOrderDto {
     default: 0,
     required: false,
   })
+  @IsOptional()
   shippingCost?: number;
 
   @ApiProperty({
@@ -104,6 +105,8 @@ export class CreateOrderDto {
     example: "unique-request-id-12345",
     required: false,
   })
+  @IsOptional()
+  @IsString({ message: "Idempotency key must be a string" })
   idempotencyKey?: string;
 
   @ApiProperty({
@@ -115,4 +118,14 @@ export class CreateOrderDto {
   @IsOptional()
   @IsUUID("4", { message: "Checkout session ID must be a valid UUID" })
   checkoutSessionId?: string;
+
+  @ApiProperty({
+    description:
+      "Payment method ID (optional - if provided, updates checkout metadata with selected payment method)",
+    example: "COD",
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: "Payment method ID must be a string" })
+  paymentMethodId?: string;
 }

@@ -10,6 +10,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { orders } from "./orders";
+import { stores } from "./stores";
 
 export const paymentStatusEnum = pgEnum("payment_status", [
   "pending",
@@ -45,6 +46,9 @@ export const payments = pgTable(
   "payments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
+    storeId: uuid("store_id").references(() => stores.id, {
+      onDelete: "cascade",
+    }),
     orderId: uuid("order_id")
       .notNull()
       .references(() => orders.id, { onDelete: "restrict" }),
@@ -63,6 +67,7 @@ export const payments = pgTable(
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (table) => ({
+    storeIdIdx: index("payments_store_id_idx").on(table.storeId),
     orderIdIdx: index("payments_order_id_idx").on(table.orderId),
     razorpayPaymentIdIdx: index("payments_razorpay_payment_id_idx").on(
       table.razorpayPaymentId,
@@ -85,6 +90,10 @@ export const payments = pgTable(
 );
 
 export const paymentsRelations = relations(payments, ({ one }) => ({
+  store: one(stores, {
+    fields: [payments.storeId],
+    references: [stores.id],
+  }),
   order: one(orders, {
     fields: [payments.orderId],
     references: [orders.id],

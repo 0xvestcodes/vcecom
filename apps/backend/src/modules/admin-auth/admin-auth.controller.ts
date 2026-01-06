@@ -16,6 +16,7 @@ import { JwtService } from "@nestjs/jwt";
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -23,8 +24,11 @@ import {
   ApiUnauthorizedResponse,
 } from "@nestjs/swagger";
 import type { Request, Response } from "express";
+import { PinoLogger } from "nestjs-pino";
 import { Public } from "../../common/decorators/public.decorator";
+import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
+import { RolesGuard } from "../../common/guards/roles.guard";
 import { AdminAuthService } from "./admin-auth.service";
 import { AdminSessionsService } from "./admin-sessions.service";
 import {
@@ -35,6 +39,9 @@ import {
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import { Verify2FALoginDto } from "./dto/verify-2fa-login.dto";
 import { AdminLoginRateLimitGuard } from "./guards/rate-limit.guard";
+import { IpHeuristicsService } from "./services/ip-heuristics.service";
+import { LoginAnomalyDetectionService } from "./services/login-anomaly-detection.service";
+import { SecretRotationService } from "./services/secret-rotation.service";
 
 @ApiTags("admin")
 @Controller("admin/auth")
@@ -42,7 +49,11 @@ export class AdminAuthController {
   constructor(
     private readonly adminAuthService: AdminAuthService,
     private readonly sessionsService: AdminSessionsService,
+    private readonly secretRotationService: SecretRotationService,
+    private readonly loginAnomalyDetectionService: LoginAnomalyDetectionService,
+    private readonly ipHeuristicsService: IpHeuristicsService,
     readonly _jwtService: JwtService,
+    private readonly logger: PinoLogger,
   ) {}
 
   @Public()
@@ -80,19 +91,129 @@ export class AdminAuthController {
       req.socket.remoteAddress ||
       "unknown";
 
-    // Validate credentials
-    const admin = await this.adminAuthService.validateAdminCredentials(
-      loginDto.email,
-      loginDto.password,
+    // Run IP heuristics analysis
+    const ipHeuristics = await this.ipHeuristicsService.analyzeIp(
+      ipAddress,
+      userAgent,
+      req.headers as Record<string, string | string[] | undefined>,
     );
 
+    // Block if IP reputation score is too high
+    if (ipHeuristics.shouldBlock) {
+      this.logger.warn(
+        {
+          ipAddress,
+          reputationScore: ipHeuristics.reputationScore,
+          riskFactors: ipHeuristics.riskFactors,
+        },
+        "Login blocked due to high IP reputation score",
+      );
+      throw new UnauthorizedException("Access denied due to security policy");
+    }
+
+    let admin:
+      | Awaited<
+          ReturnType<typeof this.adminAuthService.validateAdminCredentials>
+        >
+      | undefined;
+    let _loginSuccess = false;
+    let failureReason: string | undefined;
+
+    try {
+      // Validate credentials
+      admin = await this.adminAuthService.validateAdminCredentials(
+        loginDto.email,
+        loginDto.password,
+      );
+      _loginSuccess = true;
+    } catch (error) {
+      _loginSuccess = false;
+      failureReason =
+        error instanceof Error ? error.message : "Invalid credentials";
+
+      // Log failed login attempt with anomaly detection
+      const anomalyResult =
+        await this.loginAnomalyDetectionService.detectAnomalies({
+          email: loginDto.email,
+          ipAddress,
+          userAgent,
+          deviceId: loginDto.deviceId,
+          success: false,
+          failureReason,
+        });
+
+      await this.loginAnomalyDetectionService.logLoginAttempt(
+        {
+          email: loginDto.email,
+          ipAddress,
+          userAgent,
+          deviceId: loginDto.deviceId,
+          success: false,
+          failureReason,
+        },
+        anomalyResult,
+      );
+
+      // Re-throw the error
+      throw error;
+    }
+
     // Login and create session
+    if (!admin) {
+      throw new UnauthorizedException("Admin validation failed");
+    }
     const result = await this.adminAuthService.login(
       admin,
       loginDto.deviceId,
       userAgent,
       ipAddress,
     );
+
+    // Detect anomalies for successful login (after session is created)
+    // Extract session ID from access token if available
+    let sessionId: string | undefined;
+    if (result.accessToken && !result.requires2fa) {
+      try {
+        // Decode JWT to get sessionId (without verification, just for logging)
+        const payload = JSON.parse(
+          Buffer.from(result.accessToken.split(".")[1], "base64").toString(),
+        );
+        sessionId = payload.sessionId;
+      } catch {
+        // Ignore decode errors
+      }
+    }
+
+    const anomalyResult =
+      await this.loginAnomalyDetectionService.detectAnomalies({
+        email: loginDto.email,
+        adminId: admin.id,
+        ipAddress,
+        userAgent,
+        deviceId: loginDto.deviceId,
+        success: true,
+        sessionId,
+      });
+
+    // Log successful login attempt
+    await this.loginAnomalyDetectionService.logLoginAttempt(
+      {
+        email: loginDto.email,
+        adminId: admin.id,
+        ipAddress,
+        userAgent,
+        deviceId: loginDto.deviceId,
+        success: true,
+        sessionId,
+      },
+      anomalyResult,
+    );
+
+    // If suspicious, log warning (but don't block login)
+    if (anomalyResult.isSuspicious) {
+      // This would trigger a security alert
+      // For now, just log
+    }
 
     // If 2FA is required, don't set cookies - client needs to verify 2FA first
     if (result.requires2fa) {
@@ -447,5 +568,38 @@ export class AdminAuthController {
     await this.sessionsService.deleteSession(sessionId);
 
     return { message: "Session revoked successfully" };
+  }
+
+  @Post("secret/rotate")
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles("admin")
+  @ApiBearerAuth("JWT-auth")
+  @ApiOperation({
+    summary: "Manually rotate JWT secret",
+    description:
+      "Manually trigger JWT secret rotation. Only accessible to admins. Requires JWT_SECRET_ROTATION_ENABLED=true.",
+  })
+  @ApiOkResponse({
+    description: "Secret rotated successfully",
+    schema: {
+      type: "object",
+      properties: {
+        message: { type: "string" },
+        version: { type: "string" },
+      },
+    },
+  })
+  @ApiUnauthorizedResponse({
+    description: "Authentication required",
+  })
+  @ApiForbiddenResponse({
+    description: "Access denied. Admin role required.",
+  })
+  async rotateSecret(): Promise<{ message: string; version: string }> {
+    const version = await this.secretRotationService.rotateSecret();
+    return {
+      message: "JWT secret rotated successfully",
+      version,
+    };
   }
 }

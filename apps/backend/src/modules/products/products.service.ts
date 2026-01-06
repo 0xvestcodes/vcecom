@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   and,
@@ -23,6 +25,7 @@ import {
   productVariantOptionTypes,
   productVariants,
   sql,
+  stores,
   variantOptionTypes,
   variantOptionValues,
 } from "@vcecom/db";
@@ -56,8 +59,11 @@ import {
 } from "../../common/utils/slug.utils";
 import { DB_TOKEN } from "../database/database.module";
 import type { Database } from "../database/db";
+import { ProductEventsService } from "../events/product-events.service";
 import { calculatePriceAfterOverride } from "../pricing/engine/override-strategies/price-override.strategy";
 import { PriceListService } from "../pricing/services/price-list.service";
+import { ProductsIndexingService } from "../search/indexing/products-indexing.service";
+import { SearchQueryService } from "../search/search-query.service";
 import { StorageService } from "../storage/storage.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { FilterProductsDto, SortField, SortOrder } from "./dto/filter.dto";
@@ -80,10 +86,17 @@ import { MediaTransactionService } from "./services/media-transaction.service";
 export class ProductsService {
   constructor(
     private readonly storageService: StorageService,
-    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+    @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DIreadonly _storeContextService: StoreContextService,
     private readonly priceListService?: PriceListService,
     private readonly mediaTransactionService?: MediaTransactionService,
     private readonly mediaCacheInvalidationService?: MediaCacheInvalidationService,
+    private readonly productEventsService?: ProductEventsService,
+    @Optional()
+    @Inject(forwardRef(() => ProductsIndexingService))
+    private readonly productsIndexingService?: ProductsIndexingService,
+    @Optional()
+    @Inject(forwardRef(() => SearchQueryService))
+    private readonly searchQueryService?: SearchQueryService,
     private readonly logger?: PinoLogger,
     private readonly contextService?: ContextService,
   ) {}
@@ -132,6 +145,7 @@ export class ProductsService {
     const [newProduct] = await this.db
       .insert(products)
       .values({
+        storeId: await this.getDefaultStoreId(),
         title: createProductDto.title,
         description: createProductDto.description || null,
         price: createProductDto.price,
@@ -146,7 +160,70 @@ export class ProductsService {
 
     // Slug registration removed - no longer using CMS route registry
 
+    // Emit product created event
+    if (this.productEventsService) {
+      const storeId = await this.getDefaultStoreId();
+      await this.productEventsService.emitProductCreated({
+        productId: newProduct.id,
+        storeId,
+        title: newProduct.title,
+        handle: newProduct.slug || undefined,
+        status: newProduct.status,
+        timestamp: new Date(),
+      });
+    }
+
+    // Index product for search
+    if (this.productsIndexingService) {
+      this.productsIndexingService
+        .indexProduct(newProduct.id)
+        .catch((error) => {
+          this.logger?.warn?.(
+            this.contextService
+              ? createLogContext(
+                  this.contextService,
+                  "ProductsService.create.indexProduct",
+                  {
+                    productId: newProduct.id,
+                    error:
+                      error instanceof Error ? error.message : String(error),
+                  },
+                )
+              : {
+                  operation: "ProductsService.create.indexProduct",
+                  productId: newProduct.id,
+                },
+            "Failed to index product (non-blocking)",
+          );
+        });
+    }
+
     return this.enrichProductWithGst(newProduct);
+  }
+
+  /**
+   * Get default store ID helper
+   */
+  private async getDefaultStoreId(): Promise<string> {
+    const [defaultStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .where(eq(stores.isDefault, true))
+      .limit(1);
+
+    if (defaultStore) {
+      return defaultStore.id;
+    }
+
+    const [firstStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .limit(1);
+    if (firstStore) {
+      return firstStore.id;
+    }
+
+    throw new Error("No store found");
   }
 
   /**
@@ -724,11 +801,85 @@ export class ProductsService {
 
     // Slug registration removed - no longer using CMS route registry
 
+    // Emit product updated event
+    if (this.productEventsService) {
+      const storeId = await this.getDefaultStoreId();
+      const changes: Record<string, unknown> = {};
+      if (updateProductDto.title !== undefined)
+        changes.title = updateProductDto.title;
+      if (updateProductDto.description !== undefined)
+        changes.description = updateProductDto.description;
+      if (updateProductDto.price !== undefined)
+        changes.price = updateProductDto.price;
+      if (updateProductDto.status !== undefined)
+        changes.status = updateProductDto.status;
+
+      // Check if status changed to/from active (published/unpublished)
+      if (
+        updateProductDto.status !== undefined &&
+        existing.status !== updateProductDto.status
+      ) {
+        if (
+          updateProductDto.status === "active" &&
+          existing.status !== "active"
+        ) {
+          await this.productEventsService.emitProductPublished({
+            productId: updated.id,
+            storeId,
+            title: updated.title,
+            handle: updated.slug || undefined,
+            publishedAt: new Date(),
+            timestamp: new Date(),
+          });
+        } else if (
+          existing.status === "active" &&
+          updateProductDto.status !== "active"
+        ) {
+          await this.productEventsService.emitProductUnpublished({
+            productId: updated.id,
+            storeId,
+            title: updated.title,
+            handle: updated.slug || undefined,
+            timestamp: new Date(),
+          });
+        }
+      }
+
+      await this.productEventsService.emitProductUpdated({
+        productId: updated.id,
+        storeId,
+        title: updated.title,
+        timestamp: new Date(),
+      });
+    }
+
+    // Index product for search
+    if (this.productsIndexingService) {
+      this.productsIndexingService.indexProduct(updated.id).catch((error) => {
+        this.logger?.warn?.(
+          this.contextService
+            ? createLogContext(
+                this.contextService,
+                "ProductsService.update.indexProduct",
+                {
+                  productId: updated.id,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+              )
+            : {
+                operation: "ProductsService.update.indexProduct",
+                productId: updated.id,
+              },
+          "Failed to index product (non-blocking)",
+        );
+      });
+    }
+
     return this.enrichProductWithGst(updated);
   }
 
   /**
-   * Delete a product
+   * Remove a product
    */
   async remove(id: string) {
     // Check if product exists
@@ -742,18 +893,121 @@ export class ProductsService {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
 
+    // Emit product deleted event before deletion
+    if (this.productEventsService) {
+      const storeId = await this.getDefaultStoreId();
+      await this.productEventsService.emitProductDeleted({
+        productId: existing.id,
+        storeId,
+        title: existing.title,
+        handle: existing.slug || undefined,
+        timestamp: new Date(),
+      });
+    }
+
     // Delete product (variants and images will be cascade deleted)
     await this.db.delete(products).where(eq(products.id, id));
+
+    // Delete from search index
+    if (this.productsIndexingService) {
+      this.productsIndexingService.deleteProduct(id).catch((error) => {
+        this.logger?.warn?.(
+          this.contextService
+            ? createLogContext(
+                this.contextService,
+                "ProductsService.remove.deleteProduct",
+                {
+                  productId: id,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+              )
+            : {
+                operation: "ProductsService.remove.deleteProduct",
+                productId: id,
+              },
+          "Failed to delete product from index (non-blocking)",
+        );
+      });
+    }
 
     return { message: "Product deleted successfully" };
   }
 
   /**
    * Advanced product search with full-text search, SKU search, and ranking
-   * Uses fuse.js for fuzzy search and relevance scoring
+   * Uses indexed search if available, falls back to database search
    */
   @Trace({ operation: "ProductsService.search" })
   async search(searchDto: SearchProductsDto): Promise<SearchResponseDto> {
+    // Try indexed search first if available
+    if (this.searchQueryService) {
+      try {
+        const indexedResults = await this.searchQueryService.searchProducts(
+          searchDto.query,
+          {
+            page: searchDto.page,
+            limit: searchDto.limit,
+            categoryId: searchDto.categoryId,
+            minPrice: searchDto.minPrice,
+            maxPrice: searchDto.maxPrice,
+            inStock: searchDto.inStock,
+            status: "active",
+            sortBy:
+              searchDto.sortBy === SearchSortBy.PRICE
+                ? "price"
+                : searchDto.sortBy === SearchSortBy.NAME
+                  ? "title"
+                  : searchDto.sortBy === SearchSortBy.DATE
+                    ? "createdAt"
+                    : undefined,
+            sortOrder: searchDto.sortOrder,
+          },
+        );
+
+        // Transform indexed results to SearchResponseDto format
+        const results: SearchResultDto[] = indexedResults.results.map(
+          (result) => ({
+            id: result.document.id,
+            title: result.document.title,
+            description: result.document.description,
+            price: result.document.price,
+            relevanceScore: result.score || 0,
+            matchingSku:
+              result.document.variants.find((v) =>
+                v.sku.toLowerCase().includes(searchDto.query.toLowerCase()),
+              )?.sku || null,
+          }),
+        );
+
+        return {
+          results,
+          total: indexedResults.total,
+          page: indexedResults.page,
+          limit: indexedResults.limit,
+          totalPages: indexedResults.totalPages,
+          hasNextPage: indexedResults.page < indexedResults.totalPages,
+          hasPreviousPage: indexedResults.page > 1,
+          query: searchDto.query,
+        };
+      } catch (error) {
+        // Fall through to database search if indexed search fails
+        this.logger?.debug?.(
+          this.contextService
+            ? createLogContext(
+                this.contextService,
+                "ProductsService.search.indexedSearchFailed",
+                {
+                  query: searchDto.query,
+                  error: error instanceof Error ? error.message : String(error),
+                },
+              )
+            : { operation: "ProductsService.search", query: searchDto.query },
+          "Indexed search failed, falling back to database search",
+        );
+      }
+    }
+
+    // Fallback to existing database search implementation
     const { page, limit, offset } = normalizePaginationParams(
       searchDto.page,
       searchDto.limit,

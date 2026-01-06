@@ -28,12 +28,12 @@ export class CompressionOptionsDto {
   maxHeight?: number;
 
   @ApiProperty({
-    description: "Output format (webp, jpeg, png), default: webp",
+    description: "Output format (webp, avif, jpeg, png), default: webp",
     example: "webp",
-    enum: ["webp", "jpeg", "png"],
+    enum: ["webp", "avif", "jpeg", "png"],
     required: false,
   })
-  format?: "webp" | "jpeg" | "png";
+  format?: "webp" | "avif" | "jpeg" | "png";
 }
 
 export const DEFAULT_COMPRESSION_OPTIONS: Required<CompressionOptionsDto> = {

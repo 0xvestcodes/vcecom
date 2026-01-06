@@ -104,6 +104,7 @@ export class PaymentChargesService {
         codDisallowDigital: dto.codDisallowDigital ?? true,
         codDisallowPreorder: dto.codDisallowPreorder ?? true,
         active: dto.active ?? true,
+        storeLevelDisabled: dto.storeLevelDisabled ?? false,
       })
       .returning();
 
@@ -193,6 +194,9 @@ export class PaymentChargesService {
         codDisallowPreorder: dto.codDisallowPreorder,
       }),
       ...(dto.active !== undefined && { active: dto.active }),
+      ...(dto.storeLevelDisabled !== undefined && {
+        storeLevelDisabled: dto.storeLevelDisabled,
+      }),
       updatedAt: new Date(),
     };
 

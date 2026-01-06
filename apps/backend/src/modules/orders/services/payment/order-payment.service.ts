@@ -144,9 +144,16 @@ export class OrderPaymentService {
     );
 
     return {
-      ...updatedOrder,
+      id: updatedOrder.id,
+      customerId: updatedOrder.customerId,
+      orderNumber: updatedOrder.orderNumber,
+      status: updatedOrder.status,
+      subtotal: updatedOrder.subtotal,
+      gstAmount: updatedOrder.gstAmount,
       gstBreakdown,
-      items: orderItemsList,
+      shippingCost: updatedOrder.shippingCost,
+      paymentFee: updatedOrder.paymentFee ?? undefined,
+      paymentMethod: updatedOrder.paymentMethod ?? null,
       paymentFeeBreakdown:
         (updatedOrder.paymentFeeBreakdown as {
           method: string;
@@ -157,6 +164,17 @@ export class OrderPaymentService {
           mixMin?: number;
           mixCap?: number;
         } | null) || null,
+      total: updatedOrder.total,
+      razorpayOrderId: updatedOrder.razorpayOrderId ?? null,
+      shippingProvider: updatedOrder.shippingProvider ?? null,
+      shippingAddressId: updatedOrder.shippingAddressId,
+      billingAddressId: updatedOrder.billingAddressId,
+      items: orderItemsList,
+      createdAt: updatedOrder.createdAt,
+      updatedAt: updatedOrder.updatedAt,
+      archived: updatedOrder.archived ?? false,
+      archivedAt: updatedOrder.archivedAt ?? null,
+      archivedBy: updatedOrder.archivedBy ?? null,
       discountCode: updatedOrder.discountCode ?? undefined,
       discountAmount: updatedOrder.discountAmount ?? undefined,
     };

@@ -58,7 +58,7 @@ export function CreateProductSheet({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<CreateProductFormValues>({
-    resolver: zodResolver(createProductFormSchema) as any,
+    resolver: zodResolver(createProductFormSchema),
     defaultValues: {
       title: "",
       description: "",

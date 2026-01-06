@@ -31,6 +31,11 @@ export function validateGuestCheckoutRequirements(
   createOrderDto: CreateOrderDto,
   sessionId: string | null,
 ): void {
+  // Skip validation if checkoutSessionId is provided - data will come from metadata
+  if (createOrderDto.checkoutSessionId) {
+    return;
+  }
+
   if (
     !createOrderDto.email ||
     !createOrderDto.name ||
@@ -54,6 +59,11 @@ export function validateGuestCheckoutRequirements(
 export function validateAuthenticatedCheckoutRequirements(
   createOrderDto: CreateOrderDto,
 ): void {
+  // Skip validation if checkoutSessionId is provided - data will come from metadata
+  if (createOrderDto.checkoutSessionId) {
+    return;
+  }
+
   if (!createOrderDto.shippingAddressId || !createOrderDto.billingAddressId) {
     throw new BadRequestException(
       "Shipping and billing address IDs are required for authenticated checkout",

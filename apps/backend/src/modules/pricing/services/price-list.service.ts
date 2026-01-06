@@ -36,6 +36,7 @@ export class PriceListService {
           createDto.isActive !== undefined ? (createDto.isActive ? 1 : 0) : 1,
         startDate: createDto.startDate || null,
         endDate: createDto.endDate || null,
+        currency: createDto.currency || null,
       })
       .returning();
 
@@ -127,6 +128,8 @@ export class PriceListService {
       updateData.startDate = updateDto.startDate || null;
     if (updateDto.endDate !== undefined)
       updateData.endDate = updateDto.endDate || null;
+    if (updateDto.currency !== undefined)
+      updateData.currency = updateDto.currency || null;
 
     await this.db
       .update(priceLists)
@@ -194,6 +197,7 @@ export class PriceListService {
       productVariantId: createItemDto.productVariantId || null,
       productId: createItemDto.productId || null,
       categoryId: createItemDto.categoryId || null,
+      currency: createItemDto.currency || null,
       overrideType: createItemDto.overrideType,
       overrideValue: createItemDto.overrideValue,
     });
@@ -251,6 +255,7 @@ export class PriceListService {
       type: list.type as PriceListResponseDto["type"],
       priority: list.priority,
       isActive: list.isActive === 1,
+      currency: list.currency || undefined,
       startDate: list.startDate,
       endDate: list.endDate,
       items: items.map((item) => ({
@@ -259,6 +264,7 @@ export class PriceListService {
         productVariantId: item.productVariantId,
         productId: item.productId,
         categoryId: item.categoryId,
+        currency: item.currency || undefined,
         overrideType:
           item.overrideType as PriceListResponseDto["items"][0]["overrideType"],
         overrideValue: item.overrideValue,

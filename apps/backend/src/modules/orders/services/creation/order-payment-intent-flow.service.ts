@@ -101,6 +101,11 @@ export class OrderPaymentIntentFlowService {
       // Get cart object for later use (discount code, items, etc.)
       const cart = await this.cartDataService.getCartForOrder(cartId);
 
+      // Validate cart has items (defensive check)
+      if (!cart.items || cart.items.length === 0) {
+        throw new BadRequestException("Cart is empty or items are missing");
+      }
+
       // Get or create checkout session
       const sessionResult =
         await this.checkoutSessionService.getOrCreateSession(
@@ -118,13 +123,90 @@ export class OrderPaymentIntentFlowService {
       const cartItemIds = cart.items.map((item) => item.id);
       const allCartItems =
         await this.cartProcessingService.extractCartItems(cartItemIds);
-      const { bundleItems: bundleCartItems, variantItems: variantCartItems } =
-        this.cartProcessingService.separateBundleAndVariantItems(allCartItems);
+
+      if (!allCartItems || !Array.isArray(allCartItems)) {
+        throw new BadRequestException("Failed to extract cart items");
+      }
+
+      if (allCartItems.length === 0) {
+        throw new BadRequestException("Cart is empty - no items to process");
+      }
+
+      let bundleCartItems: Array<{
+        id: string;
+        productVariantId: string;
+        quantity: number;
+        price: number;
+        metadata: unknown;
+      }> = [];
+      let variantCartItems: Array<{
+        id: string;
+        productVariantId: string;
+        quantity: number;
+        price: number;
+        metadata: unknown;
+      }> = [];
+
+      try {
+        const separationResult =
+          this.cartProcessingService.separateBundleAndVariantItems(
+            allCartItems,
+          );
+
+        if (!separationResult || typeof separationResult !== "object") {
+          throw new Error("Separation result is invalid");
+        }
+
+        bundleCartItems = Array.isArray(separationResult.bundleItems)
+          ? separationResult.bundleItems
+          : [];
+        variantCartItems = Array.isArray(separationResult.variantItems)
+          ? separationResult.variantItems
+          : [];
+      } catch (error) {
+        this.logger.error(
+          createErrorContext(
+            this.contextService,
+            "separateBundleAndVariantItems",
+            error instanceof Error ? error : new Error(String(error)),
+            { cartId, allCartItemsCount: allCartItems.length },
+          ),
+          "Failed to separate cart items, treating all as variant items",
+        );
+        // Fallback: treat all items as variant items
+        variantCartItems = allCartItems;
+        bundleCartItems = [];
+      }
+
+      // Final validation - ensure we have arrays
+      if (!Array.isArray(variantCartItems)) {
+        this.logger.error(
+          createErrorContext(
+            this.contextService,
+            "validateVariantCartItems",
+            new Error("variantCartItems is not an array"),
+            { cartId, variantCartItemsType: typeof variantCartItems },
+          ),
+          "variantCartItems validation failed",
+        );
+        throw new BadRequestException(
+          "Failed to separate cart items into variants and bundles",
+        );
+      }
+
+      if (!Array.isArray(bundleCartItems)) {
+        bundleCartItems = [];
+      }
+
       const variantItemIds = variantCartItems.map((i) => i.id);
       const cartItemsWithVariants =
         await this.cartProcessingService.fetchCartItemProductData(
           variantItemIds,
         );
+
+      if (!cartItemsWithVariants || !Array.isArray(cartItemsWithVariants)) {
+        throw new BadRequestException("Failed to fetch cart item product data");
+      }
 
       // Calculate totals
       const sellerState = this.validationService.getSellerState();
@@ -133,33 +215,49 @@ export class OrderPaymentIntentFlowService {
       }
       const buyerState = shippingAddress.state;
 
+      // Ensure bundleCartItems is defined and is an array
+      const safeBundleCartItems =
+        bundleCartItems && Array.isArray(bundleCartItems)
+          ? bundleCartItems
+          : [];
+
       const totals = await this.calculationService.calculateOrderTotals(
         cartItemsWithVariants.map((item) => ({
           price: item.price,
           quantity: item.quantity,
           productGstRate: item.productGstRate,
+          productVariantId: item.productVariantId,
         })),
-        bundleCartItems.map((item) => ({
+        safeBundleCartItems.map((item) => ({
           price: item.price,
           quantity: item.quantity,
           productVariantId: item.productVariantId,
         })),
         sellerState,
         buyerState,
+        userId, // Pass customer ID for tax engine
       );
       const { subtotal, totalGstAmount } = totals;
       const shippingCost = createOrderDto.shippingCost || 0;
 
       // Flatten bundles for pricing/discount engines
       const bundleProcessingResult =
-        await this.cartProcessingService.processBundleItems(bundleCartItems);
+        await this.cartProcessingService.processBundleItems(
+          safeBundleCartItems,
+        );
       const { bundleVariantMapping, flattenedBundleVariants } =
         bundleProcessingResult;
+
+      // Ensure flattenedBundleVariants is an array
+      const safeFlattenedBundleVariants =
+        flattenedBundleVariants && Array.isArray(flattenedBundleVariants)
+          ? flattenedBundleVariants
+          : [];
 
       // Get product IDs from variants (needed for both pricing and discount engines)
       const variantIds = [
         ...cartItemsWithVariants.map((item) => item.productVariantId),
-        ...flattenedBundleVariants.map((v) => v.variantId),
+        ...safeFlattenedBundleVariants.map((v) => v.variantId),
       ];
       const variantProductMap = await this.db
         .select({
@@ -195,13 +293,21 @@ export class OrderPaymentIntentFlowService {
         cartId,
         customerId,
         cartItemsWithVariants,
-        bundleCartItems,
-        flattenedBundleVariants,
+        safeBundleCartItems,
+        safeFlattenedBundleVariants,
         variantToProductForPricing,
         productMapForPricing,
         subtotal,
       );
       const { pricingSnapshot, effectiveSubtotal } = pricingResult;
+
+      // Ensure effectiveSubtotal is a valid number (fallback to subtotal if undefined/NaN)
+      const safeEffectiveSubtotal =
+        effectiveSubtotal !== undefined &&
+        !Number.isNaN(effectiveSubtotal) &&
+        effectiveSubtotal >= 0
+          ? effectiveSubtotal
+          : subtotal;
 
       // STEP 2: Use discount engine to calculate discount and generate snapshot
       // Discounts apply to effective prices from pricing engine
@@ -209,15 +315,15 @@ export class OrderPaymentIntentFlowService {
         await this.discountEngineService.applyDiscounts(
           cart.id,
           checkoutSessionId,
-          effectiveSubtotal,
+          safeEffectiveSubtotal,
           customerId,
           userId,
           discountCode,
           createOrderDto.shippingCost || 0,
           cartItemsWithVariants,
-          bundleCartItems,
+          safeBundleCartItems,
           bundleVariantMapping,
-          flattenedBundleVariants,
+          safeFlattenedBundleVariants,
           variantProductMap,
           productDetails,
         );
@@ -225,15 +331,75 @@ export class OrderPaymentIntentFlowService {
       // Calculate total after discount (discount applies to effective subtotal before GST)
       const subtotalAfterDiscount = Math.max(
         0,
-        effectiveSubtotal - discountAmount,
+        safeEffectiveSubtotal - discountAmount,
       );
 
-      // Get payment method and fee from checkout metadata
+      // Get payment method and fee from checkout metadata or DTO
       let paymentFee = 0;
       let paymentMethod: string | undefined;
       let paymentFeeBreakdown: PaymentFeeBreakdownDto | undefined;
 
-      if (checkoutSessionId) {
+      // Use paymentMethodId from DTO if provided, otherwise get from metadata
+      if (createOrderDto.paymentMethodId) {
+        paymentMethod = createOrderDto.paymentMethodId;
+        // Calculate payment fee if not in metadata
+        // checkoutSessionId should always be set at this point, but check defensively
+        if (checkoutSessionId) {
+          const existingMetadata =
+            await this.checkoutStore.getCheckoutMetadata(checkoutSessionId);
+          if (existingMetadata?.paymentFee !== undefined) {
+            // Use existing fee from metadata
+            paymentFee = existingMetadata.paymentFee; // Already in paise
+            paymentFeeBreakdown = existingMetadata.paymentFeeBreakdown;
+          } else {
+            // Calculate payment fee for the selected method
+            // Use subtotal after discount + shipping cost for fee calculation
+            // Note: GST will be added later, but payment fees are typically calculated on subtotal + shipping
+            const shippingCost = createOrderDto.shippingCost || 0;
+            // Ensure subtotalAfterDiscount is a valid number
+            const safeSubtotalAfterDiscount =
+              Number.isNaN(subtotalAfterDiscount) || subtotalAfterDiscount < 0
+                ? 0
+                : subtotalAfterDiscount;
+            const cartTotalWithShipping =
+              safeSubtotalAfterDiscount + shippingCost;
+            const cartTotalInPaise = Math.round(
+              cartTotalWithShipping * PAISE_PER_RUPEE,
+            );
+            const feeResult = await this.calculationService.calculatePaymentFee(
+              paymentMethod,
+              cartTotalInPaise,
+              "INR",
+            );
+            paymentFee = feeResult.fee; // Already in paise
+            paymentFeeBreakdown = feeResult.breakdown as
+              | PaymentFeeBreakdownDto
+              | undefined;
+          }
+        } else {
+          // If checkoutSessionId is not set but paymentMethodId is provided, calculate fee anyway
+          // This should not happen in normal flow, but handle defensively
+          const shippingCost = createOrderDto.shippingCost || 0;
+          const safeSubtotalAfterDiscount =
+            Number.isNaN(subtotalAfterDiscount) || subtotalAfterDiscount < 0
+              ? 0
+              : subtotalAfterDiscount;
+          const cartTotalWithShipping =
+            safeSubtotalAfterDiscount + shippingCost;
+          const cartTotalInPaise = Math.round(
+            cartTotalWithShipping * PAISE_PER_RUPEE,
+          );
+          const feeResult = await this.calculationService.calculatePaymentFee(
+            paymentMethod,
+            cartTotalInPaise,
+            "INR",
+          );
+          paymentFee = feeResult.fee; // Already in paise
+          paymentFeeBreakdown = feeResult.breakdown as
+            | PaymentFeeBreakdownDto
+            | undefined;
+        }
+      } else if (checkoutSessionId) {
         const existingMetadata =
           await this.checkoutStore.getCheckoutMetadata(checkoutSessionId);
         // Get payment method first (required for COD detection)
@@ -254,9 +420,10 @@ export class OrderPaymentIntentFlowService {
           checkoutSessionId,
           cartId,
           paymentMethod,
-          normalizedMethod: paymentMethod
-            ? paymentMethod.trim().toLowerCase()
-            : null,
+          normalizedMethod:
+            paymentMethod && typeof paymentMethod === "string"
+              ? paymentMethod.trim().toLowerCase()
+              : null,
           expectedCOD: COD_PAYMENT_METHOD,
           isCOD: isCod,
           metadataExists: !!checkoutSessionId,
@@ -268,6 +435,13 @@ export class OrderPaymentIntentFlowService {
       // Check if payment method is COD - if so, create order directly without payment intent
       // This check must happen BEFORE storing metadata and creating payment intent
       if (isCod) {
+        // Validate payment method is set
+        if (!paymentMethod || typeof paymentMethod !== "string") {
+          throw new BadRequestException(
+            "Payment method is required for COD order creation",
+          );
+        }
+
         this.logger.info(
           createLogContext(this.contextService, "createCodOrder", {
             checkoutSessionId,
@@ -277,7 +451,7 @@ export class OrderPaymentIntentFlowService {
           "COD payment method detected, creating order directly",
         );
 
-        // Ensure checkout metadata is stored before creating COD order
+        // Ensure checkout session is available
         if (!checkoutSessionId) {
           throw new ConflictException(
             "Checkout session is required for COD order creation",
@@ -404,7 +578,7 @@ export class OrderPaymentIntentFlowService {
         shippingCost,
         paymentFee,
         paymentMethod,
-        effectiveSubtotal,
+        safeEffectiveSubtotal,
         discountSnapshot,
         pricingSnapshot,
       );

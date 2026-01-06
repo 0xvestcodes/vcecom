@@ -136,7 +136,8 @@ export function HeroForm({
  */
 export function createHeroForm(defaultValues?: HeroFormData) {
   return useForm<HeroFormData>({
-    resolver: zodResolver(heroBlock.propsSchema as any) as any,
+    // biome-ignore lint/suspicious/noExplicitAny: zodResolver type compatibility
+    resolver: zodResolver(heroBlock.propsSchema as any),
     defaultValues: defaultValues || heroBlock.defaultProps,
   });
 }

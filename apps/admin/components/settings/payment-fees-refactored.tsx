@@ -115,11 +115,32 @@ export function PaymentFeesRefactored() {
       },
     },
     {
-      id: "active",
+      id: "status",
       header: "Status",
-      cell: (charge: PaymentMethodChargeConfig) => (
-        <span className="text-xs">{charge.active ? "Active" : "Inactive"}</span>
-      ),
+      cell: (charge: PaymentMethodChargeConfig) => {
+        const badges = [];
+        if (charge.active) {
+          badges.push(
+            <span key="active" className="text-xs text-green-600">
+              Active
+            </span>,
+          );
+        } else {
+          badges.push(
+            <span key="inactive" className="text-xs text-gray-500">
+              Inactive
+            </span>,
+          );
+        }
+        if (charge.storeLevelDisabled) {
+          badges.push(
+            <span key="disabled" className="text-xs text-red-600 ml-2">
+              Disabled
+            </span>,
+          );
+        }
+        return <div className="flex flex-col gap-1">{badges}</div>;
+      },
     },
   ];
 

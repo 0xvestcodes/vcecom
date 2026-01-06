@@ -43,7 +43,8 @@ function StubBlock({ props }: BlockComponentProps<Record<string, unknown>>) {
 
 export const BLOCK_REGISTRY: Record<
   BlockType,
-  React.ComponentType<BlockComponentProps<any>>
+  // biome-ignore lint/suspicious/noExplicitAny: Block components accept various prop types
+  React.ComponentType<any>
 > = {
   // Core
   rich_text: RichTextBlock,

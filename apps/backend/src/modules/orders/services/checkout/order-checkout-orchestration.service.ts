@@ -8,6 +8,7 @@ import { CartsService } from "../../../carts/carts.service";
 import { AddressesService } from "../../../customers/addresses.service";
 import { CustomersService } from "../../../customers/customers.service";
 import { DB_TOKEN } from "../../../database/database.module";
+import { CheckoutStore } from "../../../redis-store/stores/checkout-store";
 import { CreateOrderDto } from "../../dto/create-order.dto";
 import {
   isGuestCheckout,
@@ -29,6 +30,7 @@ export class OrderCheckoutOrchestrationService {
     private readonly addressesService: AddressesService,
     private readonly cartsService: CartsService,
     private readonly validationService: OrderValidationService,
+    private readonly checkoutStore: CheckoutStore,
     @Inject(DB_TOKEN) private readonly db: Database,
   ) {}
 
@@ -49,6 +51,151 @@ export class OrderCheckoutOrchestrationService {
     actualUserId: string | null;
     shippingAddress: { state: string };
   }> {
+    // If checkoutSessionId is provided, retrieve metadata and populate DTO
+    if (createOrderDto.checkoutSessionId) {
+      // First, verify the checkout session exists
+      const checkoutSession = await this.checkoutStore.getSession(
+        createOrderDto.checkoutSessionId,
+      );
+
+      if (!checkoutSession) {
+        throw new BadRequestException(
+          "Checkout session expired or invalid. Please start a new checkout from your cart.",
+        );
+      }
+
+      // Then, retrieve metadata
+      const metadata = await this.checkoutStore.getCheckoutMetadata(
+        createOrderDto.checkoutSessionId,
+      );
+
+      if (!metadata) {
+        // Log debug information to help diagnose Redis issues
+        this._logger.warn(
+          {
+            checkoutSessionId: createOrderDto.checkoutSessionId,
+            sessionExists: true,
+            sessionState: checkoutSession.state,
+            sessionCartId: checkoutSession.cartId,
+          },
+          "Checkout session exists but metadata is missing - possible Redis issue or session corruption",
+        );
+
+        throw new BadRequestException(
+          "Checkout session is missing required data. Please restart checkout from your cart.",
+        );
+      }
+
+      this._logger.debug(
+        {
+          checkoutSessionId: createOrderDto.checkoutSessionId,
+          hasShippingAddressId: !!metadata.shippingAddressId,
+          hasBillingAddressId: !!metadata.billingAddressId,
+          hasShippingAddress: "_shippingAddress" in metadata,
+          metadataKeys: Object.keys(metadata),
+        },
+        "Retrieved checkout metadata",
+      );
+
+      // If metadata has address IDs, use them (authenticated checkout)
+      if (metadata.shippingAddressId && metadata.billingAddressId) {
+        createOrderDto.shippingAddressId = metadata.shippingAddressId;
+        createOrderDto.billingAddressId = metadata.billingAddressId;
+      }
+      // If metadata has guest address data, populate DTO (guest checkout)
+      else if (
+        metadata &&
+        typeof metadata === "object" &&
+        "_shippingAddress" in metadata
+      ) {
+        const guestAddress = (metadata as { _shippingAddress?: unknown })
+          ._shippingAddress;
+        if (
+          guestAddress &&
+          typeof guestAddress === "object" &&
+          "email" in guestAddress &&
+          "name" in guestAddress &&
+          "phone" in guestAddress &&
+          "address1" in guestAddress &&
+          "city" in guestAddress &&
+          "state" in guestAddress &&
+          "pincode" in guestAddress
+        ) {
+          const addr = guestAddress as {
+            email: string;
+            name: string;
+            phone: string;
+            address1: string;
+            address2?: string;
+            city: string;
+            state: string;
+            pincode: string;
+            country?: string;
+          };
+          createOrderDto.email = addr.email;
+          createOrderDto.name = addr.name;
+          createOrderDto.phone = addr.phone;
+          // Combine address1 and address2 into street (CreateAddressDto uses 'street' field)
+          const streetAddress = addr.address2
+            ? `${addr.address1}, ${addr.address2}`
+            : addr.address1;
+          createOrderDto.address = {
+            street: streetAddress,
+            city: addr.city,
+            state: addr.state,
+            pincode: addr.pincode,
+            country: addr.country || "India",
+          };
+
+          // Get password from metadata if available
+          if (
+            metadata &&
+            typeof metadata === "object" &&
+            "_guestPassword" in metadata
+          ) {
+            const password = (metadata as { _guestPassword?: string })
+              ._guestPassword;
+            if (password) {
+              createOrderDto.password = password;
+            }
+          }
+
+          this._logger.debug(
+            {
+              checkoutSessionId: createOrderDto.checkoutSessionId,
+              email: createOrderDto.email,
+              name: createOrderDto.name,
+              phone: createOrderDto.phone,
+              hasAddress: !!createOrderDto.address,
+            },
+            "Populated DTO from checkout metadata for guest checkout",
+          );
+        } else {
+          this._logger.warn(
+            {
+              checkoutSessionId: createOrderDto.checkoutSessionId,
+              guestAddressType: typeof guestAddress,
+              guestAddressKeys:
+                guestAddress && typeof guestAddress === "object"
+                  ? Object.keys(guestAddress)
+                  : [],
+            },
+            "Guest address data in metadata is missing required fields",
+          );
+        }
+      } else {
+        this._logger.warn(
+          {
+            checkoutSessionId: createOrderDto.checkoutSessionId,
+            hasShippingAddressId: !!metadata.shippingAddressId,
+            hasBillingAddressId: !!metadata.billingAddressId,
+            hasShippingAddress: "_shippingAddress" in metadata,
+          },
+          "Metadata does not contain address IDs or guest address data",
+        );
+      }
+    }
+
     // Determine if guest checkout or authenticated checkout
     const checkoutIsGuest = isGuestCheckout(userId, createOrderDto);
 
@@ -76,6 +223,169 @@ export class OrderCheckoutOrchestrationService {
     // Guest checkout flow
     // sessionId is guaranteed to be non-null after validation
     validateGuestCheckoutRequirements(createOrderDto, sessionId ?? null);
+
+    // If checkoutSessionId is provided, use metadata to get/create customer and addresses
+    if (createOrderDto.checkoutSessionId) {
+      const metadata = await this.checkoutStore.getCheckoutMetadata(
+        createOrderDto.checkoutSessionId,
+      );
+
+      if (!metadata) {
+        throw new BadRequestException(
+          `Checkout metadata not found for session ${createOrderDto.checkoutSessionId}`,
+        );
+      }
+
+      // Get checkout session to retrieve cartId
+      const checkoutSession = await this.checkoutStore.getSession(
+        createOrderDto.checkoutSessionId,
+      );
+      if (!checkoutSession) {
+        throw new BadRequestException(
+          `Checkout session not found: ${createOrderDto.checkoutSessionId}`,
+        );
+      }
+
+      // If customerId exists in metadata and is not "temp", use it (customer already created)
+      if (
+        metadata.customerId &&
+        metadata.customerId !== "temp" &&
+        metadata.shippingAddressId &&
+        metadata.shippingAddressId !== "temp" &&
+        metadata.billingAddressId &&
+        metadata.billingAddressId !== "temp"
+      ) {
+        // Get cart by cartId from checkout session
+        const cart = await this.cartsService.getCartById(
+          checkoutSession.cartId,
+        );
+        if (!cart || !cart.items || cart.items.length === 0) {
+          throw new BadRequestException("Cart is empty");
+        }
+
+        // Fetch shipping address for state calculation
+        const [fetchedShippingAddress] = await this.db
+          .select()
+          .from(addresses)
+          .where(eq(addresses.id, metadata.shippingAddressId))
+          .limit(1);
+
+        if (!fetchedShippingAddress) {
+          throw new BadRequestException("Shipping address not found");
+        }
+
+        return {
+          customerId: metadata.customerId,
+          shippingAddressId: metadata.shippingAddressId,
+          billingAddressId: metadata.billingAddressId,
+          cartId: cart.id,
+          actualUserId: metadata.userId,
+          shippingAddress: fetchedShippingAddress,
+        };
+      }
+
+      // If customerId doesn't exist but _shippingAddress does, create customer and addresses
+      if (
+        metadata &&
+        typeof metadata === "object" &&
+        "_shippingAddress" in metadata
+      ) {
+        const guestAddress = (metadata as { _shippingAddress?: unknown })
+          ._shippingAddress;
+        if (
+          guestAddress &&
+          typeof guestAddress === "object" &&
+          "email" in guestAddress &&
+          "name" in guestAddress &&
+          "phone" in guestAddress &&
+          "address1" in guestAddress &&
+          "city" in guestAddress &&
+          "state" in guestAddress &&
+          "pincode" in guestAddress
+        ) {
+          const addr = guestAddress as {
+            email: string;
+            name: string;
+            phone: string;
+            address1: string;
+            address2?: string;
+            city: string;
+            state: string;
+            pincode: string;
+            country?: string;
+          };
+
+          // Get password from metadata if available
+          const password =
+            metadata &&
+            typeof metadata === "object" &&
+            "_guestPassword" in metadata
+              ? (metadata as { _guestPassword?: string })._guestPassword || null
+              : null;
+
+          // Create or get guest customer
+          const customer = await this.customersService.createGuestCustomer(
+            addr.email,
+            addr.name,
+            addr.phone,
+            password,
+          );
+          const customerId = customer.id;
+          const actualUserId = customer.userId;
+
+          // Create addresses for guest customer
+          const streetAddress = addr.address2
+            ? `${addr.address1}, ${addr.address2}`
+            : addr.address1;
+          const guestShippingAddress =
+            await this.addressesService.createByCustomerId(customerId, {
+              street: streetAddress,
+              city: addr.city,
+              state: addr.state,
+              pincode: addr.pincode,
+              country: addr.country || "India",
+              type: "shipping",
+            });
+          const shippingAddressId = guestShippingAddress.id;
+
+          // Create billing address (use same address if not specified separately)
+          const billingAddress = await this.addressesService.createByCustomerId(
+            customerId,
+            {
+              street: streetAddress,
+              city: addr.city,
+              state: addr.state,
+              pincode: addr.pincode,
+              country: addr.country || "India",
+              type: "billing",
+            },
+          );
+          const billingAddressId = billingAddress.id;
+
+          // Get cart by cartId from checkout session
+          const cart = await this.cartsService.getCartById(
+            checkoutSession.cartId,
+          );
+          if (!cart || !cart.items || cart.items.length === 0) {
+            throw new BadRequestException("Cart is empty");
+          }
+          const cartId = cart.id;
+
+          return {
+            customerId,
+            shippingAddressId,
+            billingAddressId,
+            cartId,
+            actualUserId,
+            shippingAddress: guestShippingAddress,
+          };
+        }
+      }
+
+      throw new BadRequestException(
+        "Checkout metadata does not contain required customer or address information",
+      );
+    }
 
     // Extract validated values (guaranteed to exist after validation)
     const guestEmail = createOrderDto.email;

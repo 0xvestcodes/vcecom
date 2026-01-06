@@ -3,6 +3,14 @@ import type { Logger } from "pino";
 import { RateLimitState } from "../rate-limiting/rate-limit.service";
 import { RequestContext } from "./context.service";
 
+export interface GeoRuleCheckResult {
+  isRestricted: boolean;
+  action: "BLOCK" | "WARN" | "REDIRECT" | null;
+  warningMessage: string | null;
+  redirectUrl: string | null;
+  matchedRuleId: string | null;
+}
+
 /**
  * Extended Express Request with logger and user info
  */
@@ -16,6 +24,7 @@ export interface ExtendedRequest extends Request {
   };
   rateLimitState?: RateLimitState;
   fingerprint?: string;
+  geoRuleCheck?: GeoRuleCheckResult;
 }
 
 /**

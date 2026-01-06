@@ -1,6 +1,15 @@
 "use client";
 
-import { Bell, Database, Globe, Palette, Shield } from "lucide-react";
+import {
+  Bell,
+  Database,
+  Flag,
+  Globe,
+  Palette,
+  Search,
+  Shield,
+  Webhook,
+} from "lucide-react";
 import Link from "next/link";
 import { AdminPageLayout } from "@/components/layout/admin-page-layout";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +56,27 @@ const settingsCategories = [
     icon: Palette,
     href: "#",
     available: false,
+  },
+  {
+    title: "Webhooks",
+    description: "Manage outgoing and incoming webhooks",
+    icon: Webhook,
+    href: "/settings/webhooks",
+    available: true,
+  },
+  {
+    title: "Search",
+    description: "Manage search indexes and relevance tuning",
+    icon: Search,
+    href: "/settings/search",
+    available: true,
+  },
+  {
+    title: "Feature Flags",
+    description: "Manage feature flags and scoped overrides",
+    icon: Flag,
+    href: "/settings/feature-flags",
+    available: true,
   },
 ];
 

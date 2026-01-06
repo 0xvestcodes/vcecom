@@ -5,10 +5,11 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from "@nestjs/common";
-import { categories, eq } from "@vcecom/db";
+import { categories, eq, stores } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { ContextService } from "../../common/logging/context.service";
 import { createErrorContext } from "../../common/logging/logging.helper";
+import { StoreContextService } from "../../common/store-context/store-context.service";
 import type { Database } from "../../modules/database/db";
 import { DB_TOKEN } from "../database/database.module";
 import { CreateCategoryDto } from "./dto/create-category.dto";
@@ -19,8 +20,41 @@ export class CategoriesService {
   constructor(
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
+    private readonly storeContextService: StoreContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
   ) {}
+
+  /**
+   * Get default store ID helper
+   */
+  private async getDefaultStoreId(): Promise<string> {
+    // Try to get from store context first
+    const contextStoreId = this.storeContextService.getStoreId();
+    if (contextStoreId) {
+      return contextStoreId;
+    }
+
+    // Fallback to default store
+    const [defaultStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .where(eq(stores.isDefault, true))
+      .limit(1);
+
+    if (defaultStore) {
+      return defaultStore.id;
+    }
+
+    const [firstStore] = await this.db
+      .select({ id: stores.id })
+      .from(stores)
+      .limit(1);
+    if (firstStore) {
+      return firstStore.id;
+    }
+
+    throw new Error("No store found");
+  }
   /**
    * Generate a slug from a name
    */
@@ -120,10 +154,12 @@ export class CategoriesService {
     // Create category
     let newCategory: typeof categories.$inferSelect | undefined;
     try {
+      const storeId = await this.getDefaultStoreId();
       const categoryResult = await this.db
         .insert(categories)
         .values({
           name: createCategoryDto.name,
+          storeId,
           slug,
           parentId: createCategoryDto.parentId || null,
           description: createCategoryDto.description || null,

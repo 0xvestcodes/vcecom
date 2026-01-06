@@ -45,11 +45,13 @@ export const endpoints = {
   storage: {
     upload: "/admin/storage/upload",
     uploadBatch: "/admin/storage/upload/batch",
+    uploadEnhanced: "/admin/storage/upload/enhanced",
     list: "/admin/storage/list",
     get: (key: string) => `/admin/storage/${key}`,
     delete: (key: string) => `/admin/storage/${key}`,
     batchDelete: "/admin/storage/batch",
     presignedUrl: "/admin/storage/presigned-url",
+    signedDownloadUrl: "/admin/storage/signed-download-url",
   },
   inventory: {
     list: "/admin/inventory",
@@ -178,9 +180,24 @@ export const endpoints = {
     delete: (id: string) => `/admin/payment-charges/${id}`,
     preview: "/admin/payment-charges/preview",
   },
+  currencies: {
+    list: "/admin/currencies",
+    active: "/admin/currencies/active",
+    default: "/admin/currencies/default",
+    detail: (id: string) => `/admin/currencies/${id}`,
+    create: "/admin/currencies",
+    update: (id: string) => `/admin/currencies/${id}`,
+    delete: (id: string) => `/admin/currencies/${id}`,
+    setDefault: (id: string) => `/admin/currencies/${id}/set-default`,
+  },
   abandonedCheckouts: {
     list: "/admin/abandoned-checkouts",
     detail: (cartId: string) => `/admin/abandoned-checkouts/${cartId}`,
+  },
+  abandonedCarts: {
+    stats: "/admin/abandoned-carts/stats",
+    analytics: "/admin/abandoned-carts/analytics",
+    recoveryStats: "/admin/abandoned-carts/recovery-stats",
   },
   customers: {
     list: "/admin/customers",
@@ -292,6 +309,35 @@ export const endpoints = {
       `/admin/customer-groups/${id}/price-lists/${priceListId}`,
     members: (id: string) => `/admin/customer-groups/${id}/members`,
   },
+  tax: {
+    rules: {
+      list: "/admin/tax-rules",
+      active: "/admin/tax-rules/active",
+      detail: (id: string) => `/admin/tax-rules/${id}`,
+      create: "/admin/tax-rules",
+      update: (id: string) => `/admin/tax-rules/${id}`,
+      delete: (id: string) => `/admin/tax-rules/${id}`,
+    },
+    exemptions: {
+      list: "/admin/tax-exemptions",
+      active: "/admin/tax-exemptions/active",
+      detail: (id: string) => `/admin/tax-exemptions/${id}`,
+      create: "/admin/tax-exemptions",
+      update: (id: string) => `/admin/tax-exemptions/${id}`,
+      delete: (id: string) => `/admin/tax-exemptions/${id}`,
+    },
+    hsnCodes: {
+      list: "/admin/hsn-codes",
+      active: "/admin/hsn-codes/active",
+      detail: (id: string) => `/admin/hsn-codes/${id}`,
+      create: "/admin/hsn-codes",
+      update: (id: string) => `/admin/hsn-codes/${id}`,
+      delete: (id: string) => `/admin/hsn-codes/${id}`,
+    },
+    audit: {
+      list: "/admin/tax-audit",
+    },
+  },
   mediaHealth: {
     scan: "/admin/media/health/scan",
     fix: (action: string) => `/admin/media/health/fix/${action}`,
@@ -306,6 +352,30 @@ export const endpoints = {
     list: "/admin/jobs",
     history: (jobName: string) => `/admin/jobs/${jobName}/history`,
     trigger: (jobName: string) => `/admin/jobs/${jobName}/trigger`,
+    queues: {
+      list: "/admin/jobs/queues",
+      metrics: "/admin/jobs/queues/metrics",
+      detail: (queueName: string) => `/admin/jobs/queues/${queueName}`,
+      jobs: (
+        queueName: string,
+        status?: "waiting" | "active" | "completed" | "failed" | "delayed",
+      ) => {
+        const params = status ? `?status=${status}` : "";
+        return `/admin/jobs/queues/${queueName}/jobs${params}`;
+      },
+      jobDetail: (queueName: string, jobId: string) =>
+        `/admin/jobs/queues/${queueName}/jobs/${jobId}`,
+      pause: (queueName: string) => `/admin/jobs/queues/${queueName}/pause`,
+      resume: (queueName: string) => `/admin/jobs/queues/${queueName}/resume`,
+      retryJob: (queueName: string, jobId: string) =>
+        `/admin/jobs/queues/${queueName}/jobs/${jobId}/retry`,
+      removeJob: (queueName: string, jobId: string) =>
+        `/admin/jobs/queues/${queueName}/jobs/${jobId}`,
+    },
+    deadLetter: {
+      list: "/admin/jobs/dead-letter",
+      retry: (jobId: string) => `/admin/jobs/dead-letter/${jobId}/retry`,
+    },
   },
   dashboards: {
     overview: "/admin/dashboards/overview",
@@ -325,5 +395,74 @@ export const endpoints = {
     get: "/theme",
     css: "/theme/css",
     update: "/theme",
+  },
+  webhooks: {
+    list: "/admin/webhooks",
+    detail: (id: string) => `/admin/webhooks/${id}`,
+    create: "/admin/webhooks",
+    update: (id: string) => `/admin/webhooks/${id}`,
+    delete: (id: string) => `/admin/webhooks/${id}`,
+    test: (id: string) => `/admin/webhooks/${id}/test`,
+    enable: (id: string) => `/admin/webhooks/${id}/enable`,
+    disable: (id: string) => `/admin/webhooks/${id}/disable`,
+    logs: (id: string) => `/admin/webhooks/${id}/logs`,
+    incoming: {
+      list: "/admin/webhooks/incoming",
+    },
+  },
+  search: {
+    status: "/admin/search/stats",
+    reindex: "/admin/search/reindex",
+    reindexStatus: "/admin/search/reindex/status",
+    relevance: "/admin/search/relevance",
+    updateRelevance: "/admin/search/relevance",
+    resetRelevance: "/admin/search/relevance/reset",
+    sync: "/admin/search/sync",
+  },
+  wallet: {
+    customers: "/admin/wallet/customers",
+    customer: (customerId: string) => `/admin/wallet/customers/${customerId}`,
+    credit: (customerId: string) =>
+      `/admin/wallet/customers/${customerId}/credit`,
+    debit: (customerId: string) =>
+      `/admin/wallet/customers/${customerId}/debit`,
+    transactions: "/admin/wallet/transactions",
+    rules: {
+      list: "/admin/wallet/rules",
+      detail: (id: string) => `/admin/wallet/rules/${id}`,
+      create: "/admin/wallet/rules",
+      update: (id: string) => `/admin/wallet/rules/${id}`,
+      delete: (id: string) => `/admin/wallet/rules/${id}`,
+    },
+  },
+  imports: {
+    create: "/admin/imports",
+    status: (jobId: string) => `/admin/imports/${jobId}`,
+    errors: (jobId: string) => `/admin/imports/${jobId}/errors`,
+    template: (type: string, format: "csv" | "excel" = "csv") =>
+      `/admin/imports/templates/${type}?format=${format}`,
+  },
+  featureFlags: {
+    list: "/admin/features",
+    resolve: "/admin/features/resolve",
+    create: "/admin/features",
+    updateDefaultState: (key: string) => `/admin/features/${key}`,
+    enable: (key: string) => `/admin/features/${key}/enable`,
+    disable: (key: string) => `/admin/features/${key}/disable`,
+    setAdminScope: (key: string, adminId: string) =>
+      `/admin/features/${key}/scope/admin/${adminId}`,
+    setStoreScope: (key: string, storeId: string) =>
+      `/admin/features/${key}/scope/store/${storeId}`,
+    setEnvScope: (key: string, envName: string) =>
+      `/admin/features/${key}/scope/env/${envName}`,
+    removeScope: (key: string, scopeType: string, scopeId: string) =>
+      `/admin/features/${key}/scope/${scopeType}/${scopeId}`,
+    history: (key: string, scopeType?: string, scopeId?: string) => {
+      const params = new URLSearchParams();
+      if (scopeType) params.set("scopeType", scopeType);
+      if (scopeId) params.set("scopeId", scopeId);
+      const query = params.toString();
+      return `/admin/features/${key}/history${query ? `?${query}` : ""}`;
+    },
   },
 } as const;

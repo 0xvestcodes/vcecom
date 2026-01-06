@@ -208,4 +208,30 @@ export class EmailService implements OnModuleInit {
       data: orderData,
     });
   }
+
+  /**
+   * Send abandoned cart recovery email
+   */
+  async sendAbandonedCartRecovery(
+    to: string,
+    data: {
+      customerName: string;
+      cartItems: Array<{
+        name: string;
+        quantity: number;
+        price: number;
+        thumbnail?: string | null;
+      }>;
+      cartTotal: number;
+      discountCode?: string;
+      cartLink: string;
+    },
+  ): Promise<void> {
+    await this.sendEmail({
+      to,
+      subject: "Complete Your Purchase - Items Waiting!",
+      template: "abandoned-cart-recovery",
+      data,
+    });
+  }
 }

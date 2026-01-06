@@ -106,12 +106,27 @@ export class MinioProvider implements StorageProvider {
     key: string,
     buffer: Buffer,
     contentType: string,
+    bucket?: string,
+    metadata?: Record<string, string>,
   ): Promise<string> {
     try {
-      await this.client.putObject(this.bucket, key, buffer, buffer.length, {
+      const targetBucket = bucket || this.bucket;
+      const metaData: Record<string, string> = {
         "Content-Type": contentType,
-      });
-      return this.getUrl(key);
+        ...(metadata?.CacheControl && {
+          "Cache-Control": metadata.CacheControl,
+        }),
+        ...metadata,
+      };
+
+      await this.client.putObject(
+        targetBucket,
+        key,
+        buffer,
+        buffer.length,
+        metaData,
+      );
+      return this.getUrl(key, bucket);
     } catch (error) {
       this.logger.error(
         `Failed to upload file ${key}: ${error instanceof Error ? error.message : String(error)}`,
@@ -122,9 +137,10 @@ export class MinioProvider implements StorageProvider {
     }
   }
 
-  async delete(key: string): Promise<void> {
+  async delete(key: string, bucket?: string): Promise<void> {
     try {
-      await this.client.removeObject(this.bucket, key);
+      const targetBucket = bucket || this.bucket;
+      await this.client.removeObject(targetBucket, key);
     } catch (error) {
       this.logger.error(
         `Failed to delete file ${key}: ${error instanceof Error ? error.message : String(error)}`,
@@ -135,13 +151,24 @@ export class MinioProvider implements StorageProvider {
     }
   }
 
-  async getUrl(key: string): Promise<string> {
+  async getUrl(key: string, bucket?: string): Promise<string> {
+    const targetBucket = bucket || this.bucket;
+    // Update public URL if bucket changed
+    if (bucket && bucket !== this.bucket) {
+      const baseUrl = this.publicUrl.replace(`/${this.bucket}`, "");
+      return `${baseUrl}/${targetBucket}/${key}`;
+    }
     return `${this.publicUrl}/${key}`;
   }
 
-  async getPresignedUrl(key: string, expiresIn = 3600): Promise<string> {
+  async getPresignedUrl(
+    key: string,
+    expiresIn = 3600,
+    bucket?: string,
+  ): Promise<string> {
     try {
-      return await this.client.presignedPutObject(this.bucket, key, expiresIn);
+      const targetBucket = bucket || this.bucket;
+      return await this.client.presignedPutObject(targetBucket, key, expiresIn);
     } catch (error) {
       this.logger.error(
         `Failed to generate presigned URL for ${key}: ${error instanceof Error ? error.message : String(error)}`,
@@ -152,19 +179,43 @@ export class MinioProvider implements StorageProvider {
     }
   }
 
-  async exists(key: string): Promise<boolean> {
+  async getSignedDownloadUrl(
+    key: string,
+    expiresIn = 3600,
+    bucket?: string,
+  ): Promise<string> {
     try {
-      await this.client.statObject(this.bucket, key);
+      const targetBucket = bucket || this.bucket;
+      return await this.client.presignedGetObject(targetBucket, key, expiresIn);
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate signed download URL for ${key}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new Error(
+        `Failed to generate signed download URL: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async exists(key: string, bucket?: string): Promise<boolean> {
+    try {
+      const targetBucket = bucket || this.bucket;
+      await this.client.statObject(targetBucket, key);
       return true;
     } catch {
       return false;
     }
   }
 
-  async list(prefix: string, maxKeys = 1000): Promise<string[]> {
+  async list(
+    prefix: string,
+    maxKeys = 1000,
+    bucket?: string,
+  ): Promise<string[]> {
     try {
+      const targetBucket = bucket || this.bucket;
       const objects: string[] = [];
-      const stream = this.client.listObjects(this.bucket, prefix, true);
+      const stream = this.client.listObjects(targetBucket, prefix, true);
 
       return new Promise((resolve, reject) => {
         stream.on("data", (obj) => {
@@ -197,9 +248,11 @@ export class MinioProvider implements StorageProvider {
 
   async getMetadata(
     key: string,
+    bucket?: string,
   ): Promise<{ size: number; contentType?: string }> {
     try {
-      const stat = await this.client.statObject(this.bucket, key);
+      const targetBucket = bucket || this.bucket;
+      const stat = await this.client.statObject(targetBucket, key);
       return {
         size: stat.size,
         contentType:

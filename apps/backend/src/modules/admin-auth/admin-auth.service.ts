@@ -15,6 +15,7 @@ import {
   createLogContext,
 } from "../../common/logging/logging.helper";
 import type { Database } from "../../modules/database/db";
+import { JwtRotationService } from "../auth/services/jwt-rotation.service";
 import { DB_TOKEN } from "../database/database.module";
 import { AdminActivityService } from "./admin-activity.service";
 import { AdminMfaService } from "./admin-mfa.service";
@@ -42,7 +43,8 @@ export class AdminAuthService {
   private readonly accessTokenExpiresIn: string;
 
   constructor(
-    private readonly jwtService: JwtService,
+    readonly _jwtService: JwtService,
+    private readonly jwtRotationService: JwtRotationService,
     private readonly sessionsService: AdminSessionsService,
     private readonly activityService: AdminActivityService,
     private readonly mfaService: AdminMfaService,
@@ -172,8 +174,8 @@ export class AdminAuthService {
         ipAddress,
       });
 
-    // Generate access token
-    const accessToken = this.jwtService.sign(
+    // Generate access token using rotation service (supports secret rotation)
+    const accessToken = await this.jwtRotationService.sign(
       {
         sub: admin.id,
         email: admin.email,
@@ -182,7 +184,7 @@ export class AdminAuthService {
         type: "admin",
       },
       {
-        expiresIn: this.accessTokenExpiresIn,
+        expiresIn: Number.parseInt(this.accessTokenExpiresIn, 10),
       },
     );
 
@@ -244,8 +246,8 @@ export class AdminAuthService {
       // Update last used timestamp
       await this.sessionsService.updateLastUsedAt(session.sessionId);
 
-      // Generate new access token
-      const accessToken = this.jwtService.sign(
+      // Generate new access token using rotation service
+      const accessToken = await this.jwtRotationService.sign(
         {
           sub: admin.id,
           email: admin.email,
@@ -254,7 +256,7 @@ export class AdminAuthService {
           type: "admin",
         },
         {
-          expiresIn: this.accessTokenExpiresIn,
+          expiresIn: Number.parseInt(this.accessTokenExpiresIn, 10),
         },
       );
 

@@ -20,8 +20,15 @@ import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema";
-import { paymentMethodCharges, users } from "./schema";
+import {
+  currencies,
+  paymentMethodCharges,
+  shippingMethods,
+  users,
+} from "./schema";
+import type { NewCurrency } from "./schema/currencies";
 import type { NewPaymentMethodCharge } from "./schema/payment-method-charges";
+import type { NewShippingMethod } from "./schema/shipping-rules";
 
 // Create database connection for seeding
 const pool = new Pool({
@@ -93,7 +100,9 @@ async function seedPaymentMethodCharges() {
         codDisallowHighValue: false,
         codDisallowDigital: true,
         codDisallowPreorder: true,
+        codDisallowInternational: true,
         active: true,
+        storeLevelDisabled: false,
       },
     ];
 
@@ -154,9 +163,177 @@ async function seedPaymentMethodCharges() {
   }
 }
 
+async function seedShippingMethods() {
+  try {
+    // Check if "standard" shipping method already exists
+    const existing = await db
+      .select()
+      .from(shippingMethods)
+      .where(eq(shippingMethods.code, "standard"))
+      .limit(1);
+
+    if (existing.length > 0) {
+      console.log("✅ Standard shipping method already exists, skipping");
+      return;
+    }
+
+    // Create default "Standard" shipping method
+    const [method] = await db
+      .insert(shippingMethods)
+      .values({
+        name: "Standard",
+        description: "Standard delivery within 5-7 business days",
+        code: "standard",
+        baseRate: 0, // Free shipping by default
+        estimatedDays: 7,
+        codAvailable: true,
+        codCharge: null,
+        isActive: true,
+        priority: 0,
+        minOrderValue: null,
+        maxOrderValue: null,
+        restrictedZones: null,
+        restrictedStates: null,
+      } as NewShippingMethod)
+      .returning();
+
+    if (!method) {
+      throw new Error("Failed to create standard shipping method");
+    }
+
+    console.log("✅ Created default 'Standard' shipping method");
+    console.log(`   Code: ${method.code}`);
+    console.log(`   Name: ${method.name}`);
+  } catch (error) {
+    console.error("❌ Error seeding shipping methods:", error);
+    // Don't throw - seed failures shouldn't break the process
+  }
+}
+
+async function seedCurrencies() {
+  try {
+    // Seed default currencies
+    const defaultCurrencies: Array<{
+      code: string;
+      name: string;
+      symbol: string;
+      isActive: boolean;
+      isDefault: boolean;
+      decimalPlaces: number;
+      exchangeRate: number | null;
+      lastUpdated: Date | null;
+    }> = [
+      {
+        code: "INR",
+        name: "Indian Rupee",
+        symbol: "₹",
+        isActive: true,
+        isDefault: true,
+        decimalPlaces: 2,
+        exchangeRate: 1, // Base currency
+        lastUpdated: new Date(),
+      },
+      {
+        code: "USD",
+        name: "US Dollar",
+        symbol: "$",
+        isActive: true,
+        isDefault: false,
+        decimalPlaces: 2,
+        exchangeRate: null, // Will be fetched from FX provider
+        lastUpdated: null,
+      },
+      {
+        code: "EUR",
+        name: "Euro",
+        symbol: "€",
+        isActive: true,
+        isDefault: false,
+        decimalPlaces: 2,
+        exchangeRate: null,
+        lastUpdated: null,
+      },
+      {
+        code: "GBP",
+        name: "British Pound",
+        symbol: "£",
+        isActive: true,
+        isDefault: false,
+        decimalPlaces: 2,
+        exchangeRate: null,
+        lastUpdated: null,
+      },
+    ];
+
+    let createdCount = 0;
+    let updatedCount = 0;
+
+    for (const currency of defaultCurrencies) {
+      // Check if currency already exists
+      const existing = await db
+        .select()
+        .from(currencies)
+        .where(eq(currencies.code, currency.code))
+        .limit(1);
+
+      if (existing.length > 0) {
+        // If setting as default, unset other defaults first
+        if (currency.isDefault) {
+          await db
+            .update(currencies)
+            .set({
+              isDefault: false,
+              updatedAt: new Date(),
+            } as Partial<typeof currencies.$inferInsert>)
+            .where(eq(currencies.isDefault, true));
+        }
+
+        // Update existing currency to ensure it's active
+        await db
+          .update(currencies)
+          .set({
+            name: currency.name,
+            symbol: currency.symbol,
+            isActive: currency.isActive,
+            decimalPlaces: currency.decimalPlaces,
+            isDefault: currency.isDefault,
+            updatedAt: new Date(),
+            // Only update exchangeRate if it's being set (INR base currency)
+            ...(currency.exchangeRate !== null && {
+              exchangeRate: currency.exchangeRate,
+              lastUpdated: currency.lastUpdated,
+            }),
+          } as Partial<NewCurrency>)
+          .where(eq(currencies.code, currency.code));
+
+        updatedCount++;
+      } else {
+        // Create new currency
+        await db.insert(currencies).values(currency);
+        createdCount++;
+      }
+    }
+
+    if (createdCount > 0) {
+      console.log(`✅ Created ${createdCount} currency/currencies`);
+    }
+    if (updatedCount > 0) {
+      console.log(`✅ Updated ${updatedCount} currency/currencies`);
+    }
+    if (createdCount === 0 && updatedCount === 0) {
+      console.log("✅ All currencies are already configured");
+    }
+  } catch (error) {
+    console.error("❌ Error seeding currencies:", error);
+    // Don't throw - seed failures shouldn't break the process
+  }
+}
+
 async function seed() {
   await seedAdminUser();
   await seedPaymentMethodCharges();
+  await seedShippingMethods();
+  await seedCurrencies();
   console.log("✅ Seed completed");
   process.exit(0);
 }

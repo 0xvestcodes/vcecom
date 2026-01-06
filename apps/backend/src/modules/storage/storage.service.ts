@@ -129,43 +129,94 @@ export class StorageService implements OnModuleInit {
     key: string,
     buffer: Buffer,
     contentType: string,
+    bucketType?: "product-media" | "uploads" | "internal",
+    metadata?: Record<string, string>,
   ): Promise<string> {
-    return this.provider.upload(key, buffer, contentType);
+    const bucket = bucketType
+      ? this.appConfigService.getBucketForType(bucketType)
+      : undefined;
+    return this.provider.upload(key, buffer, contentType, bucket, metadata);
   }
 
   /**
    * Delete a file from storage
    */
-  async delete(key: string): Promise<void> {
-    return this.provider.delete(key);
+  async delete(
+    key: string,
+    bucketType?: "product-media" | "uploads" | "internal",
+  ): Promise<void> {
+    const bucket = bucketType
+      ? this.appConfigService.getBucketForType(bucketType)
+      : undefined;
+    return this.provider.delete(key, bucket);
   }
 
   /**
    * Get public URL for a file
    */
-  async getUrl(key: string): Promise<string> {
-    return this.provider.getUrl(key);
+  async getUrl(
+    key: string,
+    bucketType?: "product-media" | "uploads" | "internal",
+  ): Promise<string> {
+    const bucket = bucketType
+      ? this.appConfigService.getBucketForType(bucketType)
+      : undefined;
+    return this.provider.getUrl(key, bucket);
   }
 
   /**
    * Generate a presigned URL for direct upload
    */
-  async getPresignedUrl(key: string, expiresIn?: number): Promise<string> {
-    return this.provider.getPresignedUrl(key, expiresIn);
+  async getPresignedUrl(
+    key: string,
+    expiresIn?: number,
+    bucketType?: "product-media" | "uploads" | "internal",
+  ): Promise<string> {
+    const bucket = bucketType
+      ? this.appConfigService.getBucketForType(bucketType)
+      : undefined;
+    return this.provider.getPresignedUrl(key, expiresIn, bucket);
+  }
+
+  /**
+   * Generate a signed URL for downloading a file
+   */
+  async getSignedDownloadUrl(
+    key: string,
+    expiresIn?: number,
+    bucketType?: "product-media" | "uploads" | "internal",
+  ): Promise<string> {
+    const bucket = bucketType
+      ? this.appConfigService.getBucketForType(bucketType)
+      : undefined;
+    return this.provider.getSignedDownloadUrl(key, expiresIn, bucket);
   }
 
   /**
    * Check if a file exists
    */
-  async exists(key: string): Promise<boolean> {
-    return this.provider.exists(key);
+  async exists(
+    key: string,
+    bucketType?: "product-media" | "uploads" | "internal",
+  ): Promise<boolean> {
+    const bucket = bucketType
+      ? this.appConfigService.getBucketForType(bucketType)
+      : undefined;
+    return this.provider.exists(key, bucket);
   }
 
   /**
    * List files in a prefix
    */
-  async list(prefix: string, maxKeys?: number): Promise<string[]> {
-    return this.provider.list(prefix, maxKeys);
+  async list(
+    prefix: string,
+    maxKeys?: number,
+    bucketType?: "product-media" | "uploads" | "internal",
+  ): Promise<string[]> {
+    const bucket = bucketType
+      ? this.appConfigService.getBucketForType(bucketType)
+      : undefined;
+    return this.provider.list(prefix, maxKeys, bucket);
   }
 
   /**
@@ -173,8 +224,12 @@ export class StorageService implements OnModuleInit {
    */
   async getMetadata(
     key: string,
+    bucketType?: "product-media" | "uploads" | "internal",
   ): Promise<{ size: number; contentType?: string }> {
-    return this.provider.getMetadata(key);
+    const bucket = bucketType
+      ? this.appConfigService.getBucketForType(bucketType)
+      : undefined;
+    return this.provider.getMetadata(key, bucket);
   }
 
   /**

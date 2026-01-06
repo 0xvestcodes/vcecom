@@ -111,6 +111,32 @@ export interface DeploymentConfig {
   region: string | undefined;
 }
 
+export interface SearchConfig {
+  provider: Env["SEARCH_PROVIDER"];
+  indexingEnabled: boolean;
+  batchSize: number;
+  reindexRateLimit: number;
+}
+
+export interface MeilisearchConfig {
+  host: string | undefined;
+  apiKey: string | undefined;
+}
+
+export interface ElasticsearchConfig {
+  host: string | undefined;
+  apiKey: string | undefined;
+  username: string | undefined;
+  password: string | undefined;
+}
+
+export interface OpenSearchConfig {
+  host: string | undefined;
+  apiKey: string | undefined;
+  username: string | undefined;
+  password: string | undefined;
+}
+
 export interface AppConfig {
   nodeEnv: Env["NODE_ENV"];
   port: number;
@@ -132,4 +158,8 @@ export interface AppConfig {
   tracing: TracingConfig;
   rateLimit: RateLimitConfig;
   deployment: DeploymentConfig;
+  search: SearchConfig;
+  meilisearch: MeilisearchConfig;
+  elasticsearch: ElasticsearchConfig;
+  opensearch: OpenSearchConfig;
 }

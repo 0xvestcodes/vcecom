@@ -37,7 +37,14 @@ export class NotificationsService {
         .insert(notifications)
         .values({
           adminId: dto.adminId || null,
-          type: dto.type,
+          type: dto.type as
+            | "ORDER"
+            | "INVENTORY"
+            | "REVIEW"
+            | "SHIPPING"
+            | "PAYMENT"
+            | "SYSTEM"
+            | "SECURITY",
           title: dto.title,
           message: dto.message,
           meta: dto.meta ? (dto.meta as Record<string, unknown>) : null,
@@ -91,7 +98,19 @@ export class NotificationsService {
     ];
 
     if (query.type) {
-      conditions.push(eq(notifications.type, query.type));
+      conditions.push(
+        eq(
+          notifications.type,
+          query.type as
+            | "ORDER"
+            | "INVENTORY"
+            | "REVIEW"
+            | "SHIPPING"
+            | "PAYMENT"
+            | "SYSTEM"
+            | "SECURITY",
+        ),
+      );
     }
 
     if (query.read !== undefined) {
@@ -213,6 +232,48 @@ export class NotificationsService {
     await this.db
       .delete(notifications)
       .where(eq(notifications.id, notificationId));
+  }
+
+  /**
+   * Send fraud alert notification for flagged order
+   */
+  async sendFraudAlert(
+    orderId: string,
+    orderNumber: string,
+    riskScore: number,
+    riskLevel: string,
+  ): Promise<NotificationResponseDto> {
+    return this.create({
+      type: NotificationType.FRAUD,
+      title: "Fraud Alert: High-Risk Order",
+      message: `Order ${orderNumber} has been flagged with ${riskLevel} risk (score: ${riskScore}). Manual review required.`,
+      meta: {
+        orderId,
+        orderNumber,
+        riskScore,
+        riskLevel,
+      },
+    });
+  }
+
+  /**
+   * Send notification when order is reviewed
+   */
+  async sendFraudReviewComplete(
+    orderId: string,
+    orderNumber: string,
+    reviewedBy: string,
+  ): Promise<NotificationResponseDto> {
+    return this.create({
+      type: NotificationType.FRAUD,
+      title: "Fraud Review Complete",
+      message: `Order ${orderNumber} has been reviewed by ${reviewedBy}.`,
+      meta: {
+        orderId,
+        orderNumber,
+        reviewedBy,
+      },
+    });
   }
 
   /**

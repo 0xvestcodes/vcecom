@@ -94,6 +94,10 @@ export class AppConfigService implements OnModuleInit {
       tracing: this.getTracingConfig(),
       rateLimit: this.getRateLimitConfig(),
       deployment: this.getDeploymentConfig(),
+      search: this.getSearchConfig(),
+      meilisearch: this.getMeilisearchConfig(),
+      elasticsearch: this.getElasticsearchConfig(),
+      opensearch: this.getOpenSearchConfig(),
     };
   }
 
@@ -169,6 +173,42 @@ export class AppConfigService implements OnModuleInit {
   getStorageBucket(): string {
     this.ensureEnvInitialized();
     return this.env.STORAGE_BUCKET;
+  }
+
+  /**
+   * Get bucket name for a specific bucket type
+   * Falls back to default STORAGE_BUCKET if not configured
+   */
+  getBucketForType(
+    bucketType: "product-media" | "uploads" | "internal",
+  ): string {
+    this.ensureEnvInitialized();
+    switch (bucketType) {
+      case "product-media":
+        return this.env.STORAGE_PRODUCT_MEDIA_BUCKET || this.env.STORAGE_BUCKET;
+      case "uploads":
+        return this.env.STORAGE_UPLOADS_BUCKET || this.env.STORAGE_BUCKET;
+      case "internal":
+        return this.env.STORAGE_INTERNAL_BUCKET || this.env.STORAGE_BUCKET;
+      default:
+        return this.env.STORAGE_BUCKET;
+    }
+  }
+
+  /**
+   * Get CDN URL if configured
+   */
+  getCdnUrl(): string | undefined {
+    this.ensureEnvInitialized();
+    return this.env.CDN_URL;
+  }
+
+  /**
+   * Get media cache max age in seconds
+   */
+  getMediaCacheMaxAge(): number {
+    this.ensureEnvInitialized();
+    return this.env.MEDIA_CACHE_MAX_AGE;
   }
 
   /**
@@ -430,5 +470,73 @@ export class AppConfigService implements OnModuleInit {
   isProductionEnvironment(): boolean {
     this.ensureEnvInitialized();
     return this.env.NODE_ENV === "production";
+  }
+
+  /**
+   * Get search configuration
+   */
+  getSearchConfig(): {
+    provider: Env["SEARCH_PROVIDER"];
+    indexingEnabled: boolean;
+    batchSize: number;
+    reindexRateLimit: number;
+  } {
+    this.ensureEnvInitialized();
+    return {
+      provider: this.env.SEARCH_PROVIDER,
+      indexingEnabled: this.env.SEARCH_INDEXING_ENABLED,
+      batchSize: this.env.SEARCH_BATCH_SIZE,
+      reindexRateLimit: this.env.SEARCH_REINDEX_RATE_LIMIT,
+    };
+  }
+
+  /**
+   * Get Meilisearch configuration
+   */
+  getMeilisearchConfig(): {
+    host: string | undefined;
+    apiKey: string | undefined;
+  } {
+    this.ensureEnvInitialized();
+    return {
+      host: this.env.MEILISEARCH_HOST,
+      apiKey: this.env.MEILISEARCH_API_KEY,
+    };
+  }
+
+  /**
+   * Get Elasticsearch configuration
+   */
+  getElasticsearchConfig(): {
+    host: string | undefined;
+    apiKey: string | undefined;
+    username: string | undefined;
+    password: string | undefined;
+  } {
+    this.ensureEnvInitialized();
+    return {
+      host: this.env.ELASTICSEARCH_HOST,
+      apiKey: this.env.ELASTICSEARCH_API_KEY,
+      username: this.env.ELASTICSEARCH_USERNAME,
+      password: this.env.ELASTICSEARCH_PASSWORD,
+    };
+  }
+
+  /**
+   * Get OpenSearch configuration
+   */
+  getOpenSearchConfig(): {
+    host: string | undefined;
+    apiKey: string | undefined;
+    username: string | undefined;
+    password: string | undefined;
+  } {
+    this.ensureEnvInitialized();
+    return {
+      host: this.env.OPENSEARCH_HOST,
+      apiKey: this.env.OPENSEARCH_API_KEY,
+      username: this.env.OPENSEARCH_USERNAME,
+      password: this.env.OPENSEARCH_PASSWORD,
+    };
   }
 }

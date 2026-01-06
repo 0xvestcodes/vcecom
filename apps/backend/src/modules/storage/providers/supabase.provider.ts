@@ -89,18 +89,38 @@ export class SupabaseProvider implements StorageProvider {
     key: string,
     buffer: Buffer,
     contentType: string,
+    bucket?: string,
+    metadata?: Record<string, string>,
   ): Promise<string> {
     try {
+      const targetBucket = bucket || this.bucket;
+      const uploadOptions: {
+        contentType: string;
+        upsert: boolean;
+        cacheControl?: string;
+        metadata?: Record<string, string>;
+      } = {
+        contentType,
+        upsert: true,
+      };
+
+      if (metadata?.CacheControl) {
+        uploadOptions.cacheControl = metadata.CacheControl;
+      }
+
+      if (metadata) {
+        uploadOptions.metadata = Object.fromEntries(
+          Object.entries(metadata).filter(([k]) => k !== "CacheControl"),
+        );
+      }
+
       const { error } = await this.client.storage
-        .from(this.bucket)
-        .upload(key, buffer, {
-          contentType,
-          upsert: true,
-        });
+        .from(targetBucket)
+        .upload(key, buffer, uploadOptions);
 
       if (error) throw error;
 
-      return this.getUrl(key);
+      return this.getUrl(key, bucket);
     } catch (error) {
       this.logger.error(
         `Failed to upload file ${key}: ${error instanceof Error ? error.message : String(error)}`,
@@ -111,10 +131,11 @@ export class SupabaseProvider implements StorageProvider {
     }
   }
 
-  async delete(key: string): Promise<void> {
+  async delete(key: string, bucket?: string): Promise<void> {
     try {
+      const targetBucket = bucket || this.bucket;
       const { error } = await this.client.storage
-        .from(this.bucket)
+        .from(targetBucket)
         .remove([key]);
       if (error) throw error;
     } catch (error) {
@@ -127,9 +148,10 @@ export class SupabaseProvider implements StorageProvider {
     }
   }
 
-  async getUrl(key: string): Promise<string> {
+  async getUrl(key: string, bucket?: string): Promise<string> {
     try {
-      const { data } = this.client.storage.from(this.bucket).getPublicUrl(key);
+      const targetBucket = bucket || this.bucket;
+      const { data } = this.client.storage.from(targetBucket).getPublicUrl(key);
       return data.publicUrl;
     } catch (error) {
       this.logger.error(
@@ -141,10 +163,15 @@ export class SupabaseProvider implements StorageProvider {
     }
   }
 
-  async getPresignedUrl(key: string, expiresIn = 3600): Promise<string> {
+  async getPresignedUrl(
+    key: string,
+    expiresIn = 3600,
+    bucket?: string,
+  ): Promise<string> {
     try {
+      const targetBucket = bucket || this.bucket;
       const { data, error } = await this.client.storage
-        .from(this.bucket)
+        .from(targetBucket)
         .createSignedUploadUrl(key, {
           upsert: true,
         });
@@ -161,10 +188,34 @@ export class SupabaseProvider implements StorageProvider {
     }
   }
 
-  async exists(key: string): Promise<boolean> {
+  async getSignedDownloadUrl(
+    key: string,
+    expiresIn = 3600,
+    bucket?: string,
+  ): Promise<string> {
     try {
+      const targetBucket = bucket || this.bucket;
       const { data, error } = await this.client.storage
-        .from(this.bucket)
+        .from(targetBucket)
+        .createSignedUrl(key, expiresIn);
+
+      if (error) throw error;
+      return data.signedUrl;
+    } catch (error) {
+      this.logger.error(
+        `Failed to generate signed download URL for ${key}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new Error(
+        `Failed to generate signed download URL: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+
+  async exists(key: string, bucket?: string): Promise<boolean> {
+    try {
+      const targetBucket = bucket || this.bucket;
+      const { data, error } = await this.client.storage
+        .from(targetBucket)
         .list(key.split("/").slice(0, -1).join("/"));
       if (error) return false;
       const fileName = key.split("/").pop();
@@ -174,10 +225,15 @@ export class SupabaseProvider implements StorageProvider {
     }
   }
 
-  async list(prefix: string, maxKeys = 1000): Promise<string[]> {
+  async list(
+    prefix: string,
+    maxKeys = 1000,
+    bucket?: string,
+  ): Promise<string[]> {
     try {
+      const targetBucket = bucket || this.bucket;
       const { data, error } = await this.client.storage
-        .from(this.bucket)
+        .from(targetBucket)
         .list(prefix, {
           limit: maxKeys,
           sortBy: { column: "name", order: "asc" },
@@ -200,14 +256,16 @@ export class SupabaseProvider implements StorageProvider {
 
   async getMetadata(
     key: string,
+    bucket?: string,
   ): Promise<{ size: number; contentType?: string }> {
     try {
+      const targetBucket = bucket || this.bucket;
       const pathParts = key.split("/");
       const fileName = pathParts.pop() || "";
       const folderPath = pathParts.join("/");
 
       const { data, error } = await this.client.storage
-        .from(this.bucket)
+        .from(targetBucket)
         .list(folderPath || "", {
           limit: 1000,
         });

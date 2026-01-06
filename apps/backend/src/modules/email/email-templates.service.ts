@@ -50,6 +50,17 @@ export class EmailTemplatesService {
     if (templateName === "order-delivered") {
       return `Your Order #${data.orderNumber} has been delivered!\n\nDelivered on: ${data.deliveredAt}\n\nThank you for shopping with us!`;
     }
+    if (templateName === "abandoned-cart-recovery") {
+      const customerName = data.customerName || "Customer";
+      const cartTotal = typeof data.cartTotal === "number" ? data.cartTotal : 0;
+      const discountCode = data.discountCode;
+      let message = `Hi ${customerName}!\n\nYou left items in your cart. Complete your purchase: ${data.cartLink}\n\n`;
+      if (discountCode) {
+        message += `Use code ${discountCode} to save!\n\n`;
+      }
+      message += `Total: ₹${cartTotal.toFixed(2)}\n\nThank you!`;
+      return message;
+    }
     return JSON.stringify(data, null, 2);
   }
 }

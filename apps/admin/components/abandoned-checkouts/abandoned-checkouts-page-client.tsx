@@ -15,10 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAbandonedCheckouts } from "@/hooks/abandoned-checkouts/use-abandoned-checkouts";
 import { useAdminPaymentReconcile } from "@/hooks/orders/use-admin-payment-reconcile";
 import type { AbandonedCheckout } from "@/lib/types/abandoned-checkouts";
+import { AbandonedCartAnalytics } from "./abandoned-cart-analytics";
 import { AbandonedCheckoutsTable } from "./abandoned-checkouts-table";
+import { RecoveryCampaigns } from "./recovery-campaigns";
 
 export function AbandonedCheckoutsPageClient() {
   const router = useRouter();
@@ -191,11 +194,26 @@ export function AbandonedCheckoutsPageClient() {
           </Button>
         </div>
       ) : (
-        <AbandonedCheckoutsTable
-          checkouts={data?.data || []}
-          onConvert={handleConvert}
-          isLoading={isLoading}
-        />
+        <Tabs defaultValue="list" className="w-full">
+          <TabsList>
+            <TabsTrigger value="list">Abandoned Checkouts</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger value="campaigns">Recovery Campaigns</TabsTrigger>
+          </TabsList>
+          <TabsContent value="list" className="mt-6">
+            <AbandonedCheckoutsTable
+              checkouts={data?.data || []}
+              onConvert={handleConvert}
+              isLoading={isLoading}
+            />
+          </TabsContent>
+          <TabsContent value="analytics" className="mt-6">
+            <AbandonedCartAnalytics />
+          </TabsContent>
+          <TabsContent value="campaigns" className="mt-6">
+            <RecoveryCampaigns />
+          </TabsContent>
+        </Tabs>
       )}
     </AdminPageLayout>
   );

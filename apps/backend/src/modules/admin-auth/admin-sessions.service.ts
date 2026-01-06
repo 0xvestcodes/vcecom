@@ -10,6 +10,7 @@ import {
 } from "../../common/logging/logging.helper";
 import type { Database } from "../../modules/database/db";
 import { DB_TOKEN } from "../database/database.module";
+import { SessionSigningService } from "./services/session-signing.service";
 
 export interface CreateSessionParams {
   adminId: string;
@@ -36,6 +37,7 @@ export class AdminSessionsService {
     private readonly logger: PinoLogger,
     private readonly contextService: ContextService,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+    private readonly sessionSigningService: SessionSigningService,
   ) {
     this.refreshTokenExpiryDays =
       parseInt(process.env.ADMIN_REFRESH_TOKEN_EXPIRY_DAYS || "90", 10) || 90;
@@ -61,6 +63,9 @@ export class AdminSessionsService {
     expiresAt.setDate(expiresAt.getDate() + this.refreshTokenExpiryDays);
 
     try {
+      // Generate session signature (will be set after session creation)
+      let sessionSignature: string | null = null;
+
       const [session] = await this.db
         .insert(adminSessions)
         .values({
@@ -73,6 +78,20 @@ export class AdminSessionsService {
           lastUsedAt: now,
         })
         .returning();
+
+      // Generate signature for the session
+      sessionSignature = await this.sessionSigningService.generateSignature(
+        session.id,
+        adminId,
+        deviceId,
+        session.createdAt,
+      );
+
+      // Update session with signature
+      await this.db
+        .update(adminSessions)
+        .set({ signature: sessionSignature })
+        .where(eq(adminSessions.id, session.id));
 
       this.logger.info(
         createLogContext(this.contextService, "createSession", {
@@ -353,5 +372,48 @@ export class AdminSessionsService {
     }
 
     throw new UnauthorizedException("Invalid or expired refresh token");
+  }
+
+  /**
+   * Validate session signature
+   * Wrapper method for SessionSigningService
+   */
+  async validateSessionSignature(
+    sessionId: string,
+    storedSignature: string,
+  ): Promise<boolean> {
+    try {
+      const [session] = await this.db
+        .select({
+          adminId: adminSessions.adminId,
+          deviceId: adminSessions.deviceId,
+          createdAt: adminSessions.createdAt,
+        })
+        .from(adminSessions)
+        .where(eq(adminSessions.id, sessionId))
+        .limit(1);
+
+      if (!session) {
+        return false;
+      }
+
+      return await this.sessionSigningService.validateSignature(
+        sessionId,
+        session.adminId,
+        session.deviceId,
+        session.createdAt,
+        storedSignature,
+      );
+    } catch (error) {
+      this.logger.error(
+        createErrorContext(
+          this.contextService,
+          "validateSessionSignature",
+          error,
+        ),
+        "Failed to validate session signature",
+      );
+      return false;
+    }
   }
 }

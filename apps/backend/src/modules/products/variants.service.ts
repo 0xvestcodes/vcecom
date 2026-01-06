@@ -1,8 +1,10 @@
 import {
   BadRequestException,
+  forwardRef,
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import {
   eq,
@@ -15,6 +17,7 @@ import {
 import { DB_TOKEN } from "../../modules/database/database.module";
 import type { Database } from "../../modules/database/db";
 import { InventoryStore } from "../redis-store/stores/inventory-store";
+import { VariantIndexingService } from "../search/indexing/variant-indexing.service";
 import { CreateVariantDto } from "./dto/create-variant.dto";
 import { UpdateVariantDto } from "./dto/update-variant.dto";
 
@@ -23,6 +26,9 @@ export class VariantsService {
   constructor(
     private readonly inventoryStore: InventoryStore,
     @Inject(DB_TOKEN) private readonly db: Database, // Inject DB instance via DI
+    @Optional()
+    @Inject(forwardRef(() => VariantIndexingService))
+    private readonly variantIndexingService?: VariantIndexingService,
   ) {}
   /**
    * Generate a SKU from product and variant attributes
@@ -134,6 +140,15 @@ export class VariantsService {
         weight: createVariantDto.weight || null,
       })
       .returning();
+
+    // Reindex parent product for search
+    if (this.variantIndexingService) {
+      this.variantIndexingService
+        .indexVariant(newVariant.productId)
+        .catch(() => {
+          // Non-blocking, errors logged in service
+        });
+    }
 
     // Handle option value assignments (new flexible system)
     if (
@@ -319,6 +334,13 @@ export class VariantsService {
       }
     }
 
+    // Reindex parent product for search
+    if (this.variantIndexingService) {
+      this.variantIndexingService.indexVariant(updated.productId).catch(() => {
+        // Non-blocking, errors logged in service
+      });
+    }
+
     return updated;
   }
 
@@ -326,9 +348,9 @@ export class VariantsService {
    * Delete a variant
    */
   async remove(id: string) {
-    // Check if variant exists
+    // Check if variant exists and get product ID
     const [existing] = await this.db
-      .select()
+      .select({ id: productVariants.id, productId: productVariants.productId })
       .from(productVariants)
       .where(eq(productVariants.id, id))
       .limit(1);

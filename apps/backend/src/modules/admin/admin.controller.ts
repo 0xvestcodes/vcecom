@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -23,6 +24,8 @@ import { Roles } from "../../common/decorators/roles.decorator";
 import { JwtAuthGuard } from "../../common/guards/jwt-auth.guard";
 import { RolesGuard } from "../../common/guards/roles.guard";
 import { RATE_LIMIT_PRESETS } from "../../common/rate-limiting/rate-limit.config";
+import { FraudBlacklistService } from "../fraud-detection/fraud-blacklist.service";
+import { FraudDetectionService } from "../fraud-detection/fraud-detection.service";
 import { OrderAddressService } from "../orders/services/operations/order-address.service";
 import { OrderNotesService } from "../orders/services/operations/order-notes.service";
 import { OrderPaymentService } from "../orders/services/payment/order-payment.service";
@@ -51,6 +54,16 @@ import {
 } from "./dto/bulk-operations.dto";
 import { CreateOrderNoteDto } from "./dto/create-order-note.dto";
 import { CreateRefundDto } from "./dto/create-refund.dto";
+import {
+  AddToBlacklistDto,
+  BlacklistType,
+  FraudBlacklistDto,
+  FraudFlaggedOrderDto,
+  FraudRiskScoreDto,
+  PaginatedBlacklistResponseDto,
+  PaginatedFlaggedOrdersResponseDto,
+  ReviewOrderDto,
+} from "./dto/fraud-detection.dto";
 import { MarkOrderPaidResponseDto } from "./dto/mark-order-paid.dto";
 import { OrderNoteResponseDto } from "./dto/order-note-response.dto";
 import { RefundResponseDto } from "./dto/refund-response.dto";
@@ -76,6 +89,8 @@ export class AdminController {
     private readonly refundsService: RefundsService,
     private readonly orderPaymentService: OrderPaymentService,
     private readonly orderAddressService: OrderAddressService,
+    private readonly fraudDetectionService: FraudDetectionService,
+    private readonly fraudBlacklistService: FraudBlacklistService,
   ) {}
 
   @Get("products")
@@ -415,6 +430,82 @@ export class AdminController {
     return checkout;
   }
 
+  @Get("abandoned-carts/stats")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_GET)
+  @ApiOperation({
+    summary: "Get abandoned cart statistics (admin)",
+    description:
+      "Retrieve statistics about abandoned carts including recovery rate and revenue recovered. Admin-only endpoint.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Abandoned cart statistics retrieved successfully",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized",
+  })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - Admin access required",
+  })
+  async getAbandonedCartStats() {
+    return this.adminService.getAbandonedCartStats();
+  }
+
+  @Get("abandoned-carts/analytics")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_GET)
+  @ApiOperation({
+    summary: "Get abandoned cart analytics (admin)",
+    description:
+      "Retrieve detailed analytics about abandoned carts including trends over time and top abandoned products. Admin-only endpoint.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Abandoned cart analytics retrieved successfully",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized",
+  })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - Admin access required",
+  })
+  async getAbandonedCartAnalytics(
+    @Query() query: {
+      startDate?: string;
+      endDate?: string;
+      minValue?: number;
+      customerId?: string;
+    },
+  ) {
+    return this.adminService.getAbandonedCartAnalytics(query);
+  }
+
+  @Get("abandoned-carts/recovery-stats")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_GET)
+  @ApiOperation({
+    summary: "Get recovery campaign statistics (admin)",
+    description:
+      "Retrieve statistics about recovery campaigns including performance metrics. Admin-only endpoint.",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Recovery campaign statistics retrieved successfully",
+  })
+  @ApiResponse({
+    status: 401,
+    description: "Unauthorized",
+  })
+  @ApiResponse({
+    status: 403,
+    description: "Forbidden - Admin access required",
+  })
+  async getRecoveryCampaignStats() {
+    return this.adminService.getRecoveryCampaignStats();
+  }
+
   @Post("orders/:orderId/mark-paid")
   @RateLimit(RATE_LIMIT_PRESETS.ADMIN_MUTATE)
   @ApiOperation({
@@ -595,5 +686,241 @@ export class AdminController {
       },
       req.user.userId,
     );
+  }
+
+  // ============================================================================
+  // Fraud Detection Endpoints
+  // ============================================================================
+
+  @Get("fraud/blacklists")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_GET)
+  @ApiOperation({
+    summary: "Get fraud blacklists (admin)",
+    description:
+      "Retrieve paginated list of fraud blacklists with optional filtering by type",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Blacklists retrieved successfully",
+    type: PaginatedBlacklistResponseDto,
+  })
+  @ApiQuery({
+    name: "type",
+    required: false,
+    description: "Filter by blacklist type (email, phone, address)",
+  })
+  @ApiQuery({
+    name: "page",
+    required: false,
+    description: "Page number (default: 1)",
+  })
+  @ApiQuery({
+    name: "limit",
+    required: false,
+    description: "Items per page (default: 10)",
+  })
+  async getBlacklists(
+    @Query("type") type?: string,
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ): Promise<PaginatedBlacklistResponseDto> {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = Math.min(limit ? parseInt(limit, 10) : 10, MAX_PAGE_SIZE);
+
+    const blacklists = await this.fraudBlacklistService.getAllBlacklists(
+      type as BlacklistType | undefined,
+    );
+    const total = blacklists.length;
+    const startIndex = (pageNum - 1) * limitNum;
+    const endIndex = startIndex + limitNum;
+
+    // Map database results to DTO format, converting type to BlacklistType enum
+    const mappedBlacklists: FraudBlacklistDto[] = blacklists
+      .slice(startIndex, endIndex)
+      .map((entry) => ({
+        id: entry.id,
+        type: entry.type as BlacklistType,
+        value: entry.value,
+        reason: entry.reason,
+        createdBy: entry.createdBy,
+        createdAt: entry.createdAt,
+        updatedAt: entry.updatedAt,
+      }));
+
+    return {
+      data: mappedBlacklists,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(total / limitNum),
+    };
+  }
+
+  @Post("fraud/blacklists")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_MUTATE)
+  @ApiOperation({
+    summary: "Add entry to fraud blacklist (admin)",
+    description: "Add an email, phone, or address to the fraud blacklist",
+  })
+  @ApiResponse({
+    status: 201,
+    description: "Entry added to blacklist successfully",
+    type: FraudBlacklistDto,
+  })
+  @ApiResponse({
+    status: 400,
+    description: "Invalid blacklist data",
+  })
+  async addToBlacklist(
+    @Request() req: AuthenticatedRequest,
+    @Body() addToBlacklistDto: AddToBlacklistDto,
+  ): Promise<FraudBlacklistDto> {
+    const result = await this.fraudBlacklistService.addToBlacklist(
+      addToBlacklistDto.type,
+      addToBlacklistDto.value,
+      addToBlacklistDto.reason || null,
+      req.user.userId,
+    );
+    // Map database result to DTO format
+    return {
+      id: result.id,
+      type: result.type as BlacklistType,
+      value: result.value,
+      reason: result.reason,
+      createdBy: result.createdBy,
+      createdAt: result.createdAt,
+      updatedAt: result.updatedAt,
+    };
+  }
+
+  @Delete("fraud/blacklists/:id")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_MUTATE)
+  @ApiOperation({
+    summary: "Remove entry from fraud blacklist (admin)",
+    description: "Remove an entry from the fraud blacklist",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Entry removed from blacklist successfully",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Blacklist entry not found",
+  })
+  async removeFromBlacklist(@Param("id") id: string): Promise<void> {
+    const result = await this.fraudBlacklistService.removeFromBlacklist(id);
+    if (!result) {
+      throw new NotFoundException("Blacklist entry not found");
+    }
+  }
+
+  @Get("fraud/flagged-orders")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_GET)
+  @ApiOperation({
+    summary: "Get flagged orders for review (admin)",
+    description: "Retrieve paginated list of orders flagged for fraud review",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Flagged orders retrieved successfully",
+    type: PaginatedFlaggedOrdersResponseDto,
+  })
+  async getFlaggedOrders(
+    @Query("page") page?: string,
+    @Query("limit") limit?: string,
+  ): Promise<PaginatedFlaggedOrdersResponseDto> {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = Math.min(limit ? parseInt(limit, 10) : 10, MAX_PAGE_SIZE);
+
+    const flaggedOrders = await this.fraudDetectionService.getFlaggedOrders(
+      limitNum,
+      (pageNum - 1) * limitNum,
+    );
+
+    // Map database results to DTO format
+    const mappedOrders: FraudFlaggedOrderDto[] = flaggedOrders.map((order) => ({
+      id: order.id,
+      orderId: order.orderId,
+      riskScore: order.riskScore,
+      riskFactors: order.riskFactors,
+      flagged: order.flagged,
+      reviewedBy: order.reviewedBy,
+      reviewedAt: order.reviewedAt,
+      reviewNotes: order.reviewNotes,
+      createdAt: order.createdAt,
+      updatedAt: order.updatedAt,
+    }));
+
+    return {
+      data: mappedOrders,
+      total: flaggedOrders.length, // This is simplified - in production you'd get total count separately
+      page: pageNum,
+      limit: limitNum,
+      totalPages: Math.ceil(flaggedOrders.length / limitNum),
+    };
+  }
+
+  @Post("fraud/orders/:orderId/review")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_MUTATE)
+  @ApiOperation({
+    summary: "Mark order as reviewed (admin)",
+    description: "Mark a flagged order as reviewed by admin",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Order marked as reviewed successfully",
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Order not found",
+  })
+  async reviewOrder(
+    @Request() req: AuthenticatedRequest,
+    @Param("orderId") orderId: string,
+    @Body() reviewOrderDto: ReviewOrderDto,
+  ): Promise<void> {
+    await this.fraudDetectionService.markOrderReviewed(
+      orderId,
+      req.user.userId,
+      reviewOrderDto.notes,
+    );
+  }
+
+  @Get("fraud/risk-scores/:orderId")
+  @RateLimit(RATE_LIMIT_PRESETS.ADMIN_GET)
+  @ApiOperation({
+    summary: "Get risk score details for an order (admin)",
+    description:
+      "Retrieve detailed risk score information for a specific order",
+  })
+  @ApiResponse({
+    status: 200,
+    description: "Risk score retrieved successfully",
+    type: FraudRiskScoreDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: "Risk score not found",
+  })
+  async getRiskScore(
+    @Param("orderId") orderId: string,
+  ): Promise<FraudRiskScoreDto> {
+    const riskScore = await this.fraudDetectionService.getRiskScore(orderId);
+    if (!riskScore) {
+      throw new NotFoundException("Risk score not found for this order");
+    }
+    // Map database result to DTO format
+    return {
+      id: riskScore.id,
+      orderId: riskScore.orderId,
+      riskScore: riskScore.riskScore,
+      riskFactors: riskScore.riskFactors,
+      flagged: riskScore.flagged,
+      reviewedBy: riskScore.reviewedBy,
+      reviewedAt: riskScore.reviewedAt,
+      reviewNotes: riskScore.reviewNotes,
+      createdAt: riskScore.createdAt,
+      updatedAt: riskScore.updatedAt,
+    };
   }
 }

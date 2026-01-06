@@ -336,7 +336,7 @@ export class OrderDuplicateService {
     const total = finalSubtotal + gstAmount + shippingCost + paymentFee / 100;
 
     // Create new order
-    const [newOrder] = await this.db
+    const newOrderResult = await this.db
       .insert(orders)
       .values({
         customerId,
@@ -361,6 +361,7 @@ export class OrderDuplicateService {
         archivedBy: null,
       })
       .returning();
+    const newOrder = newOrderResult[0];
 
     // Create order items
     const orderItemsToInsert = originalItems.map((item) => ({

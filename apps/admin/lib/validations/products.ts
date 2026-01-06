@@ -12,7 +12,7 @@ export const createProductFormSchema = z.object({
     .optional(),
   price: z.number().min(0, "Price must be greater than or equal to 0"),
   gstRate: z.enum(["0", "5", "12", "18", "28"]).optional(),
-  pricingType: z.enum(["inclusive", "exclusive"]).default("exclusive"),
+  pricingType: z.enum(["inclusive", "exclusive"]),
   hsnCode: z
     .string()
     .max(50, "HSN code must not exceed 50 characters")

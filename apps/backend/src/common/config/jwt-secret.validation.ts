@@ -57,3 +57,21 @@ export function getValidatedJwtRefreshSecret(): string {
 
   return validateJwtSecret(refreshSecret, "JWT_REFRESH_SECRET");
 }
+
+/**
+ * Get all valid JWT secrets for token validation (supports rotation)
+ * Returns array with current secret and any previous secrets within grace period
+ * This is a placeholder - actual implementation uses SecretRotationService
+ */
+export function getValidatedJwtSecrets(): string[] {
+  const secret = getValidatedJwtSecret();
+  const refreshSecret = getValidatedJwtRefreshSecret();
+
+  // Return unique secrets
+  const secrets = [secret];
+  if (refreshSecret !== secret) {
+    secrets.push(refreshSecret);
+  }
+
+  return secrets;
+}

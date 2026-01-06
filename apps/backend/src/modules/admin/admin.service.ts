@@ -948,4 +948,308 @@ export class AdminService {
       expiresAt: cart.expiresAt,
     };
   }
+
+  /**
+   * Get abandoned cart statistics
+   */
+  async getAbandonedCartStats(): Promise<{
+    totalAbandoned: number;
+    totalRecovered: number;
+    recoveryRate: number;
+    totalRevenueRecovered: number;
+    averageCartValue: number;
+    averageRecoveryTime: number;
+  }> {
+    const { abandonedCartRecoveries, orders, carts } = await import(
+      "@vcecom/db"
+    );
+    const { sql, eq } = await import("drizzle-orm");
+
+    // Get total abandoned carts
+    const totalAbandonedResult = await this.db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(abandonedCartRecoveries);
+
+    const totalAbandoned = totalAbandonedResult[0]?.count || 0;
+
+    // Get total recovered
+    const totalRecoveredResult = await this.db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(abandonedCartRecoveries)
+      .where(eq(abandonedCartRecoveries.recoveryStatus, "recovered"));
+
+    const totalRecovered = totalRecoveredResult[0]?.count || 0;
+
+    // Calculate recovery rate
+    const recoveryRate =
+      totalAbandoned > 0 ? (totalRecovered / totalAbandoned) * 100 : 0;
+
+    // Calculate average cart value
+    const avgCartValueResult = await this.db
+      .select({
+        avg: sql<number>`AVG(${carts.total})::real`,
+      })
+      .from(carts)
+      .innerJoin(
+        abandonedCartRecoveries,
+        eq(abandonedCartRecoveries.cartId, carts.id),
+      );
+
+    const averageCartValue = avgCartValueResult[0]?.avg || 0;
+
+    // Calculate total revenue recovered
+    const revenueResult = await this.db
+      .select({
+        total: sql<number>`COALESCE(SUM(${orders.total})::real, 0)`,
+      })
+      .from(abandonedCartRecoveries)
+      .innerJoin(
+        orders,
+        sql`${orders.id}::text = ${abandonedCartRecoveries.metadata}->>'orderId'`,
+      )
+      .where(eq(abandonedCartRecoveries.recoveryStatus, "recovered"));
+
+    const totalRevenueRecovered = revenueResult[0]?.total || 0;
+
+    // Calculate average recovery time
+    const avgRecoveryTimeResult = await this.db
+      .select({
+        avg: sql<number>`AVG(EXTRACT(EPOCH FROM (${abandonedCartRecoveries.recoveredAt} - ${abandonedCartRecoveries.detectedAt})) / 3600)::real`,
+      })
+      .from(abandonedCartRecoveries)
+      .where(eq(abandonedCartRecoveries.recoveryStatus, "recovered"));
+
+    const averageRecoveryTime = avgRecoveryTimeResult[0]?.avg || 0;
+
+    return {
+      totalAbandoned,
+      totalRecovered,
+      recoveryRate,
+      totalRevenueRecovered,
+      averageCartValue,
+      averageRecoveryTime,
+    };
+  }
+
+  /**
+   * Get abandoned cart analytics
+   */
+  async getAbandonedCartAnalytics(query: {
+    startDate?: string;
+    endDate?: string;
+    minValue?: number;
+    customerId?: string;
+  }): Promise<{
+    abandonedOverTime: Array<{
+      date: string;
+      count: number;
+      totalValue: number;
+    }>;
+    recoveryRateOverTime: Array<{ date: string; recoveryRate: number }>;
+    recoveryAttemptsBreakdown: {
+      emailSent: number;
+      smsSent: number;
+      recovered: number;
+      expired: number;
+      failed: number;
+    };
+    topAbandonedProducts: Array<{
+      productId: string;
+      productName: string;
+      abandonCount: number;
+    }>;
+  }> {
+    const {
+      abandonedCartRecoveries,
+      carts,
+      cartItems,
+      productVariants,
+      products,
+    } = await import("@vcecom/db");
+    const { sql, and, gte, lte, eq, desc } = await import("drizzle-orm");
+    type SQL = ReturnType<typeof sql>;
+
+    const conditions: SQL[] = [];
+    if (query.startDate) {
+      conditions.push(
+        gte(abandonedCartRecoveries.detectedAt, new Date(query.startDate)),
+      );
+    }
+    if (query.endDate) {
+      conditions.push(
+        lte(abandonedCartRecoveries.detectedAt, new Date(query.endDate)),
+      );
+    }
+    if (query.customerId) {
+      conditions.push(eq(abandonedCartRecoveries.customerId, query.customerId));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    // Abandoned carts over time (daily)
+    const abandonedOverTimeResult = await this.db
+      .select({
+        date: sql<string>`DATE(${abandonedCartRecoveries.detectedAt})::text`,
+        count: sql<number>`COUNT(*)::int`,
+        totalValue: sql<number>`SUM(${carts.total})::real`,
+      })
+      .from(abandonedCartRecoveries)
+      .innerJoin(carts, eq(abandonedCartRecoveries.cartId, carts.id))
+      .where(whereClause)
+      .groupBy(sql`DATE(${abandonedCartRecoveries.detectedAt})`)
+      .orderBy(sql`DATE(${abandonedCartRecoveries.detectedAt})`);
+
+    // Recovery rate over time
+    const recoveryRateOverTimeResult = await this.db
+      .select({
+        date: sql<string>`DATE(${abandonedCartRecoveries.detectedAt})::text`,
+        total: sql<number>`COUNT(*)::int`,
+        recovered: sql<number>`COUNT(*) FILTER (WHERE ${abandonedCartRecoveries.recoveryStatus} = 'recovered')::int`,
+      })
+      .from(abandonedCartRecoveries)
+      .where(whereClause)
+      .groupBy(sql`DATE(${abandonedCartRecoveries.detectedAt})`)
+      .orderBy(sql`DATE(${abandonedCartRecoveries.detectedAt})`);
+
+    const recoveryRateOverTime = recoveryRateOverTimeResult.map((row) => ({
+      date: row.date,
+      recoveryRate: row.total > 0 ? (row.recovered / row.total) * 100 : 0,
+    }));
+
+    // Recovery attempts breakdown
+    const breakdownResult = await this.db
+      .select({
+        status: abandonedCartRecoveries.recoveryStatus,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(abandonedCartRecoveries)
+      .where(whereClause)
+      .groupBy(abandonedCartRecoveries.recoveryStatus);
+
+    const breakdown = breakdownResult.reduce(
+      (acc, row) => {
+        acc[row.status as keyof typeof acc] = row.count;
+        return acc;
+      },
+      {
+        email_sent: 0,
+        sms_sent: 0,
+        recovered: 0,
+        expired: 0,
+        failed: 0,
+      },
+    );
+
+    // Top abandoned products
+    const topProductsResult = await this.db
+      .select({
+        productId: products.id,
+        productName: products.title,
+        abandonCount: sql<number>`COUNT(DISTINCT ${abandonedCartRecoveries.cartId})::int`,
+      })
+      .from(abandonedCartRecoveries)
+      .innerJoin(carts, eq(abandonedCartRecoveries.cartId, carts.id))
+      .innerJoin(cartItems, eq(cartItems.cartId, carts.id))
+      .innerJoin(
+        productVariants,
+        eq(cartItems.productVariantId, productVariants.id),
+      )
+      .innerJoin(products, eq(productVariants.productId, products.id))
+      .where(whereClause)
+      .groupBy(products.id, products.title)
+      .orderBy(desc(sql`COUNT(DISTINCT ${abandonedCartRecoveries.cartId})`))
+      .limit(10);
+
+    return {
+      abandonedOverTime: abandonedOverTimeResult.map((row) => ({
+        date: row.date,
+        count: row.count,
+        totalValue: row.totalValue || 0,
+      })),
+      recoveryRateOverTime,
+      recoveryAttemptsBreakdown: {
+        emailSent: breakdown.email_sent,
+        smsSent: breakdown.sms_sent,
+        recovered: breakdown.recovered,
+        expired: breakdown.expired,
+        failed: breakdown.failed,
+      },
+      topAbandonedProducts: topProductsResult.map((row) => ({
+        productId: row.productId,
+        productName: row.productName,
+        abandonCount: row.abandonCount,
+      })),
+    };
+  }
+
+  /**
+   * Get recovery campaign statistics
+   */
+  async getRecoveryCampaignStats(): Promise<
+    Array<{
+      campaignId: string;
+      totalCarts: number;
+      emailsSent: number;
+      smsSent: number;
+      recovered: number;
+      recoveryRate: number;
+      totalRevenueRecovered: number;
+    }>
+  > {
+    const { abandonedCartRecoveries, orders } = await import("@vcecom/db");
+    const { sql, eq, desc, and } = await import("drizzle-orm");
+
+    // Group by detected date (daily campaigns)
+    const campaignsResult = await this.db
+      .select({
+        campaignId: sql<string>`DATE(${abandonedCartRecoveries.detectedAt})::text`,
+        totalCarts: sql<number>`COUNT(*)::int`,
+        emailsSent: sql<number>`COUNT(*) FILTER (WHERE ${abandonedCartRecoveries.emailSentAt} IS NOT NULL)::int`,
+        smsSent: sql<number>`COUNT(*) FILTER (WHERE ${abandonedCartRecoveries.smsSentAt} IS NOT NULL)::int`,
+        recovered: sql<number>`COUNT(*) FILTER (WHERE ${abandonedCartRecoveries.recoveryStatus} = 'recovered')::int`,
+      })
+      .from(abandonedCartRecoveries)
+      .groupBy(sql`DATE(${abandonedCartRecoveries.detectedAt})`)
+      .orderBy(desc(sql`DATE(${abandonedCartRecoveries.detectedAt})`))
+      .limit(30); // Last 30 days
+
+    // Calculate revenue for each campaign
+    const campaigns = await Promise.all(
+      campaignsResult.map(async (campaign) => {
+        const revenueResult = await this.db
+          .select({
+            total: sql<number>`COALESCE(SUM(${orders.total})::real, 0)`,
+          })
+          .from(abandonedCartRecoveries)
+          .innerJoin(
+            orders,
+            sql`${orders.id}::text = ${abandonedCartRecoveries.metadata}->>'orderId'`,
+          )
+          .where(
+            and(
+              eq(abandonedCartRecoveries.recoveryStatus, "recovered"),
+              sql`DATE(${abandonedCartRecoveries.detectedAt}) = ${campaign.campaignId}::date`,
+            ),
+          );
+
+        const totalRevenueRecovered = revenueResult[0]?.total || 0;
+        const recoveryRate =
+          campaign.totalCarts > 0
+            ? (campaign.recovered / campaign.totalCarts) * 100
+            : 0;
+
+        return {
+          campaignId: campaign.campaignId,
+          totalCarts: campaign.totalCarts,
+          emailsSent: campaign.emailsSent,
+          smsSent: campaign.smsSent,
+          recovered: campaign.recovered,
+          recoveryRate,
+          totalRevenueRecovered,
+        };
+      }),
+    );
+
+    return campaigns;
+  }
 }

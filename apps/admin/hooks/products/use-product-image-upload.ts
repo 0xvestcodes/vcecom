@@ -37,13 +37,17 @@ async function uploadSingleImage(productId: string, file: File): Promise<void> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("prefix", "products");
+  formData.append("bucketType", "product-media");
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-  const uploadResponse = await fetch(`${API_URL}${endpoints.storage.upload}`, {
-    method: "POST",
-    body: formData,
-    credentials: "include",
-  });
+  const uploadResponse = await fetch(
+    `${API_URL}${endpoints.storage.uploadEnhanced}`,
+    {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    },
+  );
 
   if (!uploadResponse.ok) {
     const errorData = await uploadResponse.json().catch(() => ({}));
@@ -52,8 +56,14 @@ async function uploadSingleImage(productId: string, file: File): Promise<void> {
 
   const uploadData = await uploadResponse.json();
 
+  // Enhanced upload returns structured response with sizes/formats
+  // Use the original key for product association
+  const imageKey = uploadData.original
+    ? uploadData.original.key || uploadData.original.url
+    : uploadData.key || uploadData.url;
+
   await api.post(endpoints.products.images.add(productId), {
-    imageKey: uploadData.key || uploadData.url,
+    imageKey,
     altText: file.name,
   });
 }

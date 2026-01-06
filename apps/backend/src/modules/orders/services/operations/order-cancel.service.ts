@@ -317,9 +317,16 @@ export class OrderCancelService {
     );
 
     return {
-      ...updatedOrder,
+      id: updatedOrder.id,
+      customerId: updatedOrder.customerId,
+      orderNumber: updatedOrder.orderNumber,
+      status: updatedOrder.status,
+      subtotal: updatedOrder.subtotal,
+      gstAmount: updatedOrder.gstAmount,
       gstBreakdown,
-      items,
+      shippingCost: updatedOrder.shippingCost,
+      paymentFee: updatedOrder.paymentFee ?? undefined,
+      paymentMethod: updatedOrder.paymentMethod ?? null,
       paymentFeeBreakdown:
         (updatedOrder.paymentFeeBreakdown as {
           method: string;
@@ -330,6 +337,17 @@ export class OrderCancelService {
           mixMin?: number;
           mixCap?: number;
         } | null) || null,
+      total: updatedOrder.total,
+      razorpayOrderId: updatedOrder.razorpayOrderId ?? null,
+      shippingProvider: updatedOrder.shippingProvider ?? null,
+      shippingAddressId: updatedOrder.shippingAddressId,
+      billingAddressId: updatedOrder.billingAddressId,
+      items,
+      createdAt: updatedOrder.createdAt,
+      updatedAt: updatedOrder.updatedAt,
+      archived: updatedOrder.archived ?? false,
+      archivedAt: updatedOrder.archivedAt ?? null,
+      archivedBy: updatedOrder.archivedBy ?? null,
       discountCode: updatedOrder.discountCode ?? undefined,
       discountAmount: updatedOrder.discountAmount ?? undefined,
     };

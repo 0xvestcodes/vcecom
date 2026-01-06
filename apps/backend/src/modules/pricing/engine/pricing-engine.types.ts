@@ -11,6 +11,7 @@ export interface VariantPricingInput {
   salePrice?: number;
   saleStartDate?: Date;
   saleEndDate?: Date;
+  currency?: string; // Currency code for the variant's base price
 }
 
 export interface PriceListOverride {
@@ -30,14 +31,27 @@ export interface PriceList {
   isActive: boolean;
   startDate?: Date;
   endDate?: Date;
+  currency?: string | null; // Currency code (null = applies to all currencies)
   items: Array<{
     id: string;
     productVariantId?: string;
     productId?: string;
     categoryId?: string;
+    currency?: string | null; // Currency code (null = applies to all currencies for this price list)
     overrideType: "FIXED" | "PERCENTAGE";
     overrideValue: number;
   }>;
+}
+
+export interface RegionPricingRule {
+  id: string;
+  type: "OVERRIDE" | "MARKUP";
+  overrideType: "FIXED" | "PERCENTAGE";
+  overrideValue: number;
+  priority: number;
+  productVariantId?: string | null;
+  productId?: string | null;
+  categoryId?: string | null;
 }
 
 export interface PricingEngineInput {
@@ -47,7 +61,9 @@ export interface PricingEngineInput {
     customerGroupId: string | null;
   } | null;
   priceLists: PriceList[]; // Pre-filtered for customer group and active status
+  regionPricingRules?: RegionPricingRule[]; // Pre-filtered region pricing rules
   now: Date;
+  targetCurrency?: string; // Target currency for price conversion (optional)
 }
 
 /**

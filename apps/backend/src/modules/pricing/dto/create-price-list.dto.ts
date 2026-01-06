@@ -87,6 +87,15 @@ export class CreatePriceListDto {
   })
   @IsOptional()
   endDate?: Date;
+
+  @ApiProperty({
+    description: "Currency code (null = applies to all currencies)",
+    example: "USD",
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: "Currency must be a string" })
+  currency?: string | null;
 }
 
 export class CreatePriceListItemDto {
@@ -146,4 +155,14 @@ export class CreatePriceListItemDto {
   @IsNumber({}, { message: "Override value must be a number" })
   @Min(0, { message: "Override value must be greater than or equal to 0" })
   overrideValue: number;
+
+  @ApiProperty({
+    description:
+      "Currency code (null = applies to all currencies for this price list)",
+    example: "USD",
+    required: false,
+  })
+  @IsOptional()
+  @IsString({ message: "Currency must be a string" })
+  currency?: string | null;
 }

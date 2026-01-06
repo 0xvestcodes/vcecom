@@ -22,6 +22,7 @@ export const carts = pgTable(
     gstAmount: real("gst_amount").notNull().default(0),
     discountCode: text("discount_code"),
     discountAmount: real("discount_amount").notNull().default(0),
+    currency: text("currency").notNull().default("INR"), // Currency code for cart totals
     total: real("total").notNull().default(0),
     expiresAt: timestamp("expires_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),

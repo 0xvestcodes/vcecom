@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getRequiredRolesForRoute } from "@/lib/route-permissions";
+import { addSecurityHeaders } from "../middleware/security-headers";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -52,7 +53,7 @@ export async function middleware(request: NextRequest) {
     pathname === "/favicon.ico" ||
     pathname === "/metrics" // Allow metrics endpoint for monitoring tools
   ) {
-    return NextResponse.next();
+    return addSecurityHeaders(request);
   }
 
   // Check for admin access token in cookies
@@ -65,9 +66,10 @@ export async function middleware(request: NextRequest) {
     if (pathname !== "/login") {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      const _redirectResponse = NextResponse.redirect(loginUrl);
+      return addSecurityHeaders(request);
     }
-    return NextResponse.next();
+    return addSecurityHeaders(request);
   }
 
   // Check route permissions
@@ -81,7 +83,8 @@ export async function middleware(request: NextRequest) {
     if (!session) {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
-      return NextResponse.redirect(loginUrl);
+      const _redirectResponse = NextResponse.redirect(loginUrl);
+      return addSecurityHeaders(request);
     }
 
     // Legacy admin role has all permissions
@@ -90,7 +93,7 @@ export async function middleware(request: NextRequest) {
       if (accessToken) {
         response.headers.set("x-admin-session", "true");
       }
-      return response;
+      return addSecurityHeaders(request);
     }
 
     // Check if user has required role
@@ -100,7 +103,8 @@ export async function middleware(request: NextRequest) {
       // User doesn't have required role - redirect to 403
       const forbiddenUrl = new URL("/403", request.url);
       forbiddenUrl.searchParams.set("from", pathname);
-      return NextResponse.redirect(forbiddenUrl);
+      const _redirectResponse = NextResponse.redirect(forbiddenUrl);
+      return addSecurityHeaders(request);
     }
   }
 
@@ -110,7 +114,8 @@ export async function middleware(request: NextRequest) {
     response.headers.set("x-admin-session", "true");
   }
 
-  return response;
+  // Add security headers to all responses
+  return addSecurityHeaders(request);
 }
 
 export const config = {

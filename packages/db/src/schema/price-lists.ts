@@ -45,6 +45,7 @@ export const priceLists = pgTable(
     type: priceListTypeEnum("type").notNull().default("CUSTOM"),
     priority: integer("priority").notNull().default(1), // Higher number = higher priority
     isActive: integer("is_active").notNull().default(1), // 1 = active, 0 = inactive
+    currency: text("currency"), // Currency code (nullable - null = applies to all currencies)
     startDate: timestamp("start_date"),
     endDate: timestamp("end_date"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -55,6 +56,7 @@ export const priceLists = pgTable(
     typeIdx: index("price_lists_type_idx").on(table.type),
     priorityIdx: index("price_lists_priority_idx").on(table.priority),
     activeIdx: index("price_lists_active_idx").on(table.isActive),
+    currencyIdx: index("price_lists_currency_idx").on(table.currency),
   }),
 );
 
@@ -79,6 +81,7 @@ export const priceListItems = pgTable(
     categoryId: uuid("category_id").references(() => categories.id, {
       onDelete: "cascade",
     }), // Category-level override (least specific)
+    currency: text("currency"), // Currency code (nullable - null = applies to all currencies for this price list)
     overrideType: priceListOverrideTypeEnum("override_type").notNull(), // FIXED or PERCENTAGE
     overrideValue: real("override_value").notNull(), // Amount or percentage
     createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -95,6 +98,7 @@ export const priceListItems = pgTable(
     categoryIdIdx: index("price_list_items_category_id_idx").on(
       table.categoryId,
     ),
+    currencyIdx: index("price_list_items_currency_idx").on(table.currency),
     // Ensure at least one of variant/product/category is set
     // This is enforced at application level, not DB level
   }),

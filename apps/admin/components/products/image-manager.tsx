@@ -69,10 +69,15 @@ export function ImageManager({
           formData.append("prefix", variantId ? "variants" : "products");
 
           // Upload directly to backend - cookies sent automatically
+          // Use enhanced upload for better performance and multiple sizes
+          formData.append(
+            "bucketType",
+            variantId ? "uploads" : "product-media",
+          );
           const API_URL =
             process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
           const uploadResponse = await fetch(
-            `${API_URL}${endpoints.storage.upload}`,
+            `${API_URL}${endpoints.storage.uploadEnhanced}`,
             {
               method: "POST",
               body: formData,
@@ -87,9 +92,15 @@ export function ImageManager({
 
           const uploadData = await uploadResponse.json();
 
+          // Enhanced upload returns structured response with sizes/formats
+          // Use the original key for product association
+          const imageKey = uploadData.original
+            ? uploadData.original.key || uploadData.original.url
+            : uploadData.key || uploadData.url;
+
           // Add image to product
           await uploadImage.mutateAsync({
-            imageKey: uploadData.key || uploadData.url,
+            imageKey,
             variantId:
               variantId && useCustomVariantImages ? variantId : undefined,
           });

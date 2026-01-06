@@ -97,11 +97,36 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     // Log error with full context (skip static assets)
     if (!isStaticAsset) {
+      // Extract validation errors if present
+      let validationErrors: unknown;
+      if (exception instanceof HttpException) {
+        const response = exception.getResponse();
+        if (
+          typeof response === "object" &&
+          response !== null &&
+          ("errors" in response || "details" in response)
+        ) {
+          validationErrors = response as {
+            errors?: unknown;
+            details?: unknown;
+          };
+        }
+      }
+
       if (status >= 500) {
         logger.error(logContext, "Unhandled exception");
       } else if (status === 404) {
         // Log 404s at debug level (not warning) - they're often expected
         logger.debug(logContext, "Resource not found");
+      } else if (status === 400 && validationErrors) {
+        // Log validation errors with details
+        logger.warn(
+          {
+            ...logContext,
+            validationErrors,
+          },
+          "Validation error",
+        );
       } else {
         logger.warn(logContext, "Client error");
       }
@@ -136,11 +161,13 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         errorResponse.error = httpMessage.error;
       }
 
-      // Preserve structured error data (e.g., inventory failures)
-      // Check if this is a structured error with failures field
+      // Preserve structured error data (e.g., inventory failures, validation errors)
+      // Check if this is a structured error with additional fields
       if (
         "failures" in httpMessage ||
         "adjustedCart" in httpMessage ||
+        "errors" in httpMessage ||
+        "details" in httpMessage ||
         Object.keys(httpMessage).some(
           (key) => key !== "message" && key !== "error" && key !== "statusCode",
         )

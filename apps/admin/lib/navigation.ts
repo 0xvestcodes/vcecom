@@ -15,11 +15,15 @@ import {
   FileText,
   FolderOpen,
   FolderTree,
+  Gift,
   HardDrive,
   LayoutDashboard,
   MessageSquare,
   Package,
+  Percent,
   Plus,
+  Receipt,
+  Search,
   Settings,
   ShoppingBag,
   ShoppingCart,
@@ -30,6 +34,7 @@ import {
   Truck,
   UserCog,
   Users,
+  Wallet,
 } from "lucide-react";
 
 export type AdminRole =
@@ -217,6 +222,18 @@ export const navigation: NavSection[] = [
         icon: UserCog,
         requiredRoles: ["admin", "marketing"],
       },
+      {
+        label: "Wallets",
+        href: "/wallet",
+        icon: Wallet,
+        requiredRoles: ["admin", "support"],
+      },
+      {
+        label: "Loyalty Rules",
+        href: "/loyalty",
+        icon: Gift,
+        requiredRoles: ["admin", "marketing"],
+      },
     ],
   },
   {
@@ -295,6 +312,38 @@ export const navigation: NavSection[] = [
         requiredRoles: ["admin"],
       },
       {
+        label: "Tax Management",
+        href: "/tax",
+        icon: Percent,
+        requiredRoles: ["admin"],
+        children: [
+          {
+            label: "Tax Rules",
+            href: "/tax/rules",
+            icon: Percent,
+            requiredRoles: ["admin"],
+          },
+          {
+            label: "Tax Exemptions",
+            href: "/tax/exemptions",
+            icon: Receipt,
+            requiredRoles: ["admin"],
+          },
+          {
+            label: "HSN Codes",
+            href: "/tax/hsn-codes",
+            icon: FileText,
+            requiredRoles: ["admin"],
+          },
+          {
+            label: "Tax Audit Logs",
+            href: "/tax/audit",
+            icon: FileSearch,
+            requiredRoles: ["admin"],
+          },
+        ],
+      },
+      {
         label: "Roles & Permissions",
         href: "/settings/roles",
         icon: UserCog,
@@ -304,6 +353,12 @@ export const navigation: NavSection[] = [
         label: "Settings",
         href: "/settings",
         icon: Settings,
+        requiredRoles: ["admin"],
+      },
+      {
+        label: "Search",
+        href: "/settings/search",
+        icon: Search,
         requiredRoles: ["admin"],
       },
     ],

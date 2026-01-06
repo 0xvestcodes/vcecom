@@ -67,7 +67,8 @@ export function RichTextForm({
  */
 export function createRichTextForm(defaultValues?: RichTextFormData) {
   return useForm<RichTextFormData>({
-    resolver: zodResolver(richTextBlock.propsSchema as any) as any,
+    // biome-ignore lint/suspicious/noExplicitAny: zodResolver type compatibility
+    resolver: zodResolver(richTextBlock.propsSchema as any),
     defaultValues: defaultValues || richTextBlock.defaultProps,
   });
 }

@@ -14,6 +14,8 @@ export class AppController {
     return {
       ...BUILD_INFO,
       runningSince: this.runningSince,
+      email: "contact@vestcodes.co",
+      license: "provided under a proprietary license by vestcodes",
     };
   }
 }

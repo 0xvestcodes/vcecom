@@ -2,12 +2,12 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Shield } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { Logo } from "@/components/common/logo";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -16,6 +16,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -41,13 +49,22 @@ function LoginForm() {
   const _router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
+  const [errorDialogOpen, setErrorDialogOpen] = useState(false);
 
   // Check if redirected due to expired token
   useEffect(() => {
     if (searchParams.get("expired") === "true") {
       setError("Your session has expired. Please log in again.");
+      setErrorDialogOpen(true);
     }
   }, [searchParams]);
+
+  // Show dialog when error changes
+  useEffect(() => {
+    if (error) {
+      setErrorDialogOpen(true);
+    }
+  }, [error]);
 
   // Generate device ID once on mount
   const [deviceId] = useState(() => {
@@ -111,99 +128,127 @@ function LoginForm() {
       } else {
         setError(error.message || "An error occurred during login");
       }
+      setErrorDialogOpen(true);
     },
   });
 
   const onSubmit = (data: LoginFormValues) => {
     setError(null);
+    setErrorDialogOpen(false);
     mutation.mutate(data);
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md border-border/50 bg-card/50 backdrop-blur-sm">
-        <CardHeader className="space-y-3 text-center">
-          <div className="flex justify-center">
-            <div className="rounded-lg bg-muted/50 p-3">
-              <Shield className="h-8 w-8 text-foreground/80" />
+    <>
+      <div className="flex min-h-screen items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md border-border/50 bg-card/50 backdrop-blur-sm">
+          <CardHeader className="space-y-3 text-center">
+            <div className="flex justify-center">
+              <Logo width={140} height={36} />
             </div>
-          </div>
-          <CardTitle className="text-xl font-semibold tracking-tight">
-            Welcome To Admin Panel
-          </CardTitle>
-          <CardDescription className="text-xs text-muted-foreground">
-            Sign in to access the account area
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs">Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="Email"
-                        className="bg-muted/30 border-border/50 text-sm"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-xs" />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="text-xs">Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="Password"
-                        className="bg-muted/30 border-border/50 text-sm"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage className="text-xs" />
-                  </FormItem>
-                )}
-              />
-
-              {error && (
-                <div className="rounded-lg bg-destructive/10 p-2.5 text-xs text-destructive">
-                  {error}
-                </div>
-              )}
-
-              <Button
-                type="submit"
-                className="w-full text-sm"
-                disabled={mutation.isPending}
+            <CardTitle className="text-xl font-semibold tracking-tight">
+              Welcome To Admin Panel
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">
+              Sign in to access the account area
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
               >
-                {mutation.isPending ? "Logging in..." : "Continue with Email"}
-              </Button>
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Email</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder="Email"
+                          className="bg-muted/30 border-border/50 text-sm"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="text-center text-xs text-muted-foreground">
-                Forgot password? -{" "}
-                <Link
-                  href="/reset"
-                  className="text-primary hover:underline transition-colors"
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Password"
+                          className="bg-muted/30 border-border/50 text-sm"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+
+                <Button
+                  type="submit"
+                  className="w-full text-sm"
+                  disabled={mutation.isPending}
                 >
-                  Reset
-                </Link>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    </div>
+                  {mutation.isPending ? "Logging in..." : "Continue with Email"}
+                </Button>
+
+                <div className="text-center text-xs text-muted-foreground">
+                  Forgot password? -{" "}
+                  <Link
+                    href="/reset"
+                    className="text-primary hover:underline transition-colors"
+                  >
+                    Reset
+                  </Link>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Error Dialog */}
+      <Dialog open={errorDialogOpen} onOpenChange={setErrorDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Login Error</DialogTitle>
+            <DialogDescription>
+              {error || "An error occurred during login"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              The team at Vestcodes has been informed and is working to resolve
+              this issue.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setErrorDialogOpen(false);
+                setError(null);
+              }}
+              variant="default"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 

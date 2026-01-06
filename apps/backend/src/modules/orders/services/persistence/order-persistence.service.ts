@@ -98,7 +98,7 @@ export class OrderPersistenceService {
   ): Promise<{ id: string; orderNumber: string }> {
     const orderNumber = await this.generateOrderNumber();
 
-    const [order] = await this.db
+    const orderResult = await this.db
       .insert(orders)
       .values({
         customerId,
@@ -120,6 +120,11 @@ export class OrderPersistenceService {
         pricingSnapshot: orderData.pricingSnapshot,
       })
       .returning();
+
+    const order = orderResult[0];
+    if (!order) {
+      throw new Error("Failed to create order");
+    }
 
     this.logger.info(
       createLogContext(this.contextService, "persistOrder", {

@@ -14,6 +14,8 @@ interface MediaUploaderProps {
   disabled?: boolean;
   maxFiles?: number;
   className?: string;
+  useEnhancedUpload?: boolean;
+  bucketType?: "product-media" | "uploads" | "internal";
 }
 
 interface UploadProgress {
@@ -30,6 +32,8 @@ export function MediaUploader({
   disabled = false,
   maxFiles = 15,
   className,
+  useEnhancedUpload = true,
+  bucketType = "product-media",
 }: MediaUploaderProps) {
   const [uploads, setUploads] = useState<UploadProgress[]>([]);
   const [isDragging, setIsDragging] = useState(false);
@@ -55,17 +59,20 @@ export function MediaUploader({
         const formData = new FormData();
         formData.append("file", file);
         formData.append("prefix", prefix);
+        if (useEnhancedUpload) {
+          formData.append("bucketType", bucketType);
+        }
 
         const API_URL =
           process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-        const uploadResponse = await fetch(
-          `${API_URL}${endpoints.storage.upload}`,
-          {
-            method: "POST",
-            body: formData,
-            credentials: "include",
-          },
-        );
+        const uploadEndpoint = useEnhancedUpload
+          ? endpoints.storage.uploadEnhanced
+          : endpoints.storage.upload;
+        const uploadResponse = await fetch(`${API_URL}${uploadEndpoint}`, {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
 
         if (!uploadResponse.ok) {
           const errorData = await uploadResponse.json().catch(() => ({}));
@@ -77,7 +84,12 @@ export function MediaUploader({
         );
 
         const uploadData = await uploadResponse.json();
-        const imageKey = uploadData.key || uploadData.url;
+        // Enhanced upload returns structured response with sizes/formats
+        // Use the large size URL for product images, or fallback to original
+        const imageKey =
+          useEnhancedUpload && uploadData.original
+            ? uploadData.original.key || uploadData.original.url
+            : uploadData.key || uploadData.url;
 
         setUploads((prev) =>
           prev.map((u) =>
@@ -109,7 +121,7 @@ export function MediaUploader({
         toast.error(`Failed to upload ${file.name}`);
       }
     },
-    [prefix, onUploadComplete],
+    [prefix, onUploadComplete, useEnhancedUpload, bucketType],
   );
 
   const handleFileSelect = useCallback(

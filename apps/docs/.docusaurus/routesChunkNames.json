@@ -56,17 +56,17 @@
     },
     "config": "config---api-reference-admin-5-e-9-a74"
   },
-  "/docs-1a3": {
+  "/docs-f39": {
     "__comp": "__comp---theme-docs-root-5-e-9-0b6",
     "__context": {
       "plugin": "plugin---docsaba-d7c"
     }
   },
-  "/docs-017": {
+  "/docs-c5c": {
     "__comp": "__comp---theme-doc-version-roota-7-b-5de",
     "__props": "__props---docs-005-788"
   },
-  "/docs-4b4": {
+  "/docs-033": {
     "__comp": "__comp---theme-doc-roota-94-67a"
   },
   "/docs/admin/pagination-028": {
@@ -92,6 +92,10 @@
   "/docs/architecture/monorepo-cb1": {
     "__comp": "__comp---theme-doc-item-178-a40",
     "content": "content---docs-architecture-monorepo-0-f-8-d59"
+  },
+  "/docs/architecture/multi-tenant-assessment-43d": {
+    "__comp": "__comp---theme-doc-item-178-a40",
+    "content": "content---docs-architecture-multi-tenant-assessmentc-4-e-a79"
   },
   "/docs/architecture/overview-dc8": {
     "__comp": "__comp---theme-doc-item-178-a40",

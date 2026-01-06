@@ -4,6 +4,8 @@ import { AwsS3Provider } from "./providers/aws-s3.provider";
 import { MinioProvider } from "./providers/minio.provider";
 import { SupabaseProvider } from "./providers/supabase.provider";
 import { ImageCompressionService } from "./services/image-compression.service";
+import { ImageResizePipelineService } from "./services/image-resize-pipeline.service";
+import { MediaUrlService } from "./services/media-url.service";
 import { StorageController } from "./storage.controller";
 import { StorageService } from "./storage.service";
 
@@ -47,10 +49,17 @@ export class StorageModule {
     const providers: Array<
       | typeof StorageService
       | typeof ImageCompressionService
+      | typeof ImageResizePipelineService
+      | typeof MediaUrlService
       | typeof MinioProvider
       | typeof SupabaseProvider
       | typeof AwsS3Provider
-    > = [StorageService, ImageCompressionService];
+    > = [
+      StorageService,
+      ImageCompressionService,
+      ImageResizePipelineService,
+      MediaUrlService,
+    ];
 
     // Only register the selected provider
     switch (providerType) {
@@ -69,7 +78,12 @@ export class StorageModule {
       module: StorageModule,
       controllers: [StorageController],
       providers,
-      exports: [StorageService, ImageCompressionService],
+      exports: [
+        StorageService,
+        ImageCompressionService,
+        ImageResizePipelineService,
+        MediaUrlService,
+      ],
       // LoggerModule and ContextModule are global, so no need to import them
       global: true, // Make it a global module so other modules can import it
     };

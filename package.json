@@ -36,6 +36,11 @@
     "changelog": "git-cliff",
     "changelog:unreleased": "git-cliff --unreleased",
     "seed:ecom": "turbo run build --filter=@vcecom/db^... && tsx scripts/seed-ecom.ts",
+    "seed:fixtures": "turbo run build --filter=@vcecom/db^... && tsx scripts/seed-with-fixtures.ts fixtures",
+    "seed:full": "turbo run build --filter=@vcecom/db^... && tsx scripts/seed-with-fixtures.ts full",
+    "seed:clean": "tsx scripts/seed-with-fixtures.ts clean",
+    "cli:api-key": "cd apps/backend && pnpm cli:api-key",
+    "cli:seed": "cd apps/backend && pnpm cli:seed",
     "semantic-release": "semantic-release",
     "semantic-release:beta": "semantic-release --config .releaserc.beta.js",
     "semantic-release:prod": "semantic-release --config .releaserc.prod.js",
@@ -72,7 +77,8 @@
     "argon2": "^0.44.0",
     "esbuild": "^0.27.2",
     "otplib": "^12.0.1",
-    "qrcode": "^1.5.4"
+    "qrcode": "^1.5.4",
+    "tar": "^7.5.2"
   },
   "pnpm": {
     "overrides": {
