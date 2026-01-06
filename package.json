@@ -44,7 +44,7 @@
     "semantic-release": "semantic-release",
     "semantic-release:beta": "semantic-release --config .releaserc.beta.js",
     "semantic-release:prod": "semantic-release --config .releaserc.prod.js",
-    "prepare": "husky"
+    "prepare": "command -v husky >/dev/null 2>&1 && husky || true"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.2.4",
