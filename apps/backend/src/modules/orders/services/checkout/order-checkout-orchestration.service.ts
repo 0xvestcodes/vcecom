@@ -280,7 +280,7 @@ export class OrderCheckoutOrchestrationService {
           billingAddressId: metadata.billingAddressId,
           cartId: cart.id,
           actualUserId: metadata.userId,
-          shippingAddress: fetchedShippingAddress,
+          shippingAddress: fetchedShippingAddress as { state: string },
         };
       }
 
@@ -515,7 +515,7 @@ export class OrderCheckoutOrchestrationService {
       billingAddressId,
       cartId,
       actualUserId: userId,
-      shippingAddress: fetchedShippingAddress,
+      shippingAddress: fetchedShippingAddress as { state: string },
     };
   }
 }

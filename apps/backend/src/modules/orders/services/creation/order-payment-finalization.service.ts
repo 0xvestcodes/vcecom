@@ -127,7 +127,7 @@ export class OrderPaymentFinalizationService {
 
     // Validate cart and get cart data
     const cart = await this.cartsService.getCartById(session.cartId);
-    this.cartValidationService.validateCartNotEmpty(cart);
+    this.cartValidationService.validateCartNotEmpty(cart as { id: string; items?: Array<{ id: string }> | null } | null);
 
     // Get and validate cart items
     const _cartItemIds = cart.items?.map((item) => item.id);
