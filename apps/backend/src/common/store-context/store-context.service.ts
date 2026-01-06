@@ -1,5 +1,5 @@
 import { AsyncLocalStorage } from "node:async_hooks";
-import { Inject, Injectable, NotFoundException } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { eq, stores } from "@vcecom/db";
 import { PinoLogger } from "nestjs-pino";
 import { DB_TOKEN } from "../../modules/database/database.module";
