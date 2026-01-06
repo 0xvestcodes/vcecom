@@ -4,7 +4,7 @@
  * Includes automatic token refresh on 401 errors
  */
 
-import { getPublicApiUrl, getServerApiUrl } from "./env";
+import { getServerApiUrl } from "./env";
 
 export interface ApiError {
   message: string;
@@ -34,10 +34,6 @@ export interface RequestOptions extends RequestInit {
   storeId?: string; // Optional store ID to override default
 }
 
-// Token refresh state management
-let refreshPromise: Promise<boolean> | null = null;
-let isRefreshing = false;
-
 /**
  * Get the API base URL from environment or default to localhost
  * Client-side: uses Next.js proxy API route for centralized auth handling (except auth endpoints)
@@ -47,12 +43,12 @@ function getApiBaseUrl(endpoint?: string): string {
   if (typeof window !== "undefined") {
     // Client-side: use Next.js proxy API route for non-auth endpoints
     // Auth endpoints (login, refresh, me, logout) use existing API routes that handle cookies specially
-    const isAuthEndpoint = 
-      endpoint?.includes("/auth/login") || 
+    const isAuthEndpoint =
+      endpoint?.includes("/auth/login") ||
       endpoint?.includes("/auth/refresh") ||
       endpoint?.includes("/auth/me") ||
       endpoint?.includes("/auth/logout");
-    
+
     if (!isAuthEndpoint) {
       // Use proxy for all non-auth endpoints
       return "/api/proxy";
@@ -237,101 +233,8 @@ async function parseErrorResponse(response: Response): Promise<ApiError> {
 }
 
 /**
- * Refresh access token using refresh token
- * Returns true if refresh was successful, false otherwise
- */
-async function refreshAccessToken(): Promise<boolean> {
-  // If already refreshing, wait for that promise
-  if (isRefreshing && refreshPromise) {
-    return refreshPromise;
-  }
-
-  // Start refresh process
-  isRefreshing = true;
-  refreshPromise = (async () => {
-    try {
-      // Check if refresh token cookie exists before attempting refresh
-      if (typeof window !== "undefined") {
-        const hasRefreshToken = document.cookie.includes("admin_refresh_token");
-        if (!hasRefreshToken) {
-          // No refresh token - session truly expired
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes("/login")) {
-            const loginUrl = new URL("/login", window.location.origin);
-            loginUrl.searchParams.set("expired", "true");
-            loginUrl.searchParams.set("redirect", currentPath);
-            window.location.href = loginUrl.toString();
-          }
-          return false;
-        }
-      }
-
-      const baseUrl = getApiBaseUrl();
-      // Use the refresh endpoint - cookies are sent automatically
-      const response = await fetch(`${baseUrl}/admin/auth/refresh`, {
-        method: "POST",
-        credentials: "include", // Include httpOnly cookies
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        // Check if refresh token is expired (401) vs other errors
-        const isTokenExpired = response.status === 401;
-
-        if (typeof window !== "undefined") {
-          // Clear any stored tokens
-          localStorage.removeItem("admin_access_token");
-          localStorage.removeItem("admin_refresh_token");
-
-          // Only redirect with "expired" if token is actually expired (401)
-          // For other errors (network, 500, etc.), redirect without expired flag
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes("/login")) {
-            const loginUrl = new URL("/login", window.location.origin);
-            if (isTokenExpired) {
-              loginUrl.searchParams.set("expired", "true");
-            } else {
-              // Other error - show generic error message
-              loginUrl.searchParams.set("error", "refresh_failed");
-            }
-            loginUrl.searchParams.set("redirect", currentPath);
-            window.location.href = loginUrl.toString();
-          }
-        }
-        return false;
-      }
-
-      // Refresh successful - cookies are updated automatically by browser
-      const contentType = response.headers.get("content-type");
-      if (contentType?.includes("application/json")) {
-        const data = await response.json();
-
-        // Update localStorage token if provided (fallback)
-        if (data.accessToken && typeof window !== "undefined") {
-          localStorage.setItem("admin_access_token", data.accessToken);
-        }
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Token refresh error:", error);
-      // Network or other errors - don't redirect immediately
-      // Let the calling code handle the error (might be transient)
-      // Only return false so caller can decide what to do
-      return false;
-    } finally {
-      isRefreshing = false;
-      refreshPromise = null;
-    }
-  })();
-
-  return refreshPromise;
-}
-
-/**
- * Fetch wrapper with error handling and automatic token refresh
+ * Fetch wrapper with error handling
+ * Token refresh is handled by the proxy API route for client-side requests
  */
 export async function apiFetch<T = unknown>(
   endpoint: string,
@@ -341,7 +244,7 @@ export async function apiFetch<T = unknown>(
 
   const baseUrl = getApiBaseUrl(endpoint);
   const isClientSide = typeof window !== "undefined";
-  
+
   // Build URL
   let url: string;
   if (isClientSide && baseUrl === "/api/proxy") {
