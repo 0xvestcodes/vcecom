@@ -203,7 +203,7 @@ export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
             toast.success(WIZARD_MESSAGES.PRODUCT_CREATE_SUCCESS);
             onComplete(product.id);
           }
-        } catch (variantError) {
+        } catch (_variantError) {
           // Variant creation failed, but product was created
           toast.error(
             "Product created successfully, but failed to create variant. You can add it manually.",
@@ -218,9 +218,9 @@ export function CreateProductWizard({ onComplete }: CreateProductWizardProps) {
         if (
           errorMessage.includes("product") ||
           errorMessage.includes("create") ||
-          !errorMessage.includes("variant") &&
+          (!errorMessage.includes("variant") &&
             !errorMessage.includes("image") &&
-            !errorMessage.includes("upload")
+            !errorMessage.includes("upload"))
         ) {
           toast.error(WIZARD_MESSAGES.PRODUCT_CREATE_ERROR);
         }
