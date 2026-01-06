@@ -471,4 +471,8 @@ export const endpoints = {
       return `/admin/features/${key}/history${query ? `?${query}` : ""}`;
     },
   },
+  store: {
+    get: "/admin/store",
+    update: "/admin/store",
+  },
 } as const;

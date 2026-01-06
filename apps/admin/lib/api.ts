@@ -31,6 +31,7 @@ export class FetchError extends Error {
 export interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | boolean | undefined>;
   skipAuthRefresh?: boolean; // Skip automatic token refresh for this request
+  storeId?: string; // Optional store ID to override default
 }
 
 // Token refresh state management
@@ -91,16 +92,62 @@ function getAuthToken(): string | null {
 }
 
 /**
- * Create headers with auth token
+ * Get store ID from localStorage
+ * Returns null if not available (backend will use default)
+ */
+function getStoreId(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("admin_store_id");
+}
+
+/**
+ * Set store ID in localStorage
+ * Called after successful store fetch
+ */
+export function setStoreId(storeId: string): void {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("admin_store_id", storeId);
+  }
+}
+
+/**
+ * Fetch and cache store ID from backend
+ * Can be called after login or when needed
+ */
+export async function fetchAndCacheStoreId(): Promise<string | null> {
+  try {
+    const store = await apiFetch<{ id: string }>("/admin/store");
+    if (store?.id) {
+      setStoreId(store.id);
+      return store.id;
+    }
+  } catch (error) {
+    console.warn("Failed to fetch store ID:", error);
+  }
+  return null;
+}
+
+/**
+ * Create headers with auth token and store ID
  * Note: httpOnly cookies are sent automatically by browser
  * This adds Authorization header as fallback
  */
-function createHeaders(init?: HeadersInit): Headers {
+function createHeaders(
+  init?: HeadersInit,
+  storeIdOverride?: string,
+): Headers {
   const headers = new Headers(init);
 
   const token = getAuthToken();
   if (token) {
     headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  // Add store ID header if available
+  // If not provided, backend middleware will use default store
+  const storeId = storeIdOverride || getStoreId();
+  if (storeId) {
+    headers.set("x-store-id", storeId);
   }
 
   // Only set Content-Type if not already set and body exists
@@ -119,12 +166,12 @@ export async function serverApiFetch<T = unknown>(
   endpoint: string,
   options: RequestOptions & { cookies?: string } = {},
 ): Promise<T> {
-  const { params, cookies, ...fetchOptions } = options;
+  const { params, cookies, storeId, ...fetchOptions } = options;
 
   const baseUrl = getApiBaseUrl();
   const url = `${baseUrl}${endpoint}${params ? buildQueryString(params) : ""}`;
 
-  const headers = createHeaders(fetchOptions.headers);
+  const headers = createHeaders(fetchOptions.headers, storeId);
 
   // Forward cookies for server-side requests
   if (cookies) {
@@ -292,13 +339,13 @@ export async function apiFetch<T = unknown>(
   endpoint: string,
   options: RequestOptions = {},
 ): Promise<T> {
-  const { params, skipAuthRefresh, ...fetchOptions } = options;
+  const { params, skipAuthRefresh, storeId, ...fetchOptions } = options;
 
   const baseUrl = getApiBaseUrl();
   // Always use backend URL directly - no Next.js API route proxies
   const url = `${baseUrl}${endpoint}${params ? buildQueryString(params) : ""}`;
 
-  const headers = createHeaders(fetchOptions.headers);
+  const headers = createHeaders(fetchOptions.headers, storeId);
 
   try {
     const response = await fetch(url, {
@@ -323,7 +370,7 @@ export async function apiFetch<T = unknown>(
 
       if (refreshSuccess) {
         // Retry original request with new token
-        const retryHeaders = createHeaders(fetchOptions.headers);
+        const retryHeaders = await createHeaders(fetchOptions.headers, storeId);
         const retryResponse = await fetch(url, {
           ...fetchOptions,
           headers: retryHeaders,
