@@ -132,10 +132,7 @@ export async function fetchAndCacheStoreId(): Promise<string | null> {
  * Note: httpOnly cookies are sent automatically by browser
  * This adds Authorization header as fallback
  */
-function createHeaders(
-  init?: HeadersInit,
-  storeIdOverride?: string,
-): Headers {
+function createHeaders(init?: HeadersInit, storeIdOverride?: string): Headers {
   const headers = new Headers(init);
 
   const token = getAuthToken();
@@ -312,16 +309,9 @@ async function refreshAccessToken(): Promise<boolean> {
       return true;
     } catch (error) {
       console.error("Token refresh error:", error);
-      // Network or other errors - don't treat as expired, just failed
-      if (typeof window !== "undefined") {
-        const currentPath = window.location.pathname;
-        if (!currentPath.includes("/login")) {
-          const loginUrl = new URL("/login", window.location.origin);
-          loginUrl.searchParams.set("error", "refresh_failed");
-          loginUrl.searchParams.set("redirect", currentPath);
-          window.location.href = loginUrl.toString();
-        }
-      }
+      // Network or other errors - don't redirect immediately
+      // Let the calling code handle the error (might be transient)
+      // Only return false so caller can decide what to do
       return false;
     } finally {
       isRefreshing = false;
@@ -370,7 +360,7 @@ export async function apiFetch<T = unknown>(
 
       if (refreshSuccess) {
         // Retry original request with new token
-        const retryHeaders = await createHeaders(fetchOptions.headers, storeId);
+        const retryHeaders = createHeaders(fetchOptions.headers, storeId);
         const retryResponse = await fetch(url, {
           ...fetchOptions,
           headers: retryHeaders,
@@ -390,19 +380,26 @@ export async function apiFetch<T = unknown>(
 
         return undefined as T;
       } else {
-        // Refresh failed - redirect to login if not already there
+        // Refresh failed - check if refresh token still exists
+        // If it exists, might be a transient error - throw error instead of redirecting
+        // If it doesn't exist, session is truly expired - redirect handled by refreshAccessToken
         if (typeof window !== "undefined") {
-          const currentPath = window.location.pathname;
-          if (!currentPath.includes("/login")) {
-            const loginUrl = new URL("/login", window.location.origin);
-            loginUrl.searchParams.set("expired", "true");
-            loginUrl.searchParams.set("redirect", currentPath);
-            window.location.href = loginUrl.toString();
-            // Return a promise that never resolves to prevent further execution
-            return new Promise(() => {}) as T;
+          const hasRefreshToken = document.cookie.includes("admin_refresh_token");
+          if (hasRefreshToken) {
+            // Refresh token exists but refresh failed - might be transient
+            // Throw error instead of redirecting - let UI handle it
+            const error = await parseErrorResponse(response);
+            throw new FetchError(
+              "Session refresh failed. Please try again.",
+              error.status,
+              error.errors,
+            );
           }
+          // No refresh token - refreshAccessToken already redirected
+          // Return a promise that never resolves to prevent further execution
+          return new Promise(() => {}) as T;
         }
-        // Refresh failed - throw original 401 error
+        // Server-side or no window - throw error
         const error = await parseErrorResponse(response);
         throw new FetchError(error.message, error.status, error.errors);
       }
