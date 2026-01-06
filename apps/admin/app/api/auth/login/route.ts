@@ -26,7 +26,13 @@ export async function POST(request: NextRequest) {
     const nextResponse = NextResponse.json(data, { status: 200 });
 
     // Forward Set-Cookie headers from backend
+    // Use getSetCookie() which properly handles multiple Set-Cookie headers
     const setCookieHeaders = response.headers.getSetCookie();
+
+    // Log for debugging (remove in production if needed)
+    if (process.env.NODE_ENV === "development") {
+      console.log("Backend Set-Cookie headers:", setCookieHeaders);
+    }
 
     if (setCookieHeaders && setCookieHeaders.length > 0) {
       setCookieHeaders.forEach((cookieString) => {
@@ -74,13 +80,15 @@ export async function POST(request: NextRequest) {
         // For same-origin, we can use lax and httpOnly
         // In production, cookies must be secure (HTTPS required)
         const isProduction = process.env.NODE_ENV === "production";
-        
+
         // Ensure secure flag is set correctly for production
         // If backend sets secure=true, respect it; otherwise set based on environment
-        const shouldBeSecure = cookieOptions.secure !== undefined 
-          ? cookieOptions.secure 
-          : isProduction;
-        
+        const shouldBeSecure =
+          cookieOptions.secure !== undefined
+            ? cookieOptions.secure
+            : isProduction;
+
+        // Set cookie on Next.js response for the admin app domain
         nextResponse.cookies.set(name, value, {
           httpOnly: cookieOptions.httpOnly ?? true,
           secure: shouldBeSecure,
@@ -89,7 +97,21 @@ export async function POST(request: NextRequest) {
           maxAge: cookieOptions.maxAge,
           // Don't set domain - let Next.js handle it automatically for the current domain
         });
+
+        // Log for debugging (remove in production if needed)
+        if (process.env.NODE_ENV === "development") {
+          console.log(`Set cookie: ${name}`, {
+            httpOnly: cookieOptions.httpOnly ?? true,
+            secure: shouldBeSecure,
+            sameSite: cookieOptions.sameSite || "lax",
+            path: cookieOptions.path || "/",
+            maxAge: cookieOptions.maxAge,
+          });
+        }
       });
+    } else {
+      // Log warning if no cookies were received
+      console.warn("No Set-Cookie headers received from backend");
     }
 
     return nextResponse;

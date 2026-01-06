@@ -88,16 +88,32 @@ function LoginForm() {
 
   const mutation = useMutation({
     mutationFn: async (data: LoginFormValues) => {
-      // Call backend directly - backend sets httpOnly cookies
-      // apiFetch includes credentials: "include" to handle cookies properly
-      return api.post<{
+      // Call Next.js API route which proxies to backend and forwards cookies
+      // This ensures cookies are set for the admin app domain, not backend domain
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include", // Include cookies in request/response
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const error = new Error(errorData.message || "Login failed");
+        (error as Error & { status?: number }).status = response.status;
+        throw error;
+      }
+
+      return response.json() as Promise<{
         accessToken: string;
         refreshToken: string;
         id: string;
         email: string;
         role: string;
         requires2fa: boolean;
-      }>(endpoints.auth.login, data);
+      }>;
     },
     onSuccess: async (data) => {
       if (data.requires2fa) {
@@ -115,10 +131,10 @@ function LoginForm() {
 
       // Get redirect destination
       const redirectTo = searchParams.get("redirect") || "/";
-      
+
       // Ensure we're redirecting to a relative path (security)
-      const redirectPath = redirectTo.startsWith("/") 
-        ? redirectTo 
+      const redirectPath = redirectTo.startsWith("/")
+        ? redirectTo
         : `/${redirectTo}`;
 
       // Use window.location.replace for a full page reload to ensure cookies are sent
