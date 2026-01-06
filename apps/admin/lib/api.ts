@@ -40,20 +40,28 @@ let isRefreshing = false;
 
 /**
  * Get the API base URL from environment or default to localhost
- * Uses validated environment variables in production
+ * Client-side: uses Next.js proxy API route for centralized auth handling (except auth endpoints)
+ * Server-side: uses backend URL directly
  */
-function getApiBaseUrl(): string {
-  // Always use backend URL directly - no proxies needed
-  // Backend handles CORS and cookies directly
+function getApiBaseUrl(endpoint?: string): string {
   if (typeof window !== "undefined") {
-    // Client-side: use NEXT_PUBLIC_API_URL for direct backend calls
-    // In production, this will be validated and throw if missing
-    if (process.env.NODE_ENV === "production") {
-      return getPublicApiUrl();
+    // Client-side: use Next.js proxy API route for non-auth endpoints
+    // Auth endpoints (login, refresh, me, logout) use existing API routes that handle cookies specially
+    const isAuthEndpoint = 
+      endpoint?.includes("/auth/login") || 
+      endpoint?.includes("/auth/refresh") ||
+      endpoint?.includes("/auth/me") ||
+      endpoint?.includes("/auth/logout");
+    
+    if (!isAuthEndpoint) {
+      // Use proxy for all non-auth endpoints
+      return "/api/proxy";
     }
-    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    // For auth endpoints, use existing API routes (they're at /api/auth/*, not /api/proxy/admin/auth/*)
+    // Map /admin/auth/login -> /api/auth/login
+    return "";
   }
-  // Server-side: use env variable or default
+  // Server-side: use backend URL directly
   if (process.env.NODE_ENV === "production") {
     return getServerApiUrl();
   }
@@ -331,9 +339,22 @@ export async function apiFetch<T = unknown>(
 ): Promise<T> {
   const { params, skipAuthRefresh, storeId, ...fetchOptions } = options;
 
-  const baseUrl = getApiBaseUrl();
-  // Always use backend URL directly - no Next.js API route proxies
-  const url = `${baseUrl}${endpoint}${params ? buildQueryString(params) : ""}`;
+  const baseUrl = getApiBaseUrl(endpoint);
+  const isClientSide = typeof window !== "undefined";
+  
+  // Build URL
+  let url: string;
+  if (isClientSide && baseUrl === "/api/proxy") {
+    // Proxy route - endpoint is the backend path
+    url = `${baseUrl}${endpoint}${params ? buildQueryString(params) : ""}`;
+  } else if (isClientSide && baseUrl === "") {
+    // Auth endpoint - map /admin/auth/* to /api/auth/*
+    const authPath = endpoint.replace("/admin/auth/", "/auth/");
+    url = `/api${authPath}${params ? buildQueryString(params) : ""}`;
+  } else {
+    // Server-side or direct backend URL
+    url = `${baseUrl}${endpoint}${params ? buildQueryString(params) : ""}`;
+  }
 
   const headers = createHeaders(fetchOptions.headers, storeId);
 
@@ -344,68 +365,25 @@ export async function apiFetch<T = unknown>(
       credentials: "include", // Include httpOnly cookies
     });
 
-    // Handle 401 Unauthorized - try to refresh token
-    if (response.status === 401 && !skipAuthRefresh) {
-      // Don't refresh if this is already a refresh request or login request
-      if (
-        endpoint.includes("/auth/refresh") ||
-        endpoint.includes("/auth/login")
-      ) {
-        const error = await parseErrorResponse(response);
-        throw new FetchError(error.message, error.status, error.errors);
-      }
-
-      // Attempt to refresh token
-      const refreshSuccess = await refreshAccessToken();
-
-      if (refreshSuccess) {
-        // Retry original request with new token
-        const retryHeaders = createHeaders(fetchOptions.headers, storeId);
-        const retryResponse = await fetch(url, {
-          ...fetchOptions,
-          headers: retryHeaders,
-          credentials: "include",
-        });
-
-        if (!retryResponse.ok) {
-          const error = await parseErrorResponse(retryResponse);
-          throw new FetchError(error.message, error.status, error.errors);
-        }
-
-        // Handle empty responses
-        const contentType = retryResponse.headers.get("content-type");
-        if (contentType?.includes("application/json")) {
-          return await retryResponse.json();
-        }
-
-        return undefined as T;
-      } else {
-        // Refresh failed - check if refresh token still exists
-        // If it exists, might be a transient error - throw error instead of redirecting
-        // If it doesn't exist, session is truly expired - redirect handled by refreshAccessToken
-        if (typeof window !== "undefined") {
-          const hasRefreshToken = document.cookie.includes("admin_refresh_token");
-          if (hasRefreshToken) {
-            // Refresh token exists but refresh failed - might be transient
-            // Throw error instead of redirecting - let UI handle it
-            const error = await parseErrorResponse(response);
-            throw new FetchError(
-              "Session refresh failed. Please try again.",
-              error.status,
-              error.errors,
-            );
-          }
-          // No refresh token - refreshAccessToken already redirected
-          // Return a promise that never resolves to prevent further execution
-          return new Promise(() => {}) as T;
-        }
-        // Server-side or no window - throw error
-        const error = await parseErrorResponse(response);
-        throw new FetchError(error.message, error.status, error.errors);
-      }
-    }
-
+    // Proxy handles 401 and refresh automatically for client-side requests
+    // For server-side or if skipAuthRefresh is true, handle errors normally
     if (!response.ok) {
+      // Handle 401 - proxy should have refreshed, but if we still get 401, session is expired
+      if (response.status === 401) {
+        // Only redirect if client-side and not skipping refresh
+        if (isClientSide && !skipAuthRefresh) {
+          const currentPath = window.location.pathname;
+          if (!currentPath.includes("/login")) {
+            const loginUrl = new URL("/login", window.location.origin);
+            loginUrl.searchParams.set("expired", "true");
+            loginUrl.searchParams.set("redirect", currentPath);
+            window.location.href = loginUrl.toString();
+            // Return a promise that never resolves to prevent further execution
+            return new Promise(() => {}) as T;
+          }
+        }
+      }
+
       const error = await parseErrorResponse(response);
       throw new FetchError(error.message, error.status, error.errors);
     }
