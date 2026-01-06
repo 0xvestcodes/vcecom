@@ -22,6 +22,21 @@ if [ -z "$DATABASE_URL" ]; then
   exit 1
 fi
 
+# Normalize SSL mode in DATABASE_URL
+# Replace invalid SSL modes with valid ones
+# Valid modes: disable, allow, prefer, require, verify-ca, verify-full
+DB_URL="$DATABASE_URL"
+# Replace "no-verify" (invalid) with "require" (valid, doesn't verify cert but requires SSL)
+DB_URL=$(echo "$DB_URL" | sed 's/sslmode=no-verify/sslmode=require/g')
+# If no sslmode is set and we're in production, add require
+if [[ "$NODE_ENV" == "production" ]] && [[ ! "$DB_URL" =~ sslmode= ]]; then
+  if [[ "$DB_URL" =~ \? ]]; then
+    DB_URL="${DB_URL}&sslmode=require"
+  else
+    DB_URL="${DB_URL}?sslmode=require"
+  fi
+fi
+
 # Get Supabase Storage configuration
 if [ -z "$SUPABASE_URL" ]; then
   echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Error: SUPABASE_URL environment variable is not set"
@@ -44,7 +59,7 @@ echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Backup file: $BACKUP_FILE"
 
 # Create PostgreSQL dump
 echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Creating database dump..."
-pg_dump "$DATABASE_URL" | gzip > "$BACKUP_FILE"
+pg_dump "$DB_URL" | gzip > "$BACKUP_FILE"
 
 if [ $? -ne 0 ]; then
   echo "[$(date +%Y-%m-%d\ %H:%M:%S)] Error: Failed to create database dump"
