@@ -6,6 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "prebuild": "pnpm --filter @vcecom/db build && (pnpm db:migrate || echo '⚠️  Migration skipped or failed - continuing build')",
     "build": "node scripts/generate-build-info.js && nest build",
     "generate-build-info": "node scripts/generate-build-info.js",
     "dev": "nodemon",
