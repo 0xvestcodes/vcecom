@@ -2,7 +2,7 @@
 
 /**
  * Prebuild migration script with fallback strategy
- * 
+ *
  * Strategy:
  * 1. Try running existing migrations
  * 2. If that fails -> generate new migrations and migrate
@@ -10,8 +10,8 @@
  * 4. If all fail -> continue with warning (for CI/CD environments)
  */
 
-const { execSync } = require("child_process");
-const path = require("path");
+const { execSync } = require("node:child_process");
+const path = require("node:path");
 
 const rootDir = path.resolve(__dirname, "../..");
 const dbPackageDir = path.join(rootDir, "packages/db");
@@ -38,7 +38,7 @@ function runCommand(command, cwd, description) {
       },
     });
     return true;
-  } catch (error) {
+  } catch (_error) {
     log(`Failed: ${description}`, "yellow");
     return false;
   }
