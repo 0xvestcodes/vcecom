@@ -6,7 +6,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 /**
  * Centralized proxy API route for all backend requests
  * Handles authentication, token refresh, and cookie forwarding
- * 
+ *
  * Usage: /api/proxy/admin/products -> proxies to backend /admin/products
  */
 export async function GET(
@@ -93,10 +93,14 @@ async function handleRequest(
     });
 
     // Handle 401 - try to refresh token
-    if (response.status === 401 && !backendPath.includes("/auth/refresh") && !backendPath.includes("/auth/login")) {
+    if (
+      response.status === 401 &&
+      !backendPath.includes("/auth/refresh") &&
+      !backendPath.includes("/auth/login")
+    ) {
       // Check if refresh token exists before attempting refresh
       const hasRefreshToken = cookieHeader.includes("admin_refresh_token");
-      
+
       if (!hasRefreshToken) {
         // No refresh token - session truly expired
         const error = await response.json().catch(() => ({
@@ -117,7 +121,7 @@ async function handleRequest(
       if (refreshResponse.ok) {
         // Refresh successful - get updated cookies
         const refreshSetCookieHeaders = refreshResponse.headers.getSetCookie();
-        
+
         // Build updated cookie header for retry
         let updatedCookieHeader = cookieHeader;
         if (refreshSetCookieHeaders && refreshSetCookieHeaders.length > 0) {
@@ -143,13 +147,13 @@ async function handleRequest(
             .map(([name, value]) => `${name}=${value}`)
             .join("; ");
         }
-        
+
         // Retry original request with updated cookies
         const retryHeaders: HeadersInit = {
           ...headers,
           Cookie: updatedCookieHeader,
         };
-        
+
         const retryResponse = await fetch(backendUrl, {
           method,
           headers: retryHeaders,
@@ -185,11 +189,14 @@ async function handleRequest(
         // Refresh failed - check if it's a 401 (token expired) or other error
         const refreshStatus = refreshResponse.status;
         const error = await refreshResponse.json().catch(() => ({
-          message: refreshStatus === 401 
-            ? "Unauthorized - session expired" 
-            : "Session refresh failed",
+          message:
+            refreshStatus === 401
+              ? "Unauthorized - session expired"
+              : "Session refresh failed",
         }));
-        return NextResponse.json(error, { status: refreshStatus === 401 ? 401 : 500 });
+        return NextResponse.json(error, {
+          status: refreshStatus === 401 ? 401 : 500,
+        });
       }
     }
 
@@ -259,10 +266,7 @@ function forwardCookies(
           sameSiteValue === "strict" ||
           sameSiteValue === "none"
         ) {
-          cookieOptions.sameSite = sameSiteValue as
-            | "lax"
-            | "strict"
-            | "none";
+          cookieOptions.sameSite = sameSiteValue as "lax" | "strict" | "none";
         }
       } else if (lowerPart.startsWith("max-age=")) {
         cookieOptions.maxAge = parseInt(part.split("=")[1], 10);

@@ -272,6 +272,20 @@ export const endpoints = {
         `/admin/collections/${id}/products/${productId}`,
     },
   },
+  mediaGroups: {
+    list: "/admin/media-groups",
+    detail: (id: string) => `/admin/media-groups/${id}`,
+    create: "/admin/media-groups",
+    update: (id: string) => `/admin/media-groups/${id}`,
+    delete: (id: string) => `/admin/media-groups/${id}`,
+    items: {
+      list: (groupId: string) => `/admin/media-groups/${groupId}/items`,
+      add: (groupId: string) => `/admin/media-groups/${groupId}/items`,
+      update: (itemId: string) => `/admin/media-groups/items/${itemId}`,
+      delete: (itemId: string) => `/admin/media-groups/items/${itemId}`,
+      reorder: (groupId: string) => `/admin/media-groups/${groupId}/reorder`,
+    },
+  },
   categories: {
     list: "/admin/categories",
     tree: "/admin/categories/tree",
