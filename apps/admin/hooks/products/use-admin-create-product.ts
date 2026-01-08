@@ -32,9 +32,7 @@ interface UseAdminCreateProductOptions {
   skipNavigation?: boolean;
 }
 
-export function useAdminCreateProduct(
-  options?: UseAdminCreateProductOptions,
-) {
+export function useAdminCreateProduct(options?: UseAdminCreateProductOptions) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { skipSuccessToast = false, skipNavigation = false } = options || {};

@@ -41,6 +41,7 @@ import { GeolocationModule } from "./modules/geolocation/geolocation.module";
 import { ImportsModule } from "./modules/imports/imports.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { InvoicesModule } from "./modules/invoices/invoices.module";
+import { MediaGroupsModule } from "./modules/media-groups/media-groups.module";
 import { NotificationsModule } from "./modules/notifications/notifications.module";
 import { OrdersModule } from "./modules/orders/orders.module";
 import { PaymentChargesModule } from "./modules/payment-charges/payment-charges.module";
@@ -97,6 +98,7 @@ import { WebhooksModule } from "./modules/webhooks/webhooks.module";
     CategoriesModule,
     CheckoutModule,
     CollectionsModule,
+    MediaGroupsModule,
     ProductsModule,
     CustomersModule,
     OrdersModule,
