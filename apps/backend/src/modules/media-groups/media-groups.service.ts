@@ -7,7 +7,6 @@ import {
 } from "@nestjs/common";
 import {
   and,
-  count,
   eq,
   ilike,
   inArray,
@@ -262,7 +261,7 @@ export class MediaGroupsService {
       query.limit,
     );
 
-    const conditions = [];
+    const conditions: Parameters<typeof and>[0][] = [];
 
     // Search filter
     if (query.search) {
@@ -284,7 +283,7 @@ export class MediaGroupsService {
 
     // Get total count
     const countResult = await this.db
-      .select({ count: count() })
+      .select({ count: sql<number>`count(*)` })
       .from(mediaGroups)
       .where(whereClause);
 
@@ -304,7 +303,7 @@ export class MediaGroupsService {
     const imageCounts = await this.db
       .select({
         groupId: mediaItems.groupId,
-        count: count(),
+        count: sql<number>`count(*)`,
       })
       .from(mediaItems)
       .where(
@@ -324,9 +323,11 @@ export class MediaGroupsService {
       imageCount: countMap.get(group.id) || 0,
     }));
 
+    const pagination = generatePaginationMetadata(total, page, limit);
+
     return {
       data,
-      ...generatePaginationMetadata(total, page, limit),
+      pagination,
     };
   }
 
@@ -346,7 +347,7 @@ export class MediaGroupsService {
 
     // Get image count
     const imageCountResult = await this.db
-      .select({ count: count() })
+      .select({ count: sql<number>`count(*)` })
       .from(mediaItems)
       .where(and(eq(mediaItems.groupId, id), eq(mediaItems.isActive, true)));
 
@@ -374,7 +375,7 @@ export class MediaGroupsService {
 
     // Get image count
     const imageCountResult = await this.db
-      .select({ count: count() })
+      .select({ count: sql<number>`count(*)` })
       .from(mediaItems)
       .where(
         and(eq(mediaItems.groupId, group.id), eq(mediaItems.isActive, true)),
