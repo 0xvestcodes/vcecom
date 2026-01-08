@@ -1,7 +1,7 @@
 import { Module } from "@nestjs/common";
+import { StoreBootstrapService } from "./services/store-bootstrap.service";
 import { StorefrontConfigController } from "./storefront-config.controller";
 import { StoresController } from "./stores.controller";
-import { StoreBootstrapService } from "./services/store-bootstrap.service";
 import { StoresService } from "./stores.service";
 
 @Module({

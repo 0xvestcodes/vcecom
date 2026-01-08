@@ -51,6 +51,8 @@ export * from "./jwt-secrets";
 export * from "./login-attempts";
 export * from "./loyalty-rules";
 export * from "./media-audit-logs";
+export * from "./media-groups";
+export * from "./media-items";
 export * from "./notifications";
 export * from "./order-items";
 export * from "./order-notes";

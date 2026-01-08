@@ -52,6 +52,11 @@ export const ROUTES = {
   },
   REVIEWS: "/reviews",
   STORAGE: "/storage",
+  MEDIA_GROUPS: {
+    LIST: "/media-groups",
+    CREATE: "/media-groups/create",
+    DETAIL: (id: string) => `/media-groups/${id}`,
+  },
   SETTINGS: "/settings",
   PAYMENT_FEES: {
     LIST: "/settings/payment-fees",
@@ -113,5 +118,7 @@ export const BREADCRUMB_LABELS = {
   CREATE_BUNDLE: "Create Bundle",
   REVIEWS: "Reviews",
   STORAGE: "Storage",
+  MEDIA_GROUPS: "Media Groups",
+  CREATE_MEDIA_GROUP: "Create Media Group",
   SETTINGS: "Settings",
 } as const;

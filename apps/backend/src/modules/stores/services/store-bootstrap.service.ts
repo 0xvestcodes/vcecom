@@ -169,11 +169,15 @@ export class StoreBootstrapService implements OnModuleInit {
             }
 
             this.logger.info(
-              createLogContext(this.contextService, "defaultStoreFoundAfterRace", {
-                storeId: existingStore.id,
-                storeName: existingStore.name,
-                elapsedMs: Date.now() - startTime,
-              }),
+              createLogContext(
+                this.contextService,
+                "defaultStoreFoundAfterRace",
+                {
+                  storeId: existingStore.id,
+                  storeName: existingStore.name,
+                  elapsedMs: Date.now() - startTime,
+                },
+              ),
               "Default store found after race condition (created by another instance)",
             );
             return;

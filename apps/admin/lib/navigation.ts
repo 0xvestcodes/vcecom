@@ -17,6 +17,7 @@ import {
   FolderTree,
   Gift,
   HardDrive,
+  Image as ImageIcon,
   LayoutDashboard,
   MessageSquare,
   Package,
@@ -371,6 +372,12 @@ export const navigation: NavSection[] = [
         href: "/storage",
         icon: HardDrive,
         requiredRoles: ["admin"],
+      },
+      {
+        label: "Media Groups",
+        href: "/media-groups",
+        icon: ImageIcon,
+        requiredRoles: ["admin", "marketing"],
       },
       {
         label: "Notifications",
