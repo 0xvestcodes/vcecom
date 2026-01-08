@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Enable standalone output for Docker
+  output: "standalone",
   // Transpile workspace packages
   transpilePackages: ["@vcecom/cms-blocks"],
   // Note: Rewrites removed - all API requests now go through Next.js API routes

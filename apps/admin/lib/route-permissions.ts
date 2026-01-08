@@ -51,6 +51,9 @@ const routePermissions: Record<string, AdminRole[]> = {
   "/discounts": ["admin", "marketing"],
   "/price-lists": ["admin", "marketing"],
 
+  // CMS / Content - multiple roles
+  "/cms/media": ["admin", "support", "reviewer", "marketing"],
+
   // Settings - admin only
   "/settings": ["admin"],
   "/settings/store": ["admin"],

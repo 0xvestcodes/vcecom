@@ -28,7 +28,7 @@ const createMediaGroupSchema = z.object({
   description: z.string().max(5000, "Description is too long").optional(),
   displayOrder: z.number().int().min(0).optional().default(0),
   isActive: z.boolean().optional().default(true),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 const updateMediaGroupSchema = createMediaGroupSchema.partial();

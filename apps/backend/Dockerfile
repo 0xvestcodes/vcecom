@@ -46,8 +46,6 @@ ARG NODE_MEMORY_LIMIT=2048
 ENV NODE_OPTIONS="--max-old-space-size=${NODE_MEMORY_LIMIT}"
 # Don't set NODE_ENV=production here - we need devDependencies for building
 
-# Copy workspace configuration files
-COPY .gitignore .gitignore
 # Copy .git directory for build-info generation
 # Note: .git must be included in build context (removed from .dockerignore)
 COPY --from=builder /usr/src/app/.git ./.git

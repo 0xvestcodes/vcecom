@@ -1,0 +1,83 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+*.log
+.nyc_output
+
+# Build outputs (will be rebuilt in Docker)
+.next
+.turbo
+dist
+build
+
+# Environment files (should be provided at runtime)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# IDE and editor files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git (keeping .git for build-info generation, but excluding other git files)
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+*.md
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+.circleci
+
+# Misc
+*.pem
+*.key
+*.cert
+.cache
+.temp
+tmp
+
+# Test files
+*.spec.ts
+*.test.ts
+test-utils
+jest.config.js
+vitest.config.ts
+
+# TypeScript build info
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Docker
+Dockerfile*
+.dockerignore
+docker-compose*.yml
