@@ -2,7 +2,7 @@
 set -e
 
 # ============================================================================
-# Docker Build and Publish Script
+# Docker Build and Publish Script for Backend
 # ============================================================================
 # Usage:
 #   ./scripts/docker-build.sh [OPTIONS]
@@ -11,7 +11,7 @@ set -e
 #   --tag TAG          Custom tag (default: latest)
 #   --no-push          Build only, don't push to registry
 #   --registry REG     Registry URL (default: ghcr.io)
-#   --image IMAGE      Image name (default: vestcodes/vcecom/backend)
+#   --org ORG          Organization/username (default: vestcodes)
 #   --platform PLAT    Platform (default: linux/amd64,linux/arm64)
 #   --help             Show this help message
 
@@ -19,7 +19,7 @@ set -e
 TAG="latest"
 PUSH=true
 REGISTRY="ghcr.io"
-IMAGE_NAME="vestcodes/vcecom/backend"
+ORG="vestcodes"
 PLATFORMS="linux/amd64,linux/arm64"
 CUSTOM_TAG=""
 
@@ -38,8 +38,8 @@ while [[ $# -gt 0 ]]; do
       REGISTRY="$2"
       shift 2
       ;;
-    --image)
-      IMAGE_NAME="$2"
+    --org)
+      ORG="$2"
       shift 2
       ;;
     --platform)
@@ -48,7 +48,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --help)
       cat << EOF
-Docker Build and Publish Script
+Docker Build and Publish Script for Backend
 
 Usage: $0 [OPTIONS]
 
@@ -56,12 +56,12 @@ Options:
   --tag TAG          Custom tag (default: latest)
   --no-push          Build only, don't push to registry
   --registry REG     Registry URL (default: ghcr.io)
-  --image IMAGE      Image name (default: vestcodes/vcecom/backend)
+  --org ORG          Organization/username (default: vestcodes)
   --platform PLAT    Platform (default: linux/amd64,linux/arm64)
   --help             Show this help message
 
 Examples:
-  # Build and push with latest tag
+  # Build and push backend with latest tag
   $0
 
   # Build with custom tag
@@ -91,13 +91,15 @@ elif [ -n "$GITHUB_REF_NAME" ]; then
   TAG="$GITHUB_REF_NAME"
 fi
 
-FULL_IMAGE_NAME="$REGISTRY/$IMAGE_NAME:$TAG"
+IMAGE_NAME="vcecom-backend"
+FULL_IMAGE_NAME="$REGISTRY/$ORG/$IMAGE_NAME:$TAG"
 
+echo ""
 echo "=========================================="
-echo "🐳 Docker Build and Publish"
+echo "🐳 Building Backend"
 echo "=========================================="
 echo "Registry:  $REGISTRY"
-echo "Image:     $IMAGE_NAME"
+echo "Image:     $ORG/$IMAGE_NAME"
 echo "Tag:       $TAG"
 echo "Platforms: $PLATFORMS"
 echo "Push:      $PUSH"
@@ -109,6 +111,40 @@ echo ""
 if ! docker info > /dev/null 2>&1; then
   echo "❌ Error: Docker is not running"
   exit 1
+fi
+
+# Check GHCR authentication if pushing
+if [ "$PUSH" = true ]; then
+  echo ""
+  echo "🔐 Checking GHCR authentication..."
+  
+  # Try to check if we're logged in to GHCR
+  if ! docker pull "$REGISTRY/$ORG/vcecom-backend:latest" > /dev/null 2>&1 && \
+     ! docker info 2>/dev/null | grep -q "Username"; then
+    echo ""
+    echo "⚠️  Warning: Not authenticated to GHCR"
+    echo ""
+    echo "To authenticate, use one of these methods:"
+    echo ""
+    echo "1. Using GitHub Personal Access Token (PAT):"
+    echo "   echo \$GITHUB_TOKEN | docker login $REGISTRY -u YOUR_USERNAME --password-stdin"
+    echo ""
+    echo "2. Interactive login:"
+    echo "   docker login $REGISTRY"
+    echo "   (Use your GitHub username and a PAT with 'write:packages' permission)"
+    echo ""
+    echo "3. Create a PAT at: https://github.com/settings/tokens"
+    echo "   Required scopes: 'write:packages', 'read:packages'"
+    echo ""
+    read -p "Continue anyway? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo "Build cancelled. Please authenticate first."
+      exit 1
+    fi
+  else
+    echo "✅ Authenticated to GHCR"
+  fi
 fi
 
 # Setup buildx if not exists
@@ -130,7 +166,7 @@ fi
 
 docker buildx build \
   --platform "$PLATFORMS" \
-  --file ./apps/backend/Dockerfile \
+  --file "./apps/backend/Dockerfile" \
   --tag "$FULL_IMAGE_NAME" \
   $BUILD_ARGS \
   --cache-from type=registry,ref="$FULL_IMAGE_NAME" \
@@ -153,4 +189,6 @@ else
 fi
 
 echo ""
+echo "=========================================="
+echo "🎉 Build completed!"
 echo "=========================================="

@@ -1,0 +1,266 @@
+version: '3.8'
+
+services:
+  # Traefik Reverse Proxy with SSL
+  traefik:
+    image: traefik:v3.0
+    container_name: vcecom-traefik-prod
+    restart: unless-stopped
+    command:
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.letsencrypt.acme.tlschallenge=true
+      - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL:-contact@vestcodes.co}
+      - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
+      - --entrypoints.web.http.redirections.entrypoint.to=websecure
+      - --entrypoints.web.http.redirections.entrypoint.scheme=https
+      - --log.level=${TRAEFIK_LOG_LEVEL:-INFO}
+      - --accesslog=true
+      - --accesslog.format=json
+    ports:
+      - "80:80"
+      - "443:443"
+      # Dashboard port (should be secured in production)
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik_letsencrypt:/letsencrypt
+    networks:
+      - vcecom-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`${TRAEFIK_DASHBOARD_HOST:-traefik.vcecom.vestcodes.co}`)"
+      - "traefik.http.routers.traefik.entrypoints=websecure"
+      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_AUTH_USERS}"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: vcecom-postgres-prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-maindb}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - vcecom-network
+    # Security: Don't expose ports in production - only accessible via Docker network
+    # Uncomment for debugging if needed:
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: vcecom-redis-prod
+    restart: unless-stopped
+    command: redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes --maxmemory ${REDIS_MAX_MEMORY:-256mb} --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - vcecom-network
+    # Security: Don't expose ports in production - only accessible via Docker network
+
+  # Meilisearch Search Engine
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    container_name: vcecom-meilisearch-prod
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_API_KEY}
+      MEILI_ENV: production
+      MEILI_NO_ANALYTICS: "true"
+      MEILI_LOG_LEVEL: ${MEILISEARCH_LOG_LEVEL:-INFO}
+    volumes:
+      - meilisearch_data:/meili_data
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:7700/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - vcecom-network
+
+  # MinIO Object Storage
+  minio:
+    image: minio/minio:latest
+    container_name: vcecom-minio-prod
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    networks:
+      - vcecom-network
+    labels:
+      # MinIO Console (Web UI)
+      - "traefik.enable=true"
+      - "traefik.http.routers.minio-console.rule=Host(`${MINIO_CONSOLE_HOST:-minio.vcecom.vestcodes.co}`)"
+      - "traefik.http.routers.minio-console.entrypoints=websecure"
+      - "traefik.http.routers.minio-console.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-console.service=minio-console"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+      # MinIO API
+      - "traefik.http.routers.minio-api.rule=Host(`${MINIO_API_HOST:-api.minio.vcecom.vestcodes.co}`)"
+      - "traefik.http.routers.minio-api.entrypoints=websecure"
+      - "traefik.http.routers.minio-api.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.minio-api.service=minio-api"
+      - "traefik.http.services.minio-api.loadbalancer.server.port=9000"
+
+  # Backend API Service
+  backend:
+    image: ${GHCR_REGISTRY:-ghcr.io}/${GHCR_ORG:-vestcodes}/vcecom-backend:${IMAGE_TAG:-latest}
+    container_name: vcecom-backend-prod
+    restart: unless-stopped
+    environment:
+      # Database Configuration
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-maindb}
+      # Redis Configuration
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      # Search Configuration
+      SEARCH_PROVIDER: ${SEARCH_PROVIDER:-meilisearch}
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_API_KEY: ${MEILISEARCH_API_KEY}
+      # Server Configuration
+      PORT: ${PORT:-3001}
+      NODE_ENV: production
+      # Storage Provider Configuration
+      STORAGE_PROVIDER: ${STORAGE_PROVIDER:-minio}
+      MINIO_ENDPOINT: minio:9000
+      MINIO_ACCESS_KEY: ${MINIO_ROOT_USER}
+      MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      MINIO_USE_SSL: "false"
+      MINIO_PUBLIC_URL: https://${MINIO_API_HOST:-api.minio.vcecom.vestcodes.co}/vcecom
+      STORAGE_BUCKET: vcecom
+      # CORS Configuration
+      BACKEND_URL: ${BACKEND_URL:-https://api.vcecom.vestcodes.co}
+      STOREFRONT_URL: ${STOREFRONT_URL:-https://storefront.vcecom.vestcodes.co}
+      ADMIN_URL: ${ADMIN_URL:-https://admin.vcecom.vestcodes.co}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://api.vcecom.vestcodes.co,https://storefront.vcecom.vestcodes.co,https://admin.vcecom.vestcodes.co}
+      # JWT Configuration (Required)
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1d}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-${JWT_SECRET}}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
+      ADMIN_ACCESS_TOKEN_EXPIRES_IN: ${ADMIN_ACCESS_TOKEN_EXPIRES_IN:-15m}
+      # Logging Configuration
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      LOG_PRETTY: "false"
+      # Tracing Configuration (optional)
+      OTEL_TRACE_ENABLED: ${OTEL_TRACE_ENABLED:-true}
+      OTEL_TRACE_SAMPLING: ${OTEL_TRACE_SAMPLING:-0.1}
+      OTEL_EXPORTER_ZIPKIN_ENDPOINT: http://zipkin:9411/api/v2/spans
+      OTEL_SERVICE_NAME: vcecom-backend
+      DEPLOYMENT_REGION: ${DEPLOYMENT_REGION:-fra1}
+      # Rate Limits
+      ADMIN_LOGIN_RATE_LIMIT: ${ADMIN_LOGIN_RATE_LIMIT:-100}
+      ADMIN_LOGIN_RATE_WINDOW: ${ADMIN_LOGIN_RATE_WINDOW:-300}
+      # Payment Gateway (Razorpay)
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      meilisearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/_health/database', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    networks:
+      - vcecom-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`${BACKEND_HOST:-api.vcecom.vestcodes.co}`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.backend.service=backend"
+      - "traefik.http.services.backend.loadbalancer.server.port=3001"
+      - "traefik.http.routers.backend.middlewares=backend-headers"
+      - "traefik.http.middlewares.backend-headers.headers.customrequestheaders.X-Forwarded-Proto=https"
+
+  # Zipkin Tracing (Optional - for observability)
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: vcecom-zipkin-prod
+    restart: unless-stopped
+    environment:
+      - STORAGE_TYPE=mem
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9411/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - vcecom-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.zipkin.rule=Host(`${ZIPKIN_HOST:-telemetry.vcecom.vestcodes.co}`)"
+      - "traefik.http.routers.zipkin.entrypoints=websecure"
+      - "traefik.http.routers.zipkin.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.zipkin.service=zipkin"
+      - "traefik.http.services.zipkin.loadbalancer.server.port=9411"
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  meilisearch_data:
+    driver: local
+  minio_data:
+    driver: local
+  traefik_letsencrypt:
+    driver: local
+
+networks:
+  vcecom-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16

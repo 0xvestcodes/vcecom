@@ -44,28 +44,21 @@ function runCommand(command, cwd, description) {
   }
 }
 
-// Step 1: Build database package
-log("Step 1: Building database package...", "green");
-if (!runCommand("pnpm build", dbPackageDir, "Build database package")) {
-  log("Failed to build database package", "red");
-  process.exit(1);
-}
-
 // Check if DATABASE_URL is set
 if (!process.env.DATABASE_URL) {
   log("⚠️  DATABASE_URL not set - skipping migrations", "yellow");
   process.exit(0);
 }
 
-// Step 2: Try running migrations
-log("Step 2: Attempting to run migrations...", "green");
+// Step 1: Try running migrations
+log("Step 1: Attempting to run migrations...", "green");
 if (runCommand("pnpm db:migrate:run", dbPackageDir, "Run migrations")) {
   log("✅ Migrations completed successfully", "green");
   process.exit(0);
 }
 
-// Step 3: Generate migrations and migrate
-log("Step 3: Migrations failed, generating new migrations...", "yellow");
+// Step 2: Generate migrations and migrate
+log("Step 2: Migrations failed, generating new migrations...", "yellow");
 if (
   runCommand("pnpm db:generate", dbPackageDir, "Generate migrations") &&
   runCommand("pnpm db:migrate:run", dbPackageDir, "Run generated migrations")
@@ -74,14 +67,14 @@ if (
   process.exit(0);
 }
 
-// Step 4: Fallback to db:push --force
-log("Step 4: Migration generation failed, using db:push --force...", "yellow");
+// Step 3: Fallback to db:push --force
+log("Step 3: Migration generation failed, using db:push --force...", "yellow");
 if (runCommand("pnpm db:push:ci", dbPackageDir, "Push schema to database")) {
   log("✅ Schema pushed successfully", "green");
   process.exit(0);
 }
 
-// Step 5: All strategies failed
+// Step 4: All strategies failed
 log("⚠️  All migration strategies failed - continuing build", "yellow");
 log("Database may need manual intervention", "yellow");
 process.exit(0);
